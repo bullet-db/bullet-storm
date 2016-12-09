@@ -1,0 +1,89 @@
+# The name of the Storm DRPC function
+topology.function: "tracer"
+
+# The name of the Storm topology
+topology.name: "bullet-topology"
+
+# The number of topology workers to use. Applicable when the scheduler is not ras.
+topology.workers: 92
+
+# Enable Storm debug logging
+topology.debug: false
+
+# The scheduling strategy to use. only "ras" currently supported.
+topology.scheduler: "ras"
+
+# Enable metrics collection for the topology. This uses the LoggingMetricsConsumer
+# and collects a CPU metric using org.apache.storm.metrics.sigar.CPUMetric
+topology.metrics.enable: false
+
+# The following CPU loads and memory on and off heap control their respective component's CPU
+# and memory configuration. These settings are only used when scheduler is "ras"
+# The parallelism setting controls the number of executors used for each component.
+topology.drpc.spout.cpu.load: 20.0
+topology.drpc.spout.memory.on.heap.load: 256.0
+topology.drpc.spout.memory.off.heap.load: 160.0
+topology.drpc.spout.parallelism: 20
+topology.prepare.bolt.cpu.load: 20.0
+topology.prepare.bolt.memory.on.heap.load: 128.0
+topology.prepare.bolt.memory.off.heap.load: 160.0
+topology.prepare.bolt.parallelism: 5
+topology.return.bolt.cpu.load: 20.0
+topology.return.bolt.memory.on.heap.load: 128.0
+topology.return.bolt.memory.off.heap.load: 160.0
+topology.return.bolt.parallelism: 10
+topology.filter.bolt.cpu.load: 100.0
+topology.filter.bolt.memory.on.heap.load: 256.0
+topology.filter.bolt.memory.off.heap.load: 160.0
+topology.filter.bolt.parallelism: 35
+topology.join.bolt.cpu.load: 100.0
+topology.join.bolt.memory.on.heap.load: 512.0
+topology.join.bolt.memory.off.heap.load: 160.0
+topology.join.bolt.parallelism: 20
+
+# Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if rules
+# have expired) etc. This setting controls the how frequently a tick happens - number of seconds between ticks.
+topology.tick.interval.secs: 5
+
+# This is the number of ticks for which an error caused by receiving a bad rule will be buffered if the
+# return information has not been received, will be buffered before being thrown away
+topology.join.bolt.error.tick.timeout: 3
+
+# This is the number of ticks for which a rule will be buffered past its expiry in order to wait for
+# aggregations to trickle in from the filter bolts.
+topology.join.bolt.rule.tick.timeout: 3
+
+# The default duration in milliseconds for a rule if one has not been specified.
+rule.default.duration: 30000
+
+# The maximum duration in milliseconds allowed for a rule. Anything greater will be clamped to this value.
+rule.max.duration: 120000
+
+# The default number of records that can be aggregated for a rule if one has not been specified.
+rule.aggregation.default.size: 1
+
+# The maximum number of records that will be aggregated per rule. Anything greater will be clamped to this value.
+rule.aggregation.max.size: 30
+
+# Enable logging meta information in the results. Configured metadata will be add to the meta section of the
+# results: {"meta": {}, "records": []}
+result.metadata.enable: true
+# Each entry in this list indicates which metadata to collect (the name) and what key to add it as (the key) to the meta
+# AbstractRule Identifier adds the original DRPC ID that was generated for the rule.
+# AbstractRule Body adds the received rule definition. This is useful for diagnosing syntax exceptions when errors are received.
+# Creation Time adds the timestamp in milliseconds when the AbstractRule was received by the Join Bolt
+# Termination Time adds the timestamp in milliseconds when the Records were emitted by the Join Bolt
+result.metadata.metrics:
+    - name: "Rule Identifier"
+      key: "rule_id"
+    - name: "Rule Body"
+      key: "rule_body"
+    - name: "Creation Time"
+      key: "rule_receive_time"
+    - name: "Termination Time"
+      key: "rule_finish_time"
+
+# Enables whether each record should have a new key added to it denoting when the Filter Bolt saw it
+record.inject.timestamp.enable: true
+# This is the key that is used to add the timestamp in milliseconds to the record, if record.inject.timestamp.enable is true
+record.inject.timestamp.key: "__receive_timestamp"

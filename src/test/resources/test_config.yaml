@@ -1,0 +1,4 @@
+# The name
+topology.name: "test"
+# The function
+topology.function: "foo"

@@ -1,0 +1,71 @@
+/*
+ *  Copyright 2016, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
+package com.yahoo.bullet.result;
+
+import com.yahoo.bullet.record.BulletRecord;
+import org.apache.commons.lang3.tuple.Pair;
+import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+
+import static com.yahoo.bullet.TestHelpers.assertJSONEquals;
+import static java.util.Collections.singletonMap;
+
+@SuppressWarnings("unchecked")
+public class ClipTest {
+    public static final String EMPTY_RESULT = "{\"meta\": {}, \"records\": []}";
+
+    public static String makeJSON(String results) {
+        return "{\"meta\": {}, \"records\": " + results + "}";
+    }
+
+    @Test
+    public void testEmptyRecord() {
+        assertJSONEquals(new Clip().asJSON(), EMPTY_RESULT);
+    }
+
+    @Test
+    public void testNullRecord() {
+        assertJSONEquals(new Clip().add((BulletRecord) null).asJSON(), EMPTY_RESULT);
+    }
+
+    @Test
+    public void testNullRecords() {
+        assertJSONEquals(new Clip().add((List<BulletRecord>) null).asJSON(), EMPTY_RESULT);
+    }
+
+    @Test
+    public void testNullValueInRecord() {
+        BulletRecord record = new RecordBox().addMap("map_field", Pair.of("bar", true), Pair.of("foo", null)).getRecord();
+        assertJSONEquals(Clip.of(record).asJSON(), makeJSON("[{'map_field':{'bar':true,'foo':null}}]"));
+    }
+
+
+    @Test
+    public void testRecordAddition() {
+        BulletRecord record = new RecordBox().add("field", "sample").addMap("map_field", Pair.of("foo", "bar"))
+                                             .addList("list_field", new HashMap<>(), singletonMap("foo", 1L))
+                                             .getRecord();
+        assertJSONEquals(Clip.of(record).asJSON(), makeJSON("[{'list_field':[{},{'foo':1}],'field':'sample','map_field':{'foo':'bar'}}]"));
+    }
+
+    @Test
+    public void testRecordsAddition() {
+        BulletRecord record = new RecordBox().add("field", "sample").addMap("map_field", Pair.of("foo", "bar"))
+                                             .addList("list_field", new HashMap<>(), singletonMap("foo", 1L))
+                                             .getRecord();
+
+        BulletRecord another = new RecordBox().add("field", "another").getRecord();
+
+        List<BulletRecord> list = new ArrayList<>();
+        list.add(another);
+        list.add(record);
+        assertJSONEquals(Clip.of(list).asJSON(),
+                         makeJSON("[{'field':'another'}, {'list_field':[{},{'foo':1}],'field':'sample','map_field':{'foo':'bar'}}]"));
+    }
+}
