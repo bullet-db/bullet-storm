@@ -50,7 +50,7 @@ public class TypedObject implements Comparable<TypedObject> {
      */
     public TypedObject typeCast(String value) {
         try {
-            return new TypedObject(this.type.cast(value));
+            return new TypedObject(this.type, this.type.cast(value));
         } catch (RuntimeException e) {
             return null;
         }
