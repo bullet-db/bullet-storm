@@ -1,4 +1,7 @@
 # Bullet
+
+[![Build Status](https://travis-ci.org/yahoo/bullet-storm.svg?branch=master)](https://travis-ci.org/yahoo/bullet-storm) [![Coverage Status](https://coveralls.io/repos/github/yahoo/bullet-storm/badge.svg?branch=master)](https://coveralls.io/github/yahoo/bullet-storm?branch=master) [![Download](https://api.bintray.com/packages/yahoo/maven/bullet-storm/images/download.svg) ](https://bintray.com/yahoo/maven/bullet-storm/_latestVersion)
+
 Bullet is a real-time query engine that lets you perform queries on streaming data **without a need for a persistence store**. This makes it
 extremely **light-weight, cheap and fast**.
 
