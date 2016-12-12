@@ -5,8 +5,8 @@
  */
 package com.yahoo.bullet.drpc;
 
-import org.apache.storm.tuple.Tuple;
-import org.apache.storm.tuple.TupleImpl;
+import backtype.storm.tuple.Tuple;
+import backtype.storm.tuple.TupleImpl;
 
 import java.util.Arrays;
 

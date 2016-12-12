@@ -5,9 +5,9 @@
  */
 package com.yahoo.bullet.drpc;
 
-import org.apache.storm.topology.OutputFieldsDeclarer;
-import org.apache.storm.tuple.Fields;
-import org.apache.storm.utils.Utils;
+import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.tuple.Fields;
+import backtype.storm.utils.Utils;
 
 import java.util.HashMap;
 import java.util.Map;

@@ -6,8 +6,8 @@
 package com.yahoo.bullet.drpc;
 
 import lombok.Getter;
-import org.apache.storm.task.IOutputCollector;
-import org.apache.storm.tuple.Tuple;
+import backtype.storm.task.IOutputCollector;
+import backtype.storm.tuple.Tuple;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -57,11 +57,6 @@ public class CustomCollector implements IOutputCollector {
     @Override
     public void fail(Tuple input) {
         failed.add(input);
-    }
-
-    @Override
-    public void resetTimeout(Tuple input) {
-        throw new UnsupportedOperationException("Reset Timeout not supported");
     }
 
     @Override

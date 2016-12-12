@@ -11,17 +11,14 @@ import com.yahoo.bullet.drpc.TopologyConstants;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.storm.Config;
-import org.apache.storm.StormSubmitter;
-import org.apache.storm.drpc.DRPCSpout;
-import org.apache.storm.drpc.PrepareRequest;
-import org.apache.storm.drpc.ReturnResults;
-import org.apache.storm.metric.LoggingMetricsConsumer;
-import org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy;
-import org.apache.storm.scheduler.resource.strategies.scheduling.IStrategy;
-import org.apache.storm.topology.IRichSpout;
-import org.apache.storm.topology.TopologyBuilder;
-import org.apache.storm.tuple.Fields;
+import backtype.storm.Config;
+import backtype.storm.StormSubmitter;
+import backtype.storm.drpc.DRPCSpout;
+import backtype.storm.drpc.PrepareRequest;
+import backtype.storm.drpc.ReturnResults;
+import backtype.storm.topology.IRichSpout;
+import backtype.storm.topology.TopologyBuilder;
+import backtype.storm.tuple.Fields;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -34,19 +31,12 @@ import static java.util.Collections.singletonMap;
 @Slf4j
 public class Topology {
     public static final int DEFAULT_PARALLELISM = 10;
-    public static final String RESOURCE_AWARE_SCHEDULING_STRATEGY = "ras";
-    public static final double DEFAULT_CPU_LOAD = 50.0;
-    public static final double DEFAULT_ON_HEAP_MEMORY_LOAD = 256.0;
-    public static final double DEFAULT_OFF_HEAP_MEMORY_LOAD = 160.0;
     public static final String SPOUT_ARG = "bullet-spout";
     public static final String PARALLELISM_ARG = "bullet-spout-parallelism";
-    public static final String CPU_LOAD_ARG = "bullet-spout-cpu-load";
-    public static final String ON_HEAP_MEMORY_LOAD_ARG = "bullet-spout-on-heap-memory-load";
-    public static final String OFF_HEAP_MEMORY_LOAD_ARG = "bullet-spout-off-heap-memory-load";
     public static final String ARGUMENT_ARG = "bullet-spout-arg";
     public static final String CONFIGURATION_ARG = "bullet-conf";
     public static final String HELP_ARG = "help";
-    public static final Map<String, String> METRICS = singletonMap("CPU", "org.apache.storm.metrics.sigar.CPUMetric");
+    public static final Map<String, String> METRICS = singletonMap("CPU", "backtype.storm.metrics.sigar.CPUMetric");
 
     public static final OptionParser PARSER = new OptionParser() {
         {
@@ -61,21 +51,6 @@ public class Topology {
                     .ofType(Integer.class)
                     .describedAs("The parallism hint for the Spout component")
                     .defaultsTo(DEFAULT_PARALLELISM);
-            accepts(CPU_LOAD_ARG, "The CPU load to use for your spout in the Storm RAS scheduler.")
-                    .withOptionalArg()
-                    .ofType(Double.class)
-                    .describedAs("The rough CPU load estimate for the Spout component in the Strom RAS scheduler.")
-                    .defaultsTo(DEFAULT_CPU_LOAD);
-            accepts(ON_HEAP_MEMORY_LOAD_ARG, "The on-heap memory to use for your spout in the Storm RAS scheduler.")
-                    .withOptionalArg()
-                    .ofType(Double.class)
-                    .describedAs("The rough on-heap memory estimate for the Spout component in the Storm RAS scheduler.")
-                    .defaultsTo(DEFAULT_ON_HEAP_MEMORY_LOAD);
-            accepts(OFF_HEAP_MEMORY_LOAD_ARG, "The off-heap memory to use for your spout in the Storm RAS scheduler.")
-                    .withOptionalArg()
-                    .ofType(Double.class)
-                    .describedAs("The rough off-heap memory estimate for the Spout component in the Storm RAS scheduler.")
-                    .defaultsTo(DEFAULT_OFF_HEAP_MEMORY_LOAD);
             accepts(CONFIGURATION_ARG, "An optional configuration YAML file for Bullet")
                     .withOptionalArg()
                     .describedAs("Configuration file used to override Bullet's default settings");
@@ -124,29 +99,14 @@ public class Topology {
         String function = (String) config.get(BulletConfig.TOPOLOGY_FUNCTION);
 
         Number drpcSpoutParallelism = (Number) config.get(BulletConfig.DRPC_SPOUT_PARALLELISM);
-        Number drpcSpoutCPULoad = (Number) config.get(BulletConfig.DRPC_SPOUT_CPU_LOAD);
-        Number drpcSpoutMemoryOnHeapLoad = (Number) config.get(BulletConfig.DRPC_SPOUT_MEMORY_ON_HEAP_LOAD);
-        Number drpcSpoutMemoryOffHeapLoad = (Number) config.get(BulletConfig.DRPC_SPOUT_MEMORY_OFF_HEAP_LOAD);
 
         Number prepareBoltParallelism = (Number) config.get(BulletConfig.PREPARE_BOLT_PARALLELISM);
-        Number prepareBoltCPULoad = (Number) config.get(BulletConfig.PREPARE_BOLT_CPU_LOAD);
-        Number prepareBoltMemoryOnHeapLoad = (Number) config.get(BulletConfig.PREPARE_BOLT_MEMORY_ON_HEAP_LOAD);
-        Number prepareBoltMemoryOffHeapLoad = (Number) config.get(BulletConfig.PREPARE_BOLT_MEMORY_OFF_HEAP_LOAD);
 
         Number filterBoltParallelism = (Number) config.get(BulletConfig.FILTER_BOLT_PARALLELISM);
-        Number filterBoltCPULoad = (Number) config.get(BulletConfig.FILTER_BOLT_CPU_LOAD);
-        Number filterBoltMemoryOnheapLoad = (Number) config.get(BulletConfig.FILTER_BOLT_MEMORY_ON_HEAP_LOAD);
-        Number filterBoltMemoryOffHeapLoad = (Number) config.get(BulletConfig.FILTER_BOLT_MEMORY_OFF_HEAP_LOAD);
 
         Number joinBoltParallelism = (Number) config.get(BulletConfig.JOIN_BOLT_PARALLELISM);
-        Number joinBoltCPULoad = (Number) config.get(BulletConfig.JOIN_BOLT_CPU_LOAD);
-        Number joinBoltMemoryOnHeapLoad = (Number) config.get(BulletConfig.JOIN_BOLT_MEMORY_ON_HEAP_LOAD);
-        Number joinBoltMemoryOffHeapLoad = (Number) config.get(BulletConfig.JOIN_BOLT_MEMORY_OFF_HEAP_LOAD);
 
         Number returnBoltParallelism = (Number) config.get(BulletConfig.RETURN_BOLT_PARALLELISM);
-        Number returnBoltCPULoad = (Number) config.get(BulletConfig.RETURN_BOLT_CPU_LOAD);
-        Number returnBoltMemoryOnHeapLoad = (Number) config.get(BulletConfig.RETURN_BOLT_MEMORY_ON_HEAP_LOAD);
-        Number returnBoltMemoryOffHeapLoad = (Number) config.get(BulletConfig.RETURN_BOLT_MEMORY_OFF_HEAP_LOAD);
 
         Long defaultDuration = (Long) config.get(BulletConfig.SPECIFICATION_DEFAULT_DURATION);
         Long maxDuration = (Long) config.get(BulletConfig.SPECIFICATION_MAX_DURATION);
@@ -154,33 +114,23 @@ public class Topology {
         Long maxSize = (Long) config.get(BulletConfig.AGGREGATION_MAX_SIZE);
         Integer tickInterval = ((Number) config.get(BulletConfig.TICK_INTERVAL_SECS)).intValue();
 
-        builder.setSpout(TopologyConstants.DRPC_COMPONENT, new DRPCSpout(function), drpcSpoutParallelism)
-               .setCPULoad(drpcSpoutCPULoad)
-               .setMemoryLoad(drpcSpoutMemoryOnHeapLoad, drpcSpoutMemoryOffHeapLoad);
+        builder.setSpout(TopologyConstants.DRPC_COMPONENT, new DRPCSpout(function), drpcSpoutParallelism);
 
         builder.setBolt(TopologyConstants.PREPARE_COMPONENT, new PrepareRequest(), prepareBoltParallelism)
-               .localOrShuffleGrouping(TopologyConstants.DRPC_COMPONENT)
-               .setCPULoad(prepareBoltCPULoad)
-               .setMemoryLoad(prepareBoltMemoryOnHeapLoad, prepareBoltMemoryOffHeapLoad);
+               .localOrShuffleGrouping(TopologyConstants.DRPC_COMPONENT);
 
         // Hook in the source of the BulletRecords
         builder.setBolt(TopologyConstants.FILTER_COMPONENT, new FilterBolt(recordComponent, tickInterval), filterBoltParallelism)
                .localOrShuffleGrouping(recordComponent)
-               .allGrouping(TopologyConstants.PREPARE_COMPONENT, TopologyConstants.ARGS_STREAM)
-               .setCPULoad(filterBoltCPULoad)
-               .setMemoryLoad(filterBoltMemoryOnheapLoad, filterBoltMemoryOffHeapLoad);
+               .allGrouping(TopologyConstants.PREPARE_COMPONENT, TopologyConstants.ARGS_STREAM);
 
         builder.setBolt(TopologyConstants.JOIN_COMPONENT, new JoinBolt(tickInterval), joinBoltParallelism)
                .fieldsGrouping(TopologyConstants.PREPARE_COMPONENT, TopologyConstants.ARGS_STREAM, new Fields(TopologyConstants.ID_FIELD))
                .fieldsGrouping(TopologyConstants.PREPARE_COMPONENT, TopologyConstants.RETURN_STREAM, new Fields(TopologyConstants.ID_FIELD))
-               .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.FILTER_STREAM, new Fields(TopologyConstants.ID_FIELD))
-               .setCPULoad(joinBoltCPULoad)
-               .setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
+               .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.FILTER_STREAM, new Fields(TopologyConstants.ID_FIELD));
 
         builder.setBolt(TopologyConstants.RETURN_COMPONENT, new ReturnResults(), returnBoltParallelism)
-               .localOrShuffleGrouping(TopologyConstants.JOIN_COMPONENT, TopologyConstants.JOIN_STREAM)
-               .setCPULoad(returnBoltCPULoad)
-               .setMemoryLoad(returnBoltMemoryOnHeapLoad, returnBoltMemoryOffHeapLoad);
+               .localOrShuffleGrouping(TopologyConstants.JOIN_COMPONENT, TopologyConstants.JOIN_STREAM);
 
 
         Config stormConfig = new Config();
@@ -189,11 +139,7 @@ public class Topology {
         Boolean debug = (Boolean) config.get(BulletConfig.TOPOLOGY_DEBUG);
         stormConfig.setDebug(debug);
 
-        // Scheduler
-        String scheduler = (String) config.get(BulletConfig.TOPOLOGY_SCHEDULER);
-        stormConfig.setTopologyStrategy(getScheduler(scheduler));
-
-        // Workers (only applicable for Multitenant Scheduler)
+        // Workers
         Number workers = (Number) config.get(BulletConfig.TOPOLOGY_WORKERS);
         stormConfig.setNumWorkers(workers.intValue());
 
@@ -202,13 +148,6 @@ public class Topology {
         stormConfig.put(BulletConfig.SPECIFICATION_MAX_DURATION, maxDuration);
         stormConfig.put(BulletConfig.AGGREGATION_DEFAULT_SIZE, defaultSize);
         stormConfig.put(BulletConfig.AGGREGATION_MAX_SIZE, maxSize);
-
-        // Metrics
-        Boolean enableMetrics = (Boolean) config.get(BulletConfig.TOPOLOGY_METRICS_ENABLE);
-        if (enableMetrics) {
-            stormConfig.registerMetricsConsumer(LoggingMetricsConsumer.class);
-            stormConfig.put(Config.TOPOLOGY_WORKER_METRICS, METRICS);
-        }
 
         // Inject timestamp into record. Only applies to raw records (not aggregations)
         Boolean shouldInjectTimestamp = (Boolean) config.get(BulletConfig.RECORD_INJECT_TIMESTAMP);
@@ -232,15 +171,6 @@ public class Topology {
 
         String name = (String) config.get(BulletConfig.TOPOLOGY_NAME);
         StormSubmitter.submitTopology(name, stormConfig, builder.createTopology());
-    }
-
-    private static Class<? extends IStrategy> getScheduler(String scheduler) {
-        switch (scheduler) {
-            case RESOURCE_AWARE_SCHEDULING_STRATEGY:
-                return DefaultResourceAwareStrategy.class;
-            default:
-                throw new RuntimeException("Only the ResourceAwareScheduler is supported at this time.");
-        }
     }
 
     private static void printHelp() throws IOException {
@@ -267,18 +197,13 @@ public class Topology {
         String spoutClass = (String) options.valueOf(SPOUT_ARG);
         List<String> arguments = (List<String>) options.valuesOf(ARGUMENT_ARG);
         Integer parallelism = (Integer) options.valueOf(PARALLELISM_ARG);
-        Double cpuLoad = (Double) options.valueOf(CPU_LOAD_ARG);
-        Double onHeapMemoryLoad = (Double) options.valueOf(ON_HEAP_MEMORY_LOAD_ARG);
-        Double offHeapMemoryLoad = (Double) options.valueOf(OFF_HEAP_MEMORY_LOAD_ARG);
         String configuration = (String) options.valueOf(CONFIGURATION_ARG);
 
         BulletConfig bulletConfig = new BulletConfig(configuration);
         TopologyBuilder builder = new TopologyBuilder();
-        builder.setSpout(TopologyConstants.RECORD_COMPONENT, getSpout(spoutClass, arguments), parallelism)
-               .setCPULoad(cpuLoad)
-               .setMemoryLoad(onHeapMemoryLoad, offHeapMemoryLoad);
-        log.info("Added spout " + spoutClass + " with parallelism " + parallelism + ", CPU load " + cpuLoad +
-                 ", On-heap memory " + onHeapMemoryLoad + ", Off-heap memory " + offHeapMemoryLoad);
+        builder.setSpout(TopologyConstants.RECORD_COMPONENT, getSpout(spoutClass, arguments), parallelism);
+
+        log.info("Added spout " + spoutClass + " with parallelism " + parallelism);
 
         submit(bulletConfig, TopologyConstants.RECORD_COMPONENT, builder);
     }

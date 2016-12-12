@@ -6,8 +6,8 @@
 package com.yahoo.bullet;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.storm.utils.DRPCClient;
-import org.apache.storm.utils.Utils;
+import backtype.storm.utils.DRPCClient;
+import backtype.storm.utils.Utils;
 
 import java.util.List;
 import java.util.Map;

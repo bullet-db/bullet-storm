@@ -5,11 +5,11 @@
  */
 package com.yahoo.bullet.drpc;
 
-import org.apache.storm.Constants;
-import org.apache.storm.drpc.DRPCSpout;
-import org.apache.storm.drpc.PrepareRequest;
-import org.apache.storm.drpc.ReturnResults;
-import org.apache.storm.utils.Utils;
+import backtype.storm.Constants;
+import backtype.storm.drpc.DRPCSpout;
+import backtype.storm.drpc.PrepareRequest;
+import backtype.storm.drpc.ReturnResults;
+import backtype.storm.utils.Utils;
 
 public class TopologyConstants {
     public static final String ID_FIELD = "request";

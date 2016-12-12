@@ -6,7 +6,7 @@
 package com.yahoo.bullet.drpc;
 
 import lombok.Getter;
-import org.apache.storm.tuple.Tuple;
+import backtype.storm.tuple.Tuple;
 
 import java.util.Optional;
 import java.util.stream.Stream;

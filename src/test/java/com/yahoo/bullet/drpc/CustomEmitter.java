@@ -6,8 +6,8 @@
 package com.yahoo.bullet.drpc;
 
 import lombok.Getter;
-import org.apache.storm.spout.ISpoutOutputCollector;
-import org.apache.storm.tuple.Tuple;
+import backtype.storm.spout.ISpoutOutputCollector;
+import backtype.storm.tuple.Tuple;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -99,11 +99,6 @@ public class CustomEmitter implements ISpoutOutputCollector {
     @Override
     public void emitDirect(int taskId, String streamId, List<Object> tuple, Object messageId) {
         throw new UnsupportedOperationException("Emit Direct not supported");
-    }
-
-    @Override
-    public long getPendingCount() {
-        throw new UnsupportedOperationException("Get Pending Count not supported");
     }
 
     @Override

@@ -5,11 +5,11 @@
  */
 package com.yahoo.bullet.drpc;
 
-import org.apache.storm.spout.SpoutOutputCollector;
-import org.apache.storm.task.OutputCollector;
-import org.apache.storm.task.TopologyContext;
-import org.apache.storm.topology.IRichBolt;
-import org.apache.storm.topology.IRichSpout;
+import backtype.storm.spout.SpoutOutputCollector;
+import backtype.storm.task.OutputCollector;
+import backtype.storm.task.TopologyContext;
+import backtype.storm.topology.IRichBolt;
+import backtype.storm.topology.IRichSpout;
 
 import java.util.HashMap;
 import java.util.Map;

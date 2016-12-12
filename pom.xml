@@ -36,8 +36,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
-        <storm.version>1.0.2</storm.version>
-        <storm.metrics.version>1.0.2</storm.metrics.version>
+        <storm.version>0.10.2</storm.version>
         <bullet.record.version>0.0.2</bullet.record.version>
     </properties>
 
@@ -71,11 +70,6 @@
             <artifactId>lombok</artifactId>
             <version>1.16.4</version>
             <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.storm</groupId>
-            <artifactId>storm-metrics</artifactId>
-            <version>${storm.metrics.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.storm</groupId>
@@ -153,66 +147,9 @@
             </plugin>
 
             <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>0.7.7.201606060606</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>post-unit-test</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                </executions>
-                <configuration>
-                    <excludes>
-                        <exclude>**/Client.*</exclude>
-                        <exclude>**/Topology.*</exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
-
-            <plugin>
                 <groupId>org.eluder.coveralls</groupId>
                 <artifactId>coveralls-maven-plugin</artifactId>
                 <version>4.0.0</version>
-            </plugin>
-
-            <plugin>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>2.4</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <plugin>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>2.9.1</version>
-                <configuration>
-                    <sourcepath>${project.basedir}/src/main/java</sourcepath>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
 
             <plugin>
@@ -220,10 +157,17 @@
                 <version>2.6</version>
                 <executions>
                     <execution>
+                        <id>default-jar</id>
+                        <phase>none</phase>
+                    </execution>
+                    <execution>
                         <phase>package</phase>
                         <goals>
-                            <goal>test-jar</goal>
+                            <goal>jar</goal>
                         </goals>
+                        <configuration>
+                            <classifier>storm-0.10</classifier>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

@@ -7,9 +7,9 @@ package com.yahoo.bullet.drpc;
 
 import com.yahoo.bullet.tracing.AbstractRule;
 import lombok.Getter;
-import org.apache.storm.Config;
-import org.apache.storm.topology.OutputFieldsDeclarer;
-import org.apache.storm.tuple.Tuple;
+import backtype.storm.Config;
+import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.tuple.Tuple;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
