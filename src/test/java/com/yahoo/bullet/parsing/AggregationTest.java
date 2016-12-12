@@ -124,7 +124,7 @@ public class AggregationTest {
     public void testFailValidateOnGroupWithFields() {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
-        aggregation.setFields(asList("foo", "bar"));
+        aggregation.setFields(singletonMap("foo", "bar"));
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
         Assert.assertEquals(errors.get(0).getError(), Aggregation.GROUP_FIELDS_NOT_SUPPORTED_ERROR.getError());

@@ -22,9 +22,9 @@ machine learning, corporate KPI, analytics, personalization, targeting etc.
 
 ## Storm DRPC
 
-This project is Bullet on Storm and is built using Storm DRPC. The query is sent through a DRPC request to a running topology that filters and
-joins all records emitted from your (configurable) data source - either a Spout or a topology component according to the query specification. The resulting
-matched records can be aggregated and sent back to the client.
+This project is Bullet on [Storm](https://storm.apache.org/) and is built using [Storm DRPC](http://storm.apache.org/releases/1.0.0/Distributed-RPC.html). The
+query is sent through a DRPC request to a running topology that filters and joins all records emitted from your (configurable) data source - either a Spout
+or a topology component according to the query specification. The resulting matched records can be aggregated and sent back to the client.
 
 ## Query
 
@@ -115,15 +115,15 @@ The format for a Relational filter is:
 
 ```javascript
 {
-   "operation": "== | != | <= | >= | < | > | RLIKE"
-   "field": "record_field_name | map_field.subfield",
-   "values": [
-       "string values",
-       "that go here",
-       "will be casted",
-       "to the",
-       "type of field"
-   ]
+    "operation": "== | != | <= | >= | < | > | RLIKE"
+    "field": "record_field_name | map_field.subfield",
+    "values": [
+        "string values",
+        "that go here",
+        "will be casted",
+        "to the",
+        "type of field"
+    ]
 }
 ```
 
@@ -133,6 +133,15 @@ The format for a Relational filter is:
 Projections allow you to pull out only the fields needed and rename them (renaming is being supported in order to give
 better names to fields pulled out from maps). If projections are not specified, the entire record is returned. If you are querying
 for raw records, use projections to help reduce the load on the system and network.
+
+```javascript
+{
+    "projection": {
+        "fieldA": "newNameA",
+        "fieldB": "newNameB"
+    }
+}
+```
 
 ### Aggregations
 
@@ -154,11 +163,12 @@ The current format for an aggregation is (**note see above for what is supported
 {
     "type": "GROUP | COUNT DISTINCT | TOP | PERCENTILE | RAW",
     "size": <a limit on the number of resulting records>,
-    "fields": [
-        "fields that go here",
-        "are what the",
-        "aggregation type applies to"
-    ],
+    "fields": {
+        "fields": "newNameA",
+        "that go here": "newNameB",
+        "are what the": "newNameC",
+        "aggregation type applies to": "newNameD"
+    },
     "attributes": {
         "these": "change",
         "per": [
@@ -282,14 +292,14 @@ A more useful example query could be:
 ```javascript
 {
    "filters":[
-      {
-         "field":"id",
-         "operation":"==",
-         "values":[
-            "btsg8l9b234ha"
-         ]
-      }
-   ]
+       {
+           "field":"id",
+           "operation":"==",
+           "values":[
+               "btsg8l9b234ha"
+           ]
+       }
+    ]
 }
 ```
 
@@ -300,32 +310,32 @@ A sample response could be (it has been edited to remove PII and other Yahoo dat
 ```javascript
 {
    "records":[
-      {
-         "server_name":"EDITED",
-         "page_uri":"/",
-         "is_page_view":true,
-         "device":"tablet",
-         "debug_codes":{
-            "http_status_code":"200"
-         },
-         "referrer_domain":"www.yahoo.com",
-         "is_logged_in":true,
-         "timestamp":1446842189000,
-         "event_family":"view",
-         "id":"btsg8l9b234ha",
-         "os_name":"mac os",
-         "demographics":{
-            "age" : "25",
-            "gender" : "m",
-          }
-      }
-   ],
-   "meta":{
-      "rule_id":1167304238598842449,
-      "rule_body":"{}",
-      "rule_finish_time":1480723799550,
-      "rule_receive_time":1480723799540
-   }
+       {
+           "server_name":"EDITED",
+           "page_uri":"/",
+           "is_page_view":true,
+           "device":"tablet",
+           "debug_codes":{
+               "http_status_code":"200"
+           },
+           "referrer_domain":"www.yahoo.com",
+           "is_logged_in":true,
+           "timestamp":1446842189000,
+           "event_family":"view",
+           "id":"btsg8l9b234ha",
+           "os_name":"mac os",
+           "demographics":{
+               "age" : "25",
+               "gender" : "m",
+            }
+       }
+    ],
+    "meta":{
+        "rule_id":1167304238598842449,
+        "rule_body":"{}",
+        "rule_finish_time":1480723799550,
+        "rule_receive_time":1480723799540
+    }
 }
 ```
 
@@ -333,36 +343,36 @@ A more complex example query specification could be:
 
 ```javascript
 {
-   "filters":[
-      {
-         "field":"id",
-         "operation":"==",
-         "values":[
-            "btsg8l9b234ha"
-         ]
-      },
-      {
-         "field":"page_id",
-         "operation":"!=",
-         "values":[
-            "null"
-         ]
-      }
-   ],
-   "projection":{
-      "fields":{
-         "timestamp":"ts",
-         "device_timestamp":"device_ts",
-         "event":"event",
-         "page_domain":"domain",
-         "id":"id"
-      }
-   },
-   "aggregation":{
-      "type":"RAW",
-      "size":10
-   },
-   "duration":20000
+    "filters":[
+        {
+            "field":"id",
+            "operation":"==",
+            "values":[
+                "btsg8l9b234ha"
+            ]
+        },
+        {
+            "field":"page_id",
+            "operation":"!=",
+            "values":[
+                "null"
+            ]
+        }
+    ],
+    "projection":{
+        "fields":{
+            "timestamp":"ts",
+            "device_timestamp":"device_ts",
+            "event":"event",
+            "page_domain":"domain",
+            "id":"id"
+        }
+    },
+    "aggregation":{
+        "type":"RAW",
+        "size":10
+    },
+    "duration":20000
 }
 ```
 

@@ -38,7 +38,7 @@ public class Aggregation implements Configurable, Validatable {
     @Expose
     private Map<String, Object> attributes;
     @Expose
-    private List<String> fields;
+    private Map<String, String> fields;
 
     @Setter(AccessLevel.NONE)
     private Set<GroupOperation> groupOperations;

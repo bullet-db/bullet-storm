@@ -14,7 +14,6 @@ import com.yahoo.bullet.parsing.Aggregation;
 import lombok.Getter;
 
 import java.util.Collection;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -90,7 +89,7 @@ public class AggregationOperations {
      *
      * @return a boolean denoting whether this is a Group by all columns aggregation.
      */
-    public static boolean isGroupAll(AggregationType type, List<String> fields, Set<GroupOperation> operations) {
+    public static boolean isGroupAll(AggregationType type, Map<String, String> fields, Set<GroupOperation> operations) {
         return type == AggregationType.GROUP && isEmpty(fields) && !isEmpty(operations);
     }
 
@@ -107,7 +106,7 @@ public class AggregationOperations {
         if (type == AggregationType.RAW) {
             strategy = new Raw(aggregation);
         }
-        List<String> fields = aggregation.getFields();
+        Map<String, String> fields = aggregation.getFields();
         Set<GroupOperation> operations = aggregation.getGroupOperations();
         if (isGroupAll(type, fields, operations)) {
             strategy = new GroupAll(aggregation);
