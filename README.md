@@ -603,7 +603,7 @@ You need a JVM based project that implements one of the two options above. You i
 are available through JCenter Bintray, so you will need to add the repository.
 
 ```xml
-     <repositories>
+    <repositories>
         <repository>
             <snapshots>
                 <enabled>false</enabled>
