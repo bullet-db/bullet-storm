@@ -26,9 +26,9 @@
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-            <id>bintray-yahoo-maven</id>
+            <id>central</id>
             <name>bintray</name>
-            <url>http://dl.bintray.com/yahoo/maven</url>
+            <url>http://jcenter.bintray.com</url>
         </repository>
     </repositories>
 
