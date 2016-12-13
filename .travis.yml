@@ -4,7 +4,6 @@ jdk:
 script:
 - mvn verify
 after_success:
-- mvn coveralls:report
 - test "${TRAVIS_PULL_REQUEST}" == "false" && test "${TRAVIS_TAG}" != "" && mvn deploy --settings travis/settings.xml
 cache:
   directories:
@@ -14,7 +13,6 @@ branches:
   - master
   - "/^bullet-storm-[0-9]+\\.[0-9]+\\.[0-9]+/"
   - "/^bullet-storm-0.10-[0-9]+\\.[0-9]+\\.[0-9]+/"
-
 env:
   global:
   - secure: XuKXdREOxDhccZqUJqNZYJUMVJHs2pI5QPZJGMnc+3YHYa1ghw0mLQtUxgaZ8NEx4415FtyQ2/u7GeXzbpR3+ZmxVEftHM3JnqTjiurHPb91vcF3ket0n7H1RygGbD/tg+tCgCdjXEblJqqlFjp7M8gWzvSQAYBDjhDf3kYIV5rHNiooRbPGt+8tmnS3XykQziHDIktriKZz4eSm8wJPRzL8jAsB9niYKJp5B9c1cCh3FRcXsM0mZRPzy1otXBmWkFqDKOZ1GxovYxa7qqC2DDNoZ87O2cX9qo7YXlBXU8yh0NCHAatrICGuCIVcJz2YHs1MAxI7tX5XYhRw2Fx+kFMVQpia1WBxJAESp3Ei+JahPLK0OPgKPYkiVrLvTguB7bnfJ362nUz2zs7kgn8PmHOczpXkysUV+UxanvqkHjGrRxQMFexnkRs1JqNByuicT9JwMKnmmsnnGOzhCPBqLWw1cOFYGa1+vyh/4axaK8h/Trgupl8agwcrnFUoH2itS8cE7/N0vJpj2/fHRP2/C/gYsaCADBGVGP4RmVSBbjsrSoNFfPen1oHTWZk2J8PYth0VxdGHbAcHWLOX+9YgAbTo+gI460cyEFXRgqlpd8zWuGd8Hb0iFCyNK7s3gDhxznOpGzER7g0xZs51/wG7jNXtb1XQC9oC6LUZm04OUbk=
