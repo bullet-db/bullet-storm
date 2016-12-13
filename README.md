@@ -646,6 +646,19 @@ Storm topologies are generally launched with "fat" jars (jar-with-dependencies),
 </plugin>
 ```
 
+### Storm 1.0 and below
+
+Since package prefixes changed from `backtype.storm` to `org.apache.storm` in Storm 1.0 and above, you will need to get the storm-0.10 version of Bullet if
+your Storm cluster is still not at 1.0 or higher. You simply use the storm-0.10 classifer when adding the dependency.
+
+Also, since storm-metrics and the Resource Aware Scheduler are not in Storm versions less than 1.0, there are changes in the Bullet settings. The settings
+that set the CPU and memory loads do not exist (so remove them from the config file). The setting to enable topology metrics and the topology scheduler are
+no longer present (you can still override these settings if you run a custom version of Storm by passing it to the storm jar command. [See below](#launch).)
+You can take a look the settings file on the storm-0.10 branch in the Git repo.
+
+If for some reason, you are running a version of Storm less than 1.0 that has the RAS backported to it and you wish to set the CPU and other settings, you will
+your own main class that mirrors the master branch of the main class but with backtype.storm packages instead.
+
 ## Launch
 
 If you have implemented your own main class (option 2 above), you just pass your main class to the storm executable as usual. If you are implementing a spout, here's an example of how you could launch the topology:
