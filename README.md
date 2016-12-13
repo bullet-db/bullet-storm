@@ -599,7 +599,21 @@ To use Bullet, you need to implement a way to read from your data source and con
 
 Option 2 *directly* couples your topology to Bullet and as such, you would need to watch out for things like backpressure etc.
 
-You need a JVM based project that implements one of the two options above. You include the Bullet artifact and Storm dependencies in your pom.xml or other dependency management system.
+You need a JVM based project that implements one of the two options above. You include the Bullet artifact and Storm dependencies in your pom.xml or other dependency management system. The artifacts
+are available through Bintray, so you will need to add the repository.
+
+```xml
+    <repositories>
+        <repository>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <id>bintray-yahoo-maven</id>
+            <name>bintray</name>
+            <url>http://dl.bintray.com/yahoo/maven</url>
+        </repository>
+    </repositories>
+```
 
 ```xml
     <dependency>
@@ -645,6 +659,27 @@ Storm topologies are generally launched with "fat" jars (jar-with-dependencies),
     </configuration>
 </plugin>
 ```
+
+### Storm 1.0 and below
+
+Since package prefixes changed from `backtype.storm` to `org.apache.storm` in Storm 1.0 and above, you will need to get the storm-0.10 version of Bullet if
+your Storm cluster is still not at 1.0 or higher. You change your dependency to:
+
+```xml
+    <dependency>
+      <groupId>com.yahoo.bullet</groupId>
+      <artifactId>bullet-storm-0.10</artifactId>
+      <version>${bullet.version}</version>
+    </dependency>
+```
+
+Also, since storm-metrics and the Resource Aware Scheduler are not in Storm versions less than 1.0, there are changes in the Bullet settings. The settings
+that set the CPU and memory loads do not exist (so remove them from the config file). The setting to enable topology metrics and the topology scheduler are
+no longer present (you can still override these settings if you run a custom version of Storm by passing it to the storm jar command. [See below](#launch).)
+You can take a look the settings file on the storm-0.10 branch in the Git repo.
+
+If for some reason, you are running a version of Storm less than 1.0 that has the RAS backported to it and you wish to set the CPU and other settings, you will
+your own main class that mirrors the master branch of the main class but with backtype.storm packages instead.
 
 ## Launch
 
