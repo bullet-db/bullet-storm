@@ -6,7 +6,7 @@
     <artifactId>bullet-storm</artifactId>
     <version>0.0.1</version>
     <packaging>jar</packaging>
-    <name>bullet-storm</name>
+    <name>bullet-storm-0.10</name>
 
 
     <scm>
