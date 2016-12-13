@@ -10,35 +10,12 @@ topology.workers: 92
 # Enable Storm debug logging
 topology.debug: false
 
-# The scheduling strategy to use. only "ras" currently supported.
-topology.scheduler: "ras"
-
-# Enable metrics collection for the topology. This uses the LoggingMetricsConsumer
-# and collects a CPU metric using org.apache.storm.metrics.sigar.CPUMetric
-topology.metrics.enable: false
-
-# The following CPU loads and memory on and off heap control their respective component's CPU
-# and memory configuration. These settings are only used when scheduler is "ras"
 # The parallelism setting controls the number of executors used for each component.
-topology.drpc.spout.cpu.load: 20.0
-topology.drpc.spout.memory.on.heap.load: 256.0
-topology.drpc.spout.memory.off.heap.load: 160.0
 topology.drpc.spout.parallelism: 20
-topology.prepare.bolt.cpu.load: 20.0
-topology.prepare.bolt.memory.on.heap.load: 128.0
-topology.prepare.bolt.memory.off.heap.load: 160.0
 topology.prepare.bolt.parallelism: 5
-topology.return.bolt.cpu.load: 20.0
-topology.return.bolt.memory.on.heap.load: 128.0
-topology.return.bolt.memory.off.heap.load: 160.0
 topology.return.bolt.parallelism: 10
 topology.filter.bolt.cpu.load: 100.0
-topology.filter.bolt.memory.on.heap.load: 256.0
-topology.filter.bolt.memory.off.heap.load: 160.0
 topology.filter.bolt.parallelism: 35
-topology.join.bolt.cpu.load: 100.0
-topology.join.bolt.memory.on.heap.load: 512.0
-topology.join.bolt.memory.off.heap.load: 160.0
 topology.join.bolt.parallelism: 20
 
 # Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if rules

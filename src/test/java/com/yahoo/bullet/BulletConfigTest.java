@@ -30,7 +30,6 @@ public class BulletConfigTest {
         BulletConfig config = new BulletConfig("src/test/resources/test_config.yaml");
         Assert.assertEquals(config.get(BulletConfig.TOPOLOGY_NAME), "test");
         Assert.assertEquals(config.get(BulletConfig.TOPOLOGY_WORKERS), 92L);
-        Assert.assertEquals(config.get(BulletConfig.DRPC_SPOUT_CPU_LOAD), 20.0);
         Assert.assertEquals(config.get(BulletConfig.TOPOLOGY_FUNCTION), "foo");
     }
 
