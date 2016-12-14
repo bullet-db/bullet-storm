@@ -600,7 +600,7 @@ To use Bullet, you need to implement a way to read from your data source and con
 Option 2 *directly* couples your topology to Bullet and as such, you would need to watch out for things like backpressure etc.
 
 You need a JVM based project that implements one of the two options above. You include the Bullet artifact and Storm dependencies in your pom.xml or other dependency management system. The artifacts
-are available through JCenter Bintray, so you will need to add the repository.
+are available through Bintray, so you will need to add the repository.
 
 ```xml
     <repositories>
@@ -608,9 +608,9 @@ are available through JCenter Bintray, so you will need to add the repository.
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-            <id>central</id>
+            <id>bintray-yahoo-maven</id>
             <name>bintray</name>
-            <url>http://jcenter.bintray.com</url>
+            <url>http://dl.bintray.com/yahoo/maven</url>
         </repository>
     </repositories>
 ```
