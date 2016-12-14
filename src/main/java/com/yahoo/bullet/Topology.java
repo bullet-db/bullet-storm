@@ -117,11 +117,11 @@ public class Topology {
         builder.setSpout(TopologyConstants.DRPC_COMPONENT, new DRPCSpout(function), drpcSpoutParallelism);
 
         builder.setBolt(TopologyConstants.PREPARE_COMPONENT, new PrepareRequest(), prepareBoltParallelism)
-               .localOrShuffleGrouping(TopologyConstants.DRPC_COMPONENT);
+               .shuffleGrouping(TopologyConstants.DRPC_COMPONENT);
 
         // Hook in the source of the BulletRecords
         builder.setBolt(TopologyConstants.FILTER_COMPONENT, new FilterBolt(recordComponent, tickInterval), filterBoltParallelism)
-               .localOrShuffleGrouping(recordComponent)
+               .shuffleGrouping(recordComponent)
                .allGrouping(TopologyConstants.PREPARE_COMPONENT, TopologyConstants.ARGS_STREAM);
 
         builder.setBolt(TopologyConstants.JOIN_COMPONENT, new JoinBolt(tickInterval), joinBoltParallelism)
@@ -130,7 +130,7 @@ public class Topology {
                .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.FILTER_STREAM, new Fields(TopologyConstants.ID_FIELD));
 
         builder.setBolt(TopologyConstants.RETURN_COMPONENT, new ReturnResults(), returnBoltParallelism)
-               .localOrShuffleGrouping(TopologyConstants.JOIN_COMPONENT, TopologyConstants.JOIN_STREAM);
+               .shuffleGrouping(TopologyConstants.JOIN_COMPONENT, TopologyConstants.JOIN_STREAM);
 
 
         Config stormConfig = new Config();
