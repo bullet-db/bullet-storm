@@ -173,7 +173,7 @@
                 <configuration>
                     <excludes>
                         <exclude>**/Client.*</exclude>
-                        <exclude>**/Topology.*</exclude>
+                        <exclude>**/Topology*</exclude>
                     </excludes>
                 </configuration>
             </plugin>
