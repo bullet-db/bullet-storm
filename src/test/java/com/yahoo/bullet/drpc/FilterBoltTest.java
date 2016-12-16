@@ -6,7 +6,6 @@
 package com.yahoo.bullet.drpc;
 
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
-import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import com.yahoo.bullet.operations.FilterOperations;
 import com.yahoo.bullet.operations.aggregations.GroupData;
 import com.yahoo.bullet.operations.aggregations.GroupOperation;
@@ -21,13 +20,13 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.drpc.TupleUtils.makeIDTuple;
 import static com.yahoo.bullet.drpc.TupleUtils.makeTuple;
+import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.AND;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.GREATER_THAN;
@@ -181,10 +180,10 @@ public class FilterBoltTest {
     @Test
     public void testProjectionAndFiltering() {
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                makeProjectionFilterRule("map_field.id", Collections.singletonList("123"),
-                        EQUALS,
-                        Pair.of("field", "id"),
-                        Pair.of("map_field.id", "mid")));
+                                 makeProjectionFilterRule("map_field.id", singletonList("123"),
+                                                          EQUALS,
+                                                          Pair.of("field", "id"),
+                                                          Pair.of("map_field.id", "mid")));
         bolt.execute(rule);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -202,10 +201,10 @@ public class FilterBoltTest {
     @Test
     public void testFilteringUsingProjectedName() {
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                makeProjectionFilterRule("mid", Collections.singletonList("123"),
-                        EQUALS,
-                        Pair.of("field", "id"),
-                        Pair.of("map_field.id", "mid")));
+                                 makeProjectionFilterRule("mid", singletonList("123"),
+                                                          EQUALS,
+                                                          Pair.of("field", "id"),
+                                                          Pair.of("map_field.id", "mid")));
         bolt.execute(rule);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -223,10 +222,10 @@ public class FilterBoltTest {
     @Test
     public void testProjectionNotLosingFilterColumn() {
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                makeProjectionFilterRule("timestamp", Collections.singletonList("92"),
-                        EQUALS,
-                        Pair.of("field", "id"),
-                        Pair.of("map_field.id", "mid")));
+                                 makeProjectionFilterRule("timestamp", singletonList("92"),
+                                                          EQUALS,
+                                                          Pair.of("field", "id"),
+                                                          Pair.of("map_field.id", "mid")));
         bolt.execute(rule);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -244,8 +243,8 @@ public class FilterBoltTest {
     @Test
     public void testMultiFiltering() {
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                makeSimpleAggregationFilterRule("field", Collections.singletonList("b235gf23b"),
-                        EQUALS, AggregationType.RAW, 5));
+                                 makeSimpleAggregationFilterRule("field", singletonList("b235gf23b"),
+                                                                 EQUALS, AggregationType.RAW, 5));
         bolt.execute(rule);
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
         Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
@@ -263,8 +262,8 @@ public class FilterBoltTest {
     public void testDifferentRuleMatchingSameTuple() {
         Tuple ruleA = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, makeFieldFilterRule("b235gf23b"));
         Tuple ruleB = makeIDTuple(TupleType.Type.RULE_TUPLE, 43L,
-                makeFilterRule("timestamp", Arrays.asList("1", "2", "3", "45"),
-                        EQUALS));
+                                  makeFilterRule("timestamp", Arrays.asList("1", "2", "3", "45"),
+                                                 EQUALS));
         bolt.execute(ruleA);
         bolt.execute(ruleB);
 
@@ -284,8 +283,8 @@ public class FilterBoltTest {
     public void testDifferentRuleMatchingDifferentTuple() {
         Tuple ruleA = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, makeFieldFilterRule("b235gf23b"));
         Tuple ruleB = makeIDTuple(TupleType.Type.RULE_TUPLE, 43L,
-                makeFilterRule("timestamp", Arrays.asList("1", "2", "3", "45"),
-                        FilterOperations.FilterType.NOT_EQUALS));
+                                  makeFilterRule("timestamp", Arrays.asList("1", "2", "3", "45"),
+                                                 FilterOperations.FilterType.NOT_EQUALS));
         bolt.execute(ruleA);
         bolt.execute(ruleB);
 
@@ -388,16 +387,16 @@ public class FilterBoltTest {
     public void testComplexFilterRule() {
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
                                  makeFilterRule(OR,
-                                         clause(AND,
-                                                 clause("field", EQUALS, "abc"),
-                                                 clause(OR,
-                                                         clause(AND,
-                                                                 clause("experience", EQUALS, "app", "tv"),
-                                                                 clause("pid", EQUALS, "1", "2")),
-                                                         clause("mid", GREATER_THAN, "10"))),
-                                         clause(AND,
-                                                 clause("demographic_map.age", GREATER_THAN, "65"),
-                                                 clause("filter_map.is_fake_event", EQUALS, "true"))));
+                                                clause(AND,
+                                                       clause("field", EQUALS, "abc"),
+                                                       clause(OR,
+                                                              clause(AND,
+                                                                     clause("experience", EQUALS, "app", "tv"),
+                                                                     clause("pid", EQUALS, "1", "2")),
+                                                              clause("mid", GREATER_THAN, "10"))),
+                                                clause(AND,
+                                                       clause("demographic_map.age", GREATER_THAN, "65"),
+                                                       clause("filter_map.is_fake_event", EQUALS, "true"))));
         bolt.execute(rule);
 
         // first clause is true : field == "abc", experience == "app" or "tv", mid < 10
@@ -457,9 +456,9 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new ExpiringFilterBolt(), collector);
 
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                makeGroupFilterRule("timestamp", Arrays.asList("1", "2"), EQUALS,
-                        AggregationType.GROUP, 1, emptyList(),
-                        singletonList(new GroupOperation(GroupOperationType.COUNT, null, "cnt"))));
+                                 makeGroupFilterRule("timestamp", Arrays.asList("1", "2"), EQUALS,
+                                                     AggregationType.GROUP, 1, emptyList(),
+                                                     singletonList(new GroupOperation(COUNT, null, "cnt"))));
         bolt.execute(rule);
 
         BulletRecord record = RecordBox.get().add("timestamp", "1").getRecord();

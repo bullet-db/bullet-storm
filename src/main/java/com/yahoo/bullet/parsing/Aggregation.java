@@ -52,17 +52,27 @@ public class Aggregation implements Configurable, Validatable {
     // We only support COUNT for now.
     public static final Set<AggregationType> SUPPORTED_AGGREGATION_TYPES = new HashSet<>(asList(AggregationType.GROUP,
                                                                                                 AggregationType.RAW));
-    public static final List<GroupOperationType> SUPPORTED_GROUP_OPERATIONS = singletonList(GroupOperationType.COUNT);
+    public static final Set<GroupOperationType> SUPPORTED_GROUP_OPERATIONS = new HashSet<>(asList(GroupOperationType.COUNT,
+                                                                                                  GroupOperationType.AVG,
+                                                                                                  GroupOperationType.MAX,
+                                                                                                  GroupOperationType.MIN,
+                                                                                                  GroupOperationType.SUM));
 
     public static final String TYPE_NOT_SUPPORTED_ERROR_PREFIX = "Aggregation type not supported";
     public static final String TYPE_NOT_SUPPORTED_RESOLUTION = "Current supported aggregation types are: RAW, GROUP";
+
+    public static final String SUPPORTED_GROUP_OPERATIONS_RESOLUTION =
+            "Currently supported operations are: COUNT, AVG, MIN, MAX, SUM";
+
+    public static final String GROUP_OPERATION_REQUIRES_FIELD = "Group operation requires a field: ";
+    public static final String GROUP_OPERATION_REQUIRES_FIELD_RESOLUTION = "Please add field for this operation.";
 
     // Temporary
     public static final Error GROUP_FIELDS_NOT_SUPPORTED_ERROR = makeError("Group type aggregation cannot have fields",
                                                                            "Do not specify fields when type is GROUP");
     // Temporary
     public static final Error GROUP_ALL_OPERATION_ERROR = makeError("Group all needs to specify an operation to do",
-                                                                    "Currently supported operations are: COUNT");
+                                                                    SUPPORTED_GROUP_OPERATIONS_RESOLUTION);
 
     public static final Integer DEFAULT_SIZE = 1;
     public static final Integer DEFAULT_MAX_SIZE = 30;
@@ -114,6 +124,14 @@ public class Aggregation implements Configurable, Validatable {
             String typeSuffix = type == null ? "" : ": " + type;
             return Optional.of(singletonList(makeError(TYPE_NOT_SUPPORTED_ERROR_PREFIX + typeSuffix,
                                                        TYPE_NOT_SUPPORTED_RESOLUTION)));
+        }
+        if (groupOperations != null) {
+            for (GroupOperation operation : groupOperations) {
+                if (operation.getField() == null && operation.getType() != GroupOperationType.COUNT) {
+                    return Optional.of(singletonList(makeError(GROUP_OPERATION_REQUIRES_FIELD + operation.getType(),
+                                                               GROUP_OPERATION_REQUIRES_FIELD_RESOLUTION)));
+                }
+            }
         }
         return Optional.empty();
     }

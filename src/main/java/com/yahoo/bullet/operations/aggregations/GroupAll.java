@@ -30,12 +30,12 @@ public class GroupAll implements Strategy {
 
     @Override
     public void consume(BulletRecord data) {
-        this.data.compute(data);
+        this.data.consume(data);
     }
 
     @Override
     public void combine(byte[] serializedAggregation) {
-        data.merge(serializedAggregation);
+        data.combine(serializedAggregation);
     }
 
     @Override

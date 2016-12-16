@@ -18,8 +18,9 @@ import java.util.Set;
 
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.PERCENTILE;
-import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.AVG;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
+import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
+import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
 import static com.yahoo.bullet.parsing.AggregationUtils.makeAttributes;
 import static com.yahoo.bullet.parsing.AggregationUtils.makeGroupOperation;
 import static java.util.Arrays.asList;
@@ -141,6 +142,29 @@ public class AggregationTest {
     }
 
     @Test
+    public void testValidateNoField() {
+        Aggregation aggregation = new Aggregation();
+        aggregation.setType(GROUP);
+        aggregation.setAttributes(makeAttributes(makeGroupOperation(SUM, null, null)));
+        aggregation.configure(new HashMap<>());
+
+        List<Error> errors = aggregation.validate().get();
+        Assert.assertEquals(errors.size(), 1);
+        Assert.assertEquals(errors.get(0).getError(), Aggregation.GROUP_OPERATION_REQUIRES_FIELD + SUM);
+    }
+
+    @Test
+    public void testUnsupportedOperation() {
+        Aggregation aggregation = new Aggregation();
+        aggregation.setType(GROUP);
+        aggregation.setAttributes(makeAttributes(makeGroupOperation(COUNT_FIELD, "someField", "myCountField")));
+        aggregation.configure(new HashMap<>());
+
+        Set<GroupOperation> operations = aggregation.getGroupOperations();
+        Assert.assertEquals(operations.size(), 0);
+    }
+
+    @Test
     public void testAttributeOperationMissing() {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
@@ -168,7 +192,7 @@ public class AggregationTest {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
         aggregation.setAttributes(makeAttributes(makeGroupOperation(COUNT, null, "bar"),
-                                                 makeGroupOperation(AVG, "foo", "foo_avg")));
+                                                 makeGroupOperation(COUNT_FIELD, "foo", "foo_avg")));
 
         Assert.assertNull(aggregation.getGroupOperations());
         aggregation.configure(emptyMap());

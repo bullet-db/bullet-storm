@@ -16,11 +16,14 @@ import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.stream.IntStream;
+
+import static java.util.Arrays.asList;
 
 public class GroupDataTest {
     private class NotSerializable {
@@ -57,7 +60,7 @@ public class GroupDataTest {
     }
 
     public static GroupData make(GroupOperation... operations) {
-        return new GroupData(new HashSet<>(Arrays.asList(operations)));
+        return new GroupData(new HashSet<>(asList(operations)));
     }
 
     @Test
@@ -70,7 +73,7 @@ public class GroupDataTest {
     public void testManualSerialization() {
         GroupData data = make(new GroupOperation(GroupOperationType.COUNT, null, "foo"));
         BulletRecord sample = RecordBox.get().getRecord();
-        IntStream.range(0, 5).forEach(i -> data.compute(sample));
+        IntStream.range(0, 5).forEach(i -> data.consume(sample));
 
         byte[] serialized = GroupData.toBytes(data);
         Assert.assertNotNull(serialized);
@@ -89,7 +92,7 @@ public class GroupDataTest {
     public void testManualDeserialization() {
         GroupData data = make(new GroupOperation(GroupOperationType.COUNT, null, "foo"));
         BulletRecord sample = RecordBox.get().getRecord();
-        IntStream.range(0, 5).forEach(i -> data.compute(sample));
+        IntStream.range(0, 5).forEach(i -> data.consume(sample));
 
         byte[] serialized = unmake(data);
         GroupData remade = GroupData.fromBytes(serialized);
@@ -118,7 +121,7 @@ public class GroupDataTest {
     @Test
     public void testNullRecordCount() {
         GroupData data = make(new GroupOperation(GroupOperationType.COUNT, null, "count"));
-        data.compute(RecordBox.get().add("foo", "bar").getRecord());
+        data.consume(RecordBox.get().add("foo", "bar").getRecord());
 
         // We do not expect to send in null records so the count is incremented.
         BulletRecord expected = RecordBox.get().add("count", 1L).getRecord();
@@ -141,7 +144,7 @@ public class GroupDataTest {
 
         Assert.assertEquals(data.getAsBulletRecord(), expected);
 
-        data.compute(RecordBox.get().getRecord());
+        data.consume(RecordBox.get().getRecord());
         expected = RecordBox.get().add("foo", 1L).getRecord();
         Assert.assertEquals(data.getAsBulletRecord(), expected);
     }
@@ -151,7 +154,7 @@ public class GroupDataTest {
         GroupData data = make(new GroupOperation(GroupOperationType.COUNT, null, "count"));
         BulletRecord someRecord = RecordBox.get().add("foo", 1).getRecord();
 
-        IntStream.range(0, 10).forEach(i -> data.compute(someRecord));
+        IntStream.range(0, 10).forEach(i -> data.consume(someRecord));
 
         BulletRecord expected = RecordBox.get().add("count", 10L).getRecord();
         Assert.assertEquals(data.getAsBulletRecord(), expected);
@@ -162,7 +165,7 @@ public class GroupDataTest {
         GroupData data = make(new GroupOperation(GroupOperationType.COUNT, null, null));
         BulletRecord someRecord = RecordBox.get().add("foo", 1).getRecord();
 
-        IntStream.range(0, 2 * Aggregation.DEFAULT_MAX_SIZE).forEach(i -> data.compute(someRecord));
+        IntStream.range(0, 2 * Aggregation.DEFAULT_MAX_SIZE).forEach(i -> data.consume(someRecord));
 
         BulletRecord expected = RecordBox.get().add(GroupOperationType.COUNT.getName(),
                                                     2L * Aggregation.DEFAULT_MAX_SIZE).getRecord();
@@ -170,31 +173,68 @@ public class GroupDataTest {
     }
 
     @Test
-    public void testMergingRawMetric() {
-        GroupData data = make(new GroupOperation(GroupOperationType.COUNT, null, "myCount"));
-        BulletRecord someRecord = RecordBox.get().add("foo", 1).getRecord();
-        IntStream.range(0, 21).forEach(i -> data.compute(someRecord));
+    public void testMergingMetric() {
+        GroupData data = make(new GroupOperation(GroupOperationType.COUNT, "shouldBeIgnored", "myCount"),
+                              new GroupOperation(GroupOperationType.MIN, "groupField", "myMin"),
+                              new GroupOperation(GroupOperationType.MAX, "groupField", "myMax"),
+                              new GroupOperation(GroupOperationType.SUM, "groupField", "mySum"),
+                              new GroupOperation(GroupOperationType.AVG, "groupField", "myAvg"));
+        asList(0.0, -8.8, 51.0).stream().map(x -> RecordBox.get().add("groupField", x).getRecord())
+                                        .forEach(data::consume);
 
-        GroupData another = make(new GroupOperation(GroupOperationType.COUNT, null, "count"));
-        IntStream.range(0, 21).forEach(i -> another.compute(someRecord));
+        GroupData another = make(new GroupOperation(GroupOperationType.COUNT, "alsoIgnored", "myCount"),
+                                 new GroupOperation(GroupOperationType.MIN, "groupField", "myMin"),
+                                 new GroupOperation(GroupOperationType.MAX, "groupField", "myMax"),
+                                 new GroupOperation(GroupOperationType.SUM, "groupField", "mySum"),
+                                 new GroupOperation(GroupOperationType.AVG, "groupField", "myAvg"));
+        asList(1.1, 4.4, -44.0, 12345.67, 3.3).stream().map(x -> RecordBox.get().add("groupField", x).getRecord())
+                                                       .forEach(data::consume);
         byte[] serialized = GroupData.toBytes(another);
 
-        data.merge(serialized);
+        data.combine(serialized);
 
-        // 21 + 21
-        BulletRecord expected = RecordBox.get().add("myCount", 42L).getRecord();
-        Assert.assertEquals(data.getAsBulletRecord(), expected);
+        BulletRecord expected = RecordBox.get().add("myCount", 8L).add("myMin", -44.0)
+                                               .add("myMax", 12345.67).add("mySum", 12352.67)
+                                               .add("myAvg", 1544.08375).getRecord();
+        Assert.assertTrue(expected.equals(data.getAsBulletRecord()));
     }
 
+    @Test
+    public void testGroupMultipleFields() {
+        GroupData data = make(new GroupOperation(GroupOperationType.COUNT, "shouldBeIgnored", "myCount"),
+                new GroupOperation(GroupOperationType.MIN, "minField", "myMin"),
+                new GroupOperation(GroupOperationType.MIN, "groupField", "minGroupField"),
+                new GroupOperation(GroupOperationType.MAX, "maxField", "myMax"),
+                new GroupOperation(GroupOperationType.MAX, "groupField", "maxGroupField"),
+                new GroupOperation(GroupOperationType.SUM, "groupField", "sumGroupField"));
+        List<Double> minColumnValues = asList(0.0, -8.8, 51.0);
+        List<Double> maxColumnValues = asList(4.4, 88.51, -8.44);
+        List<Double> groupColumnValues = asList(123.45, -884451.8851, 3.14);
+        List<BulletRecord> records = new ArrayList<>();
+        for (int i = 0; i < minColumnValues.size(); i++) {
+            RecordBox recordBox = RecordBox.get();
+            recordBox.add("minField", minColumnValues.get(i));
+            recordBox.add("maxField", maxColumnValues.get(i));
+            recordBox.add("groupField", groupColumnValues.get(i));
+            records.add(recordBox.getRecord());
+        }
+
+        records.stream().forEach(data::consume);
+
+        BulletRecord expected = RecordBox.get().add("myCount", 3L).add("myMin", -8.8)
+                .add("minGroupField", -884451.8851).add("myMax", 88.51).add("maxGroupField", 123.45)
+                .add("sumGroupField", -884325.2951).getRecord();
+        Assert.assertTrue(expected.equals(data.getAsBulletRecord()));
+    }
 
     @Test
     public void testMergingRawMetricFail() {
         GroupData data = make(new GroupOperation(GroupOperationType.COUNT, null, null));
         BulletRecord someRecord = RecordBox.get().add("foo", 1).getRecord();
-        IntStream.range(0, 10).forEach(i -> data.compute(someRecord));
+        IntStream.range(0, 10).forEach(i -> data.consume(someRecord));
 
         // Not a serialized GroupData
-        data.merge(String.valueOf(242).getBytes());
+        data.combine(String.valueOf(242).getBytes());
 
         // Unchanged count
         BulletRecord expected = RecordBox.get().add(GroupOperationType.COUNT.getName(), 10L).getRecord();
@@ -202,34 +242,17 @@ public class GroupDataTest {
     }
 
     @Test
-    public void testMergingTwoUnsupportedOperations() {
-        GroupData data = make(new GroupOperation(GroupOperationType.AVG, "foo", "bar"));
-        BulletRecord someRecord = RecordBox.get().add("foo", 1).getRecord();
-        IntStream.range(0, 10).forEach(i -> data.compute(someRecord));
-
-        GroupData another = make(new GroupOperation(GroupOperationType.AVG, "foo", "bar"));
-        IntStream.range(0, 21).forEach(i -> another.compute(someRecord));
-        byte[] serialized = GroupData.toBytes(another);
-
-        data.merge(serialized);
-
-        // Empty record
-        BulletRecord expected = RecordBox.get().getRecord();
-        Assert.assertEquals(data.getAsBulletRecord(), expected);
-    }
-
-    @Test
     public void testMergingSupportedAndUnSupportedOperation() {
         GroupData data = make(new GroupOperation(GroupOperationType.COUNT, null, null));
         BulletRecord someRecord = RecordBox.get().add("foo", 1).getRecord();
-        IntStream.range(0, 10).forEach(i -> data.compute(someRecord));
+        IntStream.range(0, 10).forEach(i -> data.consume(someRecord));
 
         GroupData another = make(new GroupOperation(GroupOperationType.AVG, "foo", "bar"));
-        IntStream.range(0, 21).forEach(i -> another.compute(someRecord));
+        IntStream.range(0, 21).forEach(i -> another.consume(someRecord));
         byte[] serialized = GroupData.toBytes(another);
 
         // This should combine since we only merge known GroupOperations from the other GroupData
-        data.merge(serialized);
+        data.combine(serialized);
 
         // AVG should not have influenced other counts.
         BulletRecord expected = RecordBox.get().add(GroupOperationType.COUNT.getName(), 10L).getRecord();
@@ -237,20 +260,291 @@ public class GroupDataTest {
     }
 
     @Test
-    public void testMergingUnsupportedAndSupportedOperation() {
-        GroupData data = make(new GroupOperation(GroupOperationType.AVG, "foo", "bar"));
-        BulletRecord someRecord = RecordBox.get().add("foo", 1).getRecord();
-        IntStream.range(0, 10).forEach(i -> data.compute(someRecord));
+    public void testNullRecordMin() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MIN, null, "min"));
+        data.consume(RecordBox.get().add("foo", "bar").getRecord());
 
-        GroupData another = make(new GroupOperation(GroupOperationType.COUNT, null, null));
-        IntStream.range(0, 21).forEach(i -> another.compute(someRecord));
-        byte[] serialized = GroupData.toBytes(another);
+        BulletRecord expected = RecordBox.get().addNull("min").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
 
-        // This should not merge the counts into this operation
-        data.merge(serialized);
+    @Test
+    public void testNoRecordMin() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MIN, null, "min"));
 
-        // AVG does not exist and COUNT will not be merged.
-        BulletRecord expected = RecordBox.get().getRecord();
+        // MIN will return null if no records are observed
+        BulletRecord expected = RecordBox.get().addNull("min").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testSingleMin() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MIN, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.8).getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testMultiMin() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MIN, "someField", "foo"));
+        List<Double> numbers = asList(0.0, 8.8, -88.0, 51.0, 4.0, -4.0, 1234567.89, -51.0);
+
+        numbers.stream().map(x -> RecordBox.get().add("someField", x).getRecord()).forEach(data::consume);
+
+        BulletRecord expected = RecordBox.get().add("foo", -88.0).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNonNumericMin() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MIN, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
+        expected = RecordBox.get().addNull("foo").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.8).getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNullRecordMax() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MAX, null, "max"));
+        data.consume(RecordBox.get().add("foo", "bar").getRecord());
+
+        BulletRecord expected = RecordBox.get().addNull("max").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNoRecordMax() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MAX, null, "max"));
+
+        // MAX will return null if no records are observed
+        BulletRecord expected = RecordBox.get().addNull("max").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testSingleMax() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MAX, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.8).getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testMultiMax() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MAX, "someField", "foo"));
+        List<Double> numbers = asList(0.0, 8.8, -88.0, 51.0, 4.0, -4.0, 1234567.89, -51.0);
+
+        numbers.stream().map(x -> RecordBox.get().add("someField", x).getRecord()).forEach(data::consume);
+
+        BulletRecord expected = RecordBox.get().add("foo", 1234567.89).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNonNumericMax() {
+        GroupData data = make(new GroupOperation(GroupOperationType.MAX, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
+        expected = RecordBox.get().addNull("foo").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.8).getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNullRecordSum() {
+        GroupData data = make(new GroupOperation(GroupOperationType.SUM, null, "sum"));
+        data.consume(RecordBox.get().add("foo", "bar").getRecord());
+
+        BulletRecord expected = RecordBox.get().addNull("sum").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNoRecordSum() {
+        GroupData data = make(new GroupOperation(GroupOperationType.SUM, null, "sum"));
+
+        // SUM will return null if no records are observed
+        BulletRecord expected = RecordBox.get().addNull("sum").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testSingleSum() {
+        GroupData data = make(new GroupOperation(GroupOperationType.SUM, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.8).getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testMultiSum() {
+        GroupData data = make(new GroupOperation(GroupOperationType.SUM, "someField", "foo"));
+        List<Double> numbers = asList(0.0, 8.8, -88.0, 51.0, 4.0, -4.0, 1234567.89, -51.0);
+
+        numbers.stream().map(x -> RecordBox.get().add("someField", x).getRecord()).forEach(data::consume);
+
+        BulletRecord expected = RecordBox.get().add("foo", 1234488.69).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNonNumericSum() {
+        GroupData data = make(new GroupOperation(GroupOperationType.SUM, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
+        expected = RecordBox.get().addNull("foo").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.8).getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 51.4).getRecord());
+        expected = RecordBox.get().add("foo", 60.2).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testMultiSumOfLongs() {
+        GroupData data = make(new GroupOperation(GroupOperationType.SUM, "someField", "foo"));
+        List<Long> numbers = asList(0L, 8L, -88L, 51L, 4L);
+
+        numbers.stream().map(x -> RecordBox.get().add("someField", x).getRecord()).forEach(data::consume);
+
+        BulletRecord expected = RecordBox.get().add("foo", -25.0).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNullRecordAvg() {
+        GroupData data = make(new GroupOperation(GroupOperationType.AVG, "someField", "avg"));
+        data.consume(RecordBox.get().add("foo", "bar").getRecord());
+
+        BulletRecord expected = RecordBox.get().addNull("avg").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNoRecordAvg() {
+        GroupData data = make(new GroupOperation(GroupOperationType.AVG, "someField", "avg"));
+
+        // AVG will return null if no records are observed
+        BulletRecord expected = RecordBox.get().addNull("avg").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testSingleAvg() {
+        GroupData data = make(new GroupOperation(GroupOperationType.AVG, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.8).getRecord());
+        expected = RecordBox.get().add("foo", 8.8).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testMultiAvg() {
+        GroupData data = make(new GroupOperation(GroupOperationType.AVG, "someField", "foo"));
+        List<Double> numbers = asList(0.0, 8.8, -88.0, 51.0, 4.0, -4.0, 1234567.89, -51.0);
+
+        numbers.stream().map(x -> RecordBox.get().add("someField", x).getRecord()).forEach(data::consume);
+
+        BulletRecord expected = RecordBox.get().add("foo", 154311.08625).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testNonNumericsCountedAvg() {
+        GroupData data = make(new GroupOperation(GroupOperationType.AVG, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
+        expected = RecordBox.get().addNull("foo").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.6).getRecord());
+        data.consume(RecordBox.get().add("someField", 51.4).getRecord());
+        expected = RecordBox.get().add("foo", 20.0).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
+        expected = RecordBox.get().add("foo", 15.0).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", -4.5).getRecord());
+        expected = RecordBox.get().add("foo", 11.1).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+    }
+
+    @Test
+    public void testIgnoreNullsAvg() {
+        GroupData data = make(new GroupOperation(GroupOperationType.AVG, "someField", "foo"));
+        BulletRecord expected = RecordBox.get().addNull("foo").getRecord();
+
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().addNull("someField").getRecord());
+        expected = RecordBox.get().addNull("foo").getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", 8.8).getRecord());
+        data.consume(RecordBox.get().add("someField", 51.4).getRecord());
+        expected = RecordBox.get().add("foo", 30.1).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().addNull("someField").getRecord());
+        expected = RecordBox.get().add("foo", 30.1).getRecord();
+        Assert.assertEquals(data.getAsBulletRecord(), expected);
+
+        data.consume(RecordBox.get().add("someField", -4.4).getRecord());
+        expected = RecordBox.get().add("foo", 18.6).getRecord();
         Assert.assertEquals(data.getAsBulletRecord(), expected);
     }
 }

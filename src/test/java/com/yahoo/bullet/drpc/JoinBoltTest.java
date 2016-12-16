@@ -86,7 +86,7 @@ public class JoinBoltTest {
     private byte[] getGroupDataWithCount(String countField, int count) {
         GroupData groupData = new GroupData(new HashSet<>(singletonList(new GroupOperation(COUNT,
                                                                         null, countField))));
-        IntStream.range(0, count).forEach(i -> groupData.compute(null));
+        IntStream.range(0, count).forEach(i -> groupData.consume(RecordBox.get().getRecord()));
         return GroupData.toBytes(groupData);
     }
 

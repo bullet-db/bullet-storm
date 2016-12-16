@@ -151,14 +151,14 @@ for raw records, use projections to help reduce the load on the system and netwo
 Aggregations allow you to perform some operation on the collected records. They take an optional size to restrict
 the size of the aggregation (this applies for aggregations high cardinality aggregations and raw records).
 
-The current aggregations supported are:
+The current aggregation types that are supported are:
 
 | Aggregation | Meaning |
 | ----------- | ------- |
-| COUNT       | The resulting output would be a single record that contains the number of records seen that matched the filters. |
+| GROUP       | The resulting output would be a record containing the result of an operation for each unique group in the specified fields (only supported with no fields at this time, which groups all records) |
 | LIMIT       | The resulting output would be at most the number specified in size. |
 
-We currently only support COUNT if there is no fields being grouped on. In other words, you get a count of the number of records that matched your filters.
+We currently only support GROUP operations if there is no fields being grouped on. In other words, you get the results of the operation on all records that matched your filters.
 
 The current format for an aggregation is (**note see above for what is supported at the moment**):
 
@@ -183,48 +183,16 @@ The current format for an aggregation is (**note see above for what is supported
 
 You can also use LIMIT as an alias for RAW. DISTINCT is also an alias for GROUP. These exist to make some queries read a bit better.
 
-See the [examples section](#examples) below to see how to perform the aggregations supported at the moment, as well as the attributes for them.
+Currently we support GROUP aggregations on the following operations:
 
-#### Coming Soon
-
-It is often intractable to perform aggregations on an unbounded stream of data and support arbitrary queries. However, it is possible
-if an exact answer is not required as long as the error is quantifiable. There are stochastic algorithms and data structures that let us
-support these aggregations. We will be using [Data Sketches](https://datasketches.github.io/) to solve aggregations such as counting
-uniques, getting distributions, approximating top k etc. Sketches let us be exact in our computation up to configured thresholds
-and approximate after. The error is very controllable and mathematically provable. This lets us address otherwise hard to solve problems in
-sublinear space. We will also use Sketches as a way to control high cardinality grouping (group by a natural key column or related) and rely on
-the Sketching data structure to drop excess groups. It is up to the user launching Bullet to determine to set Sketch sizes large or
-small enough for to satisfy the queries that will be performed on that instance of Bullet.
-
-Using Sketches, we are working on other aggregations including but not limited to:
-
-| Aggregation    | Meaning |
+| Operation      | Meaning |
 | -------------- | ------- |
 | SUM            | Computes the sum of the elements in the group |
 | MIN            | Returns the minimum of the elements in the group |
 | MAX            | Returns the maximum of the elements in the group |
 | AVG            | Computes the average of the elements in the group |
-| COUNT DISTINCT | Computes the number of distinct elements in the column |
-| TOP K          | Returns the top K most freqently appearing values in the column |
-| DISTRIBUTION   | Computes distributions of the elements in the column |
 
-The following attributes are planned to be supported for the different aggregations:
-
-Attributes for TOP K:
-
-```javascript
-    "attributes": {
-        "k": 15,
-    }
-```
-
-Attributes for COUNT DISTINCT:
-
-```javascript
-    "attributes": {
-        "newName": "the name of the resulting count column"
-    }
-```
+The following attributes are supported for GROUP:
 
 Attributes for GROUP:
 ```javascript
@@ -255,6 +223,45 @@ Attributes for GROUP:
                 "newName": "resultColumnName"
             }
         ]
+    }
+```
+
+See the [examples section](#examples) for a detailed description of how to perform these aggregations.
+
+#### Coming Soon
+
+It is often intractable to perform aggregations on an unbounded stream of data and support arbitrary queries. However, it is possible
+if an exact answer is not required as long as the error is quantifiable. There are stochastic algorithms and data structures that let us
+support these aggregations. We will be using [Data Sketches](https://datasketches.github.io/) to solve aggregations such as counting
+uniques, getting distributions, approximating top k etc. Sketches let us be exact in our computation up to configured thresholds
+and approximate after. The error is very controllable and mathematically provable. This lets us address otherwise hard to solve problems in
+sublinear space. We will also use Sketches as a way to control high cardinality grouping (group by a natural key column or related) and rely on
+the Sketching data structure to drop excess groups. It is up to the user launching Bullet to determine to set Sketch sizes large or
+small enough for to satisfy the queries that will be performed on that instance of Bullet.
+
+Using Sketches, we are working on other aggregations including but not limited to:
+
+| Aggregation    | Meaning |
+| -------------- | ------- |
+| COUNT DISTINCT | Computes the number of distinct elements in the column |
+| TOP K          | Returns the top K most freqently appearing values in the column |
+| DISTRIBUTION   | Computes distributions of the elements in the column |
+
+The following attributes are planned to be supported for the different aggregations:
+
+Attributes for TOP K:
+
+```javascript
+    "attributes": {
+        "k": 15,
+    }
+```
+
+Attributes for COUNT DISTINCT:
+
+```javascript
+    "attributes": {
+        "newName": "the name of the resulting count column"
     }
 ```
 
@@ -583,6 +590,51 @@ A sample result would look like:
 ```
 
 This result indicates that 363,201 records were counted with demographics.age > 65 during the 20 seconds the query was running.
+
+COUNT is the only GROUP operation for which you can omit a "field". An example of finding the average age of seniors during the query would look like:
+
+```javascript
+{
+   "filters":[
+      {
+         "field": "demographics.age",
+         "operation": ">",
+         "values": ["65"]
+      }
+   ],
+   "aggregation":{
+      "type": "GROUP",
+      "attributes": {
+         "operations": [
+            {
+               "type": "AVG",
+               "field": "demographics.age",
+               "newName": "avgSeniorAge"
+            }
+         ]
+      }
+   },
+   "duration": 20000
+}
+```
+
+A sample result would look like:
+
+```javascript
+{
+    "records": [
+        {
+            "avgSeniorAge": 72.71828183
+        }
+    ],
+    "meta": {
+        "rule_id": 8051040987827161000,
+        "rule_body": "<RULE BODY HERE>}",
+        "rule_finish_time": 1482371927435,
+        "rule_receive_time": 1482371916625
+    }
+}
+```
 
 ## Configuration
 
