@@ -17,6 +17,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.function.BiFunction;
 
 public class AggregationOperations {
     public enum AggregationType {
@@ -41,7 +42,9 @@ public class AggregationOperations {
         SUM("SUM"),
         MIN("MIN"),
         MAX("MAX"),
-        AVG("AVG");
+        AVG("AVG"),
+        // COUNT_FIELD operation is only used internally in conjunction with AVG and won't be returned.
+        COUNT_FIELD("COUNT_FIELD");
 
         private String name;
 
@@ -59,6 +62,15 @@ public class AggregationOperations {
             return this.name.equals(name);
         }
     }
+
+    public interface AggregationOperator extends BiFunction<Number, Number, Number> {
+    }
+
+    // If either argument is null, a NullPointerException will be thrown.
+    public static final AggregationOperator MIN = (x, y) -> x.doubleValue() <  y.doubleValue() ? x : y;
+    public static final AggregationOperator MAX = (x, y) -> x.doubleValue() >  y.doubleValue() ? x : y;
+    public static final AggregationOperator SUM = (x, y) -> x.doubleValue() + y.doubleValue();
+    public static final AggregationOperator COUNT = (x, y) -> x.longValue() + y.longValue();
 
     /**
      * Checks to see if a {@link Map} contains items.

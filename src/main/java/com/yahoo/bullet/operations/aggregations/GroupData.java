@@ -5,6 +5,8 @@
  */
 package com.yahoo.bullet.operations.aggregations;
 
+import com.yahoo.bullet.operations.AggregationOperations;
+import com.yahoo.bullet.operations.AggregationOperations.AggregationOperator;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +20,9 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+
+import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.AVG;
+import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
 
 /**
  * This class represents the results of a GroupOperations. The result is always a {@link Number}, so
@@ -41,18 +46,23 @@ public class GroupData implements Serializable {
      * @param operations the non-null operations that this will compute metrics for.
      */
     public GroupData(Set<GroupOperation> operations) {
-        // TODO Could do the identity for each operation instead of null
         // Initialize with nulls.
-        operations.stream().forEach(o -> metrics.put(o, null));
+        for (GroupOperation operation : operations) {
+            metrics.put(operation, null);
+            if (operation.getType() == AVG) {
+                // For AVG we store an addition COUNT_FIELD operation to store the count (the sum is stored in AVG)
+                metrics.put(new GroupOperation(COUNT_FIELD, operation.getField(), null), null);
+            }
+        }
     }
 
     /**
-     * Computes and adds metrics from the given {@link BulletRecord} for the {@link GroupOperation} defined.
+     * Consumes the given {@link BulletRecord} and computes group operation metrics.
      *
      * @param data The record to compute metrics for.
      */
-    public void compute(BulletRecord data) {
-        metrics.entrySet().stream().forEach(e -> compute(e, data));
+    public void consume(BulletRecord data) {
+        metrics.entrySet().stream().forEach(e -> consume(e, data));
     }
 
     /**
@@ -61,13 +71,13 @@ public class GroupData implements Serializable {
      *
      * @param serializedGroupData the serialized bytes of a GroupData.
      */
-    public void merge(byte[] serializedGroupData) {
+    public void combine(byte[] serializedGroupData) {
         GroupData otherMetric = GroupData.fromBytes(serializedGroupData);
         if (otherMetric == null) {
             log.error("Could not create a GroupData. Skipping...");
             return;
         }
-        merge(otherMetric);
+        combine(otherMetric);
     }
 
     /**
@@ -76,8 +86,8 @@ public class GroupData implements Serializable {
      *
      * @param otherData The other GroupData to merge.
      */
-    public void merge(GroupData otherData) {
-        metrics.entrySet().stream().forEach(e -> merge(e, otherData));
+    public void combine(GroupData otherData) {
+        metrics.entrySet().stream().forEach(e -> combine(e, otherData));
     }
 
     /**
@@ -87,50 +97,80 @@ public class GroupData implements Serializable {
      */
     public BulletRecord getAsBulletRecord() {
         BulletRecord record = new BulletRecord();
-        metrics.entrySet().stream().forEach(e -> update(e, record));
+        metrics.entrySet().stream().forEach(e -> addToRecord(e, record));
         return record;
     }
 
-    private Number getOrDefault(GroupOperation operation, Number defaultValue) {
-        // Can't use metrics.getOrDefault since that checks for containsKey - we put explicit nulls into it
-        Number value = metrics.get(operation);
-        return value == null ? defaultValue : value;
-    }
-
-    private void compute(Map.Entry<GroupOperation, Number> metric, BulletRecord data) {
+    private void consume(Map.Entry<GroupOperation, Number> metric, BulletRecord data) {
         GroupOperation operation = metric.getKey();
+        Object value = data.get(operation.getField());
         switch (operation.getType()) {
-            case COUNT:
-                incrementCount(operation);
+            case MIN:
+                updateMetric(value, metric, AggregationOperations.MIN);
                 break;
-            default:
-                // These other cases can't happen yet
+            case MAX:
+                updateMetric(value, metric, AggregationOperations.MAX);
+                break;
+            case COUNT:
+                updateMetric(1L, metric, AggregationOperations.COUNT);
+                break;
+            case COUNT_FIELD:
+                updateMetric(value != null ? 1L : null, metric, AggregationOperations.COUNT);
+                break;
+            case SUM:
+            case AVG:
+                updateMetric(value, metric, AggregationOperations.SUM);
                 break;
         }
     }
 
-    private void merge(Map.Entry<GroupOperation, Number> metric, GroupData otherData) {
+    private void combine(Map.Entry<GroupOperation, Number> metric, GroupData otherData) {
         GroupOperation operation = metric.getKey();
+        Number value = otherData.metrics.get(metric.getKey());
         switch (operation.getType()) {
-            case COUNT:
-                incrementCount(operation, otherData.getCount(operation));
+            case MIN:
+                updateMetric(value, metric, AggregationOperations.MIN);
                 break;
-            default:
-                // These other cases can't happen yet
+            case MAX:
+                updateMetric(value, metric, AggregationOperations.MAX);
+                break;
+            case SUM:
+            case AVG:
+                updateMetric(value, metric, AggregationOperations.SUM);
+                break;
+            case COUNT:
+            case COUNT_FIELD:
+                updateMetric(value, metric, AggregationOperations.COUNT);
                 break;
         }
     }
 
-    private void update(Map.Entry<GroupOperation, Number> metric, BulletRecord record) {
+    private void addToRecord(Map.Entry<GroupOperation, Number> metric, BulletRecord record) {
         GroupOperation operation = metric.getKey();
+        Number value = metric.getValue();
         switch (operation.getType()) {
             case COUNT:
-                record.setLong(getResultName(operation), getCount(operation));
+                record.setLong(getResultName(operation), value == null ? 0 : value.longValue());
                 break;
-            default:
-                // These other cases can't happen yet
+            case AVG:
+                record.setDouble(getResultName(operation), calculateAvg(value, operation.getField()));
+                break;
+            case COUNT_FIELD:
+                break;
+            case MIN:
+            case MAX:
+            case SUM:
+                record.setDouble(getResultName(operation), value == null ? null : value.doubleValue());
                 break;
         }
+    }
+
+    private Double calculateAvg(Number sum, String field) {
+        Number count = metrics.get(new GroupOperation(COUNT_FIELD, field, null));
+        if (sum == null || count == null) {
+            return null;
+        }
+        return sum.doubleValue() / count.longValue();
     }
 
     /**
@@ -192,20 +232,16 @@ public class GroupData implements Serializable {
         return null;
     }
 
-    /* ======================== OPERATION IMPLEMENTATIONS ============================ */
-
-    private void incrementCount(GroupOperation operation) {
-        incrementCount(operation, 1L);
+    /*
+     * This function accepts an AggregationOperator and applies it to the new and current value for the given
+     * GroupOperation and updates metrics accordingly.
+     */
+    private void updateMetric(Object object, Map.Entry<GroupOperation, Number> metric, AggregationOperator operator) {
+        // Also catches null.
+        if (object instanceof Number) {
+            Number current = metric.getValue();
+            Number number = (Number) object;
+            metrics.put(metric.getKey(), current == null ? number : operator.apply(number, current));
+        }
     }
-
-    private void incrementCount(GroupOperation operation, Long by) {
-        Number count = getOrDefault(operation, 0L);
-        metrics.put(operation, count.longValue() + by);
-    }
-
-    private Long getCount(GroupOperation operation) {
-        Number count = getOrDefault(operation, 0L);
-        return count.longValue();
-    }
-
 }
