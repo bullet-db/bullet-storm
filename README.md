@@ -243,6 +243,7 @@ Using Sketches, we are working on other aggregations including but not limited t
 
 | Aggregation    | Meaning |
 | -------------- | ------- |
+| GROUP          | We currently support GROUP-ALL, grouping on specific fields will be supported soon |
 | COUNT DISTINCT | Computes the number of distinct elements in the column |
 | TOP K          | Returns the top K most freqently appearing values in the column |
 | DISTRIBUTION   | Computes distributions of the elements in the column |
