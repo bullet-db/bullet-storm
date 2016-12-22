@@ -243,7 +243,7 @@ Using Sketches, we are working on other aggregations including but not limited t
 
 | Aggregation    | Meaning |
 | -------------- | ------- |
-| GROUP          | We currently support GROUP-ALL, grouping on specific fields will be supported soon |
+| GROUP          | We currently support GROUP with no fields (group all); grouping on specific fields will be supported soon |
 | COUNT DISTINCT | Computes the number of distinct elements in the column |
 | TOP K          | Returns the top K most freqently appearing values in the column |
 | DISTRIBUTION   | Computes distributions of the elements in the column |
@@ -592,15 +592,15 @@ A sample result would look like:
 
 This result indicates that 363,201 records were counted with demographics.age > 65 during the 20 seconds the query was running.
 
-COUNT is the only GROUP operation for which you can omit a "field". An example of finding the average age of seniors during the query would look like:
+COUNT is the only GROUP operation for which you can omit a "field". A more complicated example with multiple group operations would look like:
 
 ```javascript
 {
    "filters":[
       {
-         "field": "demographics.age",
-         "operation": ">",
-         "values": ["65"]
+         "field": "demographics.state",
+         "operation": "==",
+         "values": ["california"]
       }
    ],
    "aggregation":{
@@ -608,9 +608,23 @@ COUNT is the only GROUP operation for which you can omit a "field". An example o
       "attributes": {
          "operations": [
             {
+               "type": "COUNT",
+               "newName": "numCalifornians"
+            },
+            {
                "type": "AVG",
                "field": "demographics.age",
-               "newName": "avgSeniorAge"
+               "newName": "avgAge"
+            },
+            {
+               "type": "MIN",
+               "field": "demographics.age",
+               "newName": "minAge"
+            },
+            {
+               "type": "MAX",
+               "field": "demographics.age",
+               "newName": "maxAge"
             }
          ]
       }
@@ -625,7 +639,10 @@ A sample result would look like:
 {
     "records": [
         {
-            "avgSeniorAge": 72.71828183
+            "maxAge": 94.0,
+            "numCalifornians": 188451,
+            "minAge": 6.0,
+            "avgAge": 33.71828
         }
     ],
     "meta": {
@@ -636,6 +653,9 @@ A sample result would look like:
     }
 }
 ```
+
+This result indicates that, among the records observed during the 20 seconds this query ran, there were 188,451 users with demographics.state == "california". Among these users the average age was 33.71828, the max
+age observed was 94, and the minimum age observed was 6.
 
 ## Configuration
 
@@ -653,7 +673,7 @@ To use Bullet, you need to implement a way to read from your data source and con
 Option 2 *directly* couples your topology to Bullet and as such, you would need to watch out for things like backpressure etc.
 
 You need a JVM based project that implements one of the two options above. You include the Bullet artifact and Storm dependencies in your pom.xml or other dependency management system. The artifacts
-are available through Bintray, so you will need to add the repository.
+are available through JCenter, so you will need to add the repository.
 
 ```xml
     <repositories>
@@ -661,9 +681,9 @@ are available through Bintray, so you will need to add the repository.
             <snapshots>
                 <enabled>false</enabled>
             </snapshots>
-            <id>bintray-yahoo-maven</id>
+            <id>central</id>
             <name>bintray</name>
-            <url>http://dl.bintray.com/yahoo/maven</url>
+            <url>http://jcenter.bintray.com</url>
         </repository>
     </repositories>
 ```
@@ -682,6 +702,8 @@ are available through Bintray, so you will need to add the repository.
       <version>${bullet.version}</version>
     </dependency>
 ```
+
+If you just need the jar artifact directly, you can download it from [JCenter](http://jcenter.bintray.com/com/yahoo/bullet/bullet-storm/).
 
 If you are going to use the second option (directly pipe data into Bullet from your Storm topology), then you will need a main class that directly calls
 the submit method with your wired up topology and the name of the component that is going to emit BulletRecords in that wired up topology. The submit method
@@ -726,6 +748,8 @@ your Storm cluster is still not at 1.0 or higher. You change your dependency to:
     </dependency>
 ```
 
+The jar artifact can be downloaded directly from [JCenter](http://jcenter.bintray.com/com/yahoo/bullet/bullet-storm-0.10/).
+
 Also, since storm-metrics and the Resource Aware Scheduler are not in Storm versions less than 1.0, there are changes in the Bullet settings. The settings
 that set the CPU and memory loads do not exist (so remove them from the config file). The setting to enable topology metrics and the topology scheduler are
 no longer present (you can still override these settings if you run a custom version of Storm by passing it to the storm jar command. [See below](#launch).)
@@ -753,7 +777,7 @@ storm jar your-fat-jar-with-dependencies.jar \
 ```
 
 You can pass other arguments to Storm using the -c argument. The example above turns off acking for the Bullet topology. **This is recommended to do since Bullet does not anchor tuples and DRPC follows the convention
-of leaving retries to the DRPC user (in our case, the Bullet web service).** If the DRPC tuples take longer the default tuple acking timeout to be acked, your query will be failed even though it is still collecting
+of leaving retries to the DRPC user (in our case, the Bullet web service).** If the DRPC tuples take longer than the default tuple acking timeout to be acked, your query will be failed even though it is still collecting
 data. You could set the tuple acking timeout (topology.message.timeout.secs) to higher than the default of 30 and longer than your maximum query duration but since DRPC does not re-emit your query in case of a
 failure, this is pointless anyway. The tuple tree will be kept around till the timeout needlessly. While you trade off query reliability and at least once processing guarantees, you can build retries into the query
 submitter if this is important to you.
