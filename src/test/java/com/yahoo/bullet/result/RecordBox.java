@@ -27,6 +27,11 @@ public class RecordBox {
         return new RecordBox();
     }
 
+    public final RecordBox addNull(String name) {
+        record.setString(name, null);
+        return this;
+    }
+
     public final RecordBox add(String name, Object value) {
         if (value instanceof Boolean) {
             record.setBoolean(name, (Boolean) value);

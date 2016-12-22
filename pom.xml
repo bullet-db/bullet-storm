@@ -38,7 +38,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <storm.version>1.0.2</storm.version>
         <storm.metrics.version>1.0.2</storm.metrics.version>
-        <bullet.record.version>0.0.2</bullet.record.version>
+        <bullet.record.version>0.0.3</bullet.record.version>
     </properties>
 
     <dependencies>
@@ -145,6 +145,7 @@
                 <artifactId>maven-clover2-plugin</artifactId>
                 <version>4.0.5</version>
                 <configuration>
+                    <licenseLocation>${user.home}/clover.license</licenseLocation>
                     <excludes>
                         <exclude>**/Client.java</exclude>
                         <exclude>**/Topology.java</exclude>
