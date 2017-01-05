@@ -131,8 +131,8 @@ public class Raw implements Strategy {
 
     private byte[] write(List<BulletRecord> batch) {
         try (
-                ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                ObjectOutputStream oos = new ObjectOutputStream(bos)
+            ByteArrayOutputStream bos = new ByteArrayOutputStream();
+            ObjectOutputStream oos = new ObjectOutputStream(bos)
         ) {
             oos.writeObject(batch);
             return bos.toByteArray();
@@ -145,8 +145,8 @@ public class Raw implements Strategy {
 
     private List<BulletRecord> read(byte[] batch) {
         try (
-                ByteArrayInputStream bis = new ByteArrayInputStream(batch);
-                ObjectInputStream ois = new ObjectInputStream(bis)
+            ByteArrayInputStream bis = new ByteArrayInputStream(batch);
+            ObjectInputStream ois = new ObjectInputStream(bis)
         ) {
             return (List<BulletRecord>) ois.readObject();
 
