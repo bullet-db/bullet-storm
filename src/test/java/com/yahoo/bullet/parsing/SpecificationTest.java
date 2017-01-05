@@ -6,7 +6,6 @@
 package com.yahoo.bullet.parsing;
 
 import com.yahoo.bullet.BulletConfig;
-import com.yahoo.bullet.TestHelpers;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.FilterOperations.FilterType;
 import com.yahoo.bullet.record.BulletRecord;
@@ -20,6 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -34,6 +34,10 @@ import static org.mockito.Mockito.when;
 public class SpecificationTest {
     public static Stream<BulletRecord> makeStream(int count) {
         return IntStream.range(0, count).mapToObj(x -> RecordBox.get().getRecord());
+    }
+
+    public static ArrayList<BulletRecord> makeList(int count) {
+        return makeStream(count).collect(Collectors.toCollection(ArrayList::new));
     }
 
     public static int size(BulletRecord record) {
@@ -221,7 +225,7 @@ public class SpecificationTest {
         specification.configure(emptyMap());
         Assert.assertTrue(makeStream(Aggregation.DEFAULT_SIZE - 1).map(specification::filter).allMatch(x -> x));
         // Check that we only get the default number out
-        makeStream(Aggregation.DEFAULT_SIZE + 2).map(TestHelpers::getByteArray).forEach(specification::aggregate);
+        makeList(Aggregation.DEFAULT_SIZE + 2).forEach(specification::aggregate);
         Assert.assertEquals((Integer) specification.getAggregate().size(), Aggregation.DEFAULT_SIZE);
     }
 

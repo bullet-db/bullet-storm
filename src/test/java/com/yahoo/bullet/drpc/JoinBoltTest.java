@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.TestHelpers.assertJSONEquals;
-import static com.yahoo.bullet.TestHelpers.getByteArray;
+import static com.yahoo.bullet.TestHelpers.getListBytes;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP;
@@ -61,15 +61,23 @@ public class JoinBoltTest {
         }
     }
 
-    private List<BulletRecord> sendRawRecordTuplesTo(IRichBolt bolt, Long id, int n) {
+    // This sends ceil(n / batchSize) batches to the bolt
+    private List<BulletRecord> sendRawRecordTuplesTo(IRichBolt bolt, Long id, int n, int batchSize) {
         List<BulletRecord> sent = new ArrayList<>();
-        for (int i = 0; i < n; ++i) {
-            BulletRecord record = RecordBox.get().add("field", String.valueOf(i)).getRecord();
-            Tuple tuple = TupleUtils.makeIDTuple(TupleType.Type.FILTER_TUPLE, id, getByteArray(record));
+        for (int i = 0; i < n; i += batchSize) {
+            BulletRecord[] batch = new BulletRecord[batchSize];
+            for (int j = 0; j < batchSize; ++j) {
+                batch[j] = RecordBox.get().add("field", String.valueOf(i + j)).getRecord();
+            }
+            Tuple tuple = TupleUtils.makeIDTuple(TupleType.Type.FILTER_TUPLE, id, getListBytes(batch));
             bolt.execute(tuple);
-            sent.add(record);
+            sent.addAll(asList(batch));
         }
         return sent;
+    }
+
+    private List<BulletRecord> sendRawRecordTuplesTo(IRichBolt bolt, Long id, int n) {
+        return sendRawRecordTuplesTo(bolt, id, n, 1);
     }
 
     private List<BulletRecord> sendRawRecordTuplesTo(IRichBolt bolt, Long id) {
@@ -614,6 +622,25 @@ public class JoinBoltTest {
         }
         bolt.execute(tick);
 
+        Assert.assertTrue(collector.wasNthEmitted(expected, 1));
+        Assert.assertEquals(collector.getAllEmitted().count(), 1);
+
+    }
+
+    @Test
+    public void testRawMicroBatchSizeGreaterThanOne() {
+        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, makeAggregationRule(RAW, 5));
+        bolt.execute(rule);
+
+        Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
+        bolt.execute(returnInfo);
+
+        // This will send 2 batches of 3 records each (total of 6 records).
+        List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, 42L, 5, 3);
+
+        List<BulletRecord> actualSent = sent.subList(0, 5);
+
+        Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(actualSent).asJSON(), "");
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 

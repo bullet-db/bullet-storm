@@ -5,6 +5,8 @@
  */
 package com.yahoo.bullet.drpc;
 
+import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.TestHelpers;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.FilterOperations;
 import com.yahoo.bullet.operations.aggregations.GroupData;
@@ -20,7 +22,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
@@ -40,7 +44,6 @@ import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeSimpleAggregationFilterRule;
 import static java.util.Collections.emptyList;
-import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -59,25 +62,34 @@ public class FilterBoltTest {
     private class ExpiringFilterBolt extends FilterBolt {
         @Override
         protected FilterRule getRule(Long id, String ruleString) {
-            FilterRule spied = spy(getFilterRule(ruleString, emptyMap()));
+            FilterRule spied = spy(getFilterRule(ruleString, configuration));
             when(spied.isExpired()).thenReturn(false).thenReturn(true);
             return spied;
         }
     }
 
-    private boolean tupleEquals(List<Object> actual, Tuple expectedTuple) {
-        List<Object> expected = expectedTuple.getValues();
+    public static Tuple makeRecordTuple(TupleType.Type type, Long id, BulletRecord... records) {
+        byte[] listBytes = TestHelpers.getListBytes(records);
+        return makeTuple(type, id, listBytes);
+    }
+    
+    private boolean isSameTuple(List<Object> actual, List<Object> expected) {
         boolean result;
         result = actual.size() == 2;
         result &= actual.size() == expected.size();
         result &= actual.get(0).equals(expected.get(0));
-
-        BulletRecord actualRecord = new BulletRecord((byte[]) actual.get(1));
-        BulletRecord expectedRecord = (BulletRecord) expected.get(1);
-        result &= actualRecord.equals(expectedRecord);
         return result;
     }
+    
+    private boolean tupleEquals(List<Object> actual, Tuple expectedTuple) {
+        List<Object> expected = expectedTuple.getValues();
+        boolean result = isSameTuple(actual, expected);
 
+        byte[] actualRecordList = (byte[]) actual.get(1);
+        byte[] expectedRecordList = (byte[]) expected.get(1);
+        return result && Arrays.equals(actualRecordList, expectedRecordList);
+    }
+    
     private boolean wasRawRecordEmittedTo(String stream, int times, Tuple expectedTuple) {
         return collector.getTuplesEmittedTo(stream).filter(t -> tupleEquals(t, expectedTuple)).count() == times;
     }
@@ -127,7 +139,7 @@ public class FilterBoltTest {
     @Test
     public void testProjection() {
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                makeProjectionRule(Pair.of("field", "id"), Pair.of("map_field.id", "mid")));
+                                 makeProjectionRule(Pair.of("field", "id"), Pair.of("map_field.id", "mid")));
         bolt.execute(rule);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -138,7 +150,7 @@ public class FilterBoltTest {
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("id", "b235gf23b").add("mid", "123").getRecord();
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
     }
 
@@ -151,7 +163,7 @@ public class FilterBoltTest {
         Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
         bolt.execute(matching);
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
         Assert.assertTrue(collector.wasAcked(rule));
         Assert.assertTrue(collector.wasAcked(matching));
         Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
@@ -170,10 +182,10 @@ public class FilterBoltTest {
         Tuple nonMatching = makeTuple(TupleType.Type.RECORD_TUPLE, anotherRecord);
         bolt.execute(nonMatching);
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
 
-        Tuple anotherExpected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, anotherRecord);
+        Tuple anotherExpected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, anotherRecord);
         Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, anotherExpected));
     }
 
@@ -194,7 +206,7 @@ public class FilterBoltTest {
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("id", "b235gf23b").add("mid", "123").getRecord();
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
     }
 
@@ -215,7 +227,7 @@ public class FilterBoltTest {
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("id", "b235gf23b").add("mid", "123").getRecord();
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
         Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
     }
 
@@ -236,7 +248,7 @@ public class FilterBoltTest {
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("id", "b235gf23b").add("mid", "123").getRecord();
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
     }
 
@@ -254,7 +266,7 @@ public class FilterBoltTest {
         bolt.execute(matching);
         bolt.execute(matching);
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 4, expected));
     }
 
@@ -272,8 +284,8 @@ public class FilterBoltTest {
 
         bolt.execute(matching);
 
-        Tuple expectedA = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
-        Tuple expectedB = makeTuple(TupleType.Type.FILTER_TUPLE, 43L, record);
+        Tuple expectedA = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expectedB = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 43L, record);
 
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expectedA));
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expectedB));
@@ -296,9 +308,9 @@ public class FilterBoltTest {
         bolt.execute(matchingA);
         bolt.execute(matchingB);
 
-        Tuple expectedAA = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, recordA);
-        Tuple expectedAB = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, recordB);
-        Tuple expectedB = makeTuple(TupleType.Type.FILTER_TUPLE, 43L, recordB);
+        Tuple expectedAA = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, recordA);
+        Tuple expectedAB = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, recordB);
+        Tuple expectedB = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 43L, recordB);
 
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expectedAA));
         Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expectedAB));
@@ -316,7 +328,7 @@ public class FilterBoltTest {
         Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
         bolt.execute(matching);
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
         Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
     }
 
@@ -334,7 +346,7 @@ public class FilterBoltTest {
         Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
         bolt.execute(matching);
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
     }
 
@@ -354,7 +366,7 @@ public class FilterBoltTest {
         Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
         bolt.execute(matching);
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
         Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
     }
 
@@ -372,13 +384,13 @@ public class FilterBoltTest {
         Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
         bolt.execute(matching);
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
 
         bolt.execute(tick);
 
         BulletRecord anotherRecord = RecordBox.get().add("field", "b235gf23b").add("mid", "2342").getRecord();
-        Tuple anotherExpected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, anotherRecord);
+        Tuple anotherExpected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, anotherRecord);
         Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, anotherExpected));
     }
 
@@ -414,12 +426,12 @@ public class FilterBoltTest {
         Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, recordA);
         bolt.execute(matching);
 
-        BulletRecord expectedRecord = RecordBox.get().add("field", "abc").add("mid", 11)
-                                                     .add("experience", "tv").getRecord();
+        BulletRecord expectedRecord = RecordBox.get().add("field", "abc").add("experience", "tv")
+                                                     .add("mid", 11).getRecord();
         BulletRecord notExpectedRecord = RecordBox.get().addMap("demographic_map", Pair.of("age", "67")).getRecord();
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
-        Tuple notExpected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, notExpectedRecord);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, expectedRecord);
+        Tuple notExpected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, notExpectedRecord);
 
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
         Assert.assertFalse(wasRawRecordEmitted(notExpected));
@@ -443,10 +455,10 @@ public class FilterBoltTest {
         Tuple nonMatching = TupleUtils.makeRawTuple("CustomSource", TopologyConstants.RECORD_STREAM, anotherRecord);
         bolt.execute(nonMatching);
 
-        Tuple expected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
 
-        Tuple notExpected = makeTuple(TupleType.Type.FILTER_TUPLE, 42L, anotherRecord);
+        Tuple notExpected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, anotherRecord);
         Assert.assertFalse(wasRawRecordEmitted(notExpected));
 
     }
@@ -481,5 +493,39 @@ public class FilterBoltTest {
         BulletRecord expected = RecordBox.get().add("cnt", 10).getRecord();
 
         Assert.assertTrue(isEqual(actual, expected));
+    }
+
+    @Test
+    public void testMicroBatching() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, 3);
+        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(), collector);
+
+        Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
+                                 makeSimpleAggregationFilterRule("field", singletonList("b235gf23b"),
+                                         EQUALS, AggregationType.RAW, 7));
+        bolt.execute(rule);
+
+        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
+        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        bolt.execute(matching);
+        bolt.execute(matching);
+        bolt.execute(matching);
+        bolt.execute(matching);
+        bolt.execute(matching);
+
+        // We should have a single micro-batch of size 3
+        Assert.assertEquals(collector.getEmittedCount(), 1);
+
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record, record, record);
+        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
+
+        // Two to flush bolt. When the rule expires, the last two get emitted.
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+
+        expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record, record);
+        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
     }
 }

@@ -735,7 +735,7 @@ Storm topologies are generally launched with "fat" jars (jar-with-dependencies),
 </plugin>
 ```
 
-### Storm 1.0 and below
+### Storm versions below 1.0
 
 Since package prefixes changed from `backtype.storm` to `org.apache.storm` in Storm 1.0 and above, you will need to get the storm-0.10 version of Bullet if
 your Storm cluster is still not at 1.0 or higher. You change your dependency to:
