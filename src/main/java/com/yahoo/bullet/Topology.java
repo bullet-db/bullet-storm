@@ -152,7 +152,7 @@ public class Topology {
         Long maxDuration = (Long) config.get(BulletConfig.SPECIFICATION_MAX_DURATION);
         Long defaultSize = (Long) config.get(BulletConfig.AGGREGATION_DEFAULT_SIZE);
         Long maxSize = (Long) config.get(BulletConfig.AGGREGATION_MAX_SIZE);
-        Integer microBatchSize = ( (Number) config.get(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE)).intValue();
+        Integer microBatchSize = ((Number) config.get(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE)).intValue();
         Integer tickInterval = ((Number) config.get(BulletConfig.TICK_INTERVAL_SECS)).intValue();
 
         builder.setSpout(TopologyConstants.DRPC_COMPONENT, new DRPCSpout(function), drpcSpoutParallelism)
