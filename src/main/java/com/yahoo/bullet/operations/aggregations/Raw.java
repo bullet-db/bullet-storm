@@ -149,7 +149,6 @@ public class Raw implements Strategy {
             ObjectInputStream ois = new ObjectInputStream(bis)
         ) {
             return (List<BulletRecord>) ois.readObject();
-
         } catch (IOException | ClassNotFoundException | ClassCastException e) {
             log.error("Could not deserialize batch {}", batch);
             log.error("Exception was ", e);
