@@ -15,7 +15,7 @@ import org.testng.annotations.Test;
 
 import java.util.Arrays;
 
-import static com.yahoo.bullet.TestHelpers.getByteArray;
+import static com.yahoo.bullet.TestHelpers.getListBytes;
 import static com.yahoo.bullet.parsing.RuleUtils.getFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeAggregationRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionFilterRule;
@@ -36,7 +36,7 @@ public class FilterRuleTest {
         RecordBox boxB = RecordBox.get().addMap("map_field", Pair.of("id", "23"));
         RecordBox expected = RecordBox.get().add("mid", "23");
         Assert.assertTrue(rule.consume(boxB.getRecord()));
-        Assert.assertEquals(rule.getData(), getByteArray(expected.getRecord()));
+        Assert.assertEquals(rule.getData(), getListBytes(expected.getRecord()));
     }
 
     @Test
@@ -49,7 +49,7 @@ public class FilterRuleTest {
         RecordBox boxA = RecordBox.get().addMap("map_field", Pair.of("id", "23"));
         RecordBox expectedA = RecordBox.get().add("mid", "23");
         Assert.assertTrue(rule.consume(boxA.getRecord()));
-        Assert.assertEquals(rule.getData(), getByteArray(expectedA.getRecord()));
+        Assert.assertEquals(rule.getData(), getListBytes(expectedA.getRecord()));
 
         RecordBox boxB = RecordBox.get().addMap("map_field", Pair.of("id", "3"));
         Assert.assertFalse(rule.consume(boxB.getRecord()));
@@ -58,7 +58,7 @@ public class FilterRuleTest {
         RecordBox boxC = RecordBox.get().addMap("map_field", Pair.of("id", "1"));
         RecordBox expectedC = RecordBox.get().add("mid", "1");
         Assert.assertTrue(rule.consume(boxC.getRecord()));
-        Assert.assertEquals(rule.getData(), getByteArray(expectedC.getRecord()));
+        Assert.assertEquals(rule.getData(), getListBytes(expectedC.getRecord()));
     }
 
     @Test
@@ -66,9 +66,9 @@ public class FilterRuleTest {
         FilterRule rule = getFilterRule(makeAggregationRule(AggregationType.RAW, 2), emptyMap());
         RecordBox box = RecordBox.get();
         Assert.assertTrue(rule.consume(box.getRecord()));
-        Assert.assertEquals(rule.getData(), getByteArray(box.getRecord()));
+        Assert.assertEquals(rule.getData(), getListBytes(box.getRecord()));
         Assert.assertTrue(rule.consume(box.getRecord()));
-        Assert.assertEquals(rule.getData(), getByteArray(box.getRecord()));
+        Assert.assertEquals(rule.getData(), getListBytes(box.getRecord()));
         for (int i = 0; i < 10; ++i) {
             Assert.assertFalse(rule.consume(box.getRecord()));
             Assert.assertNull(rule.getData());
@@ -87,7 +87,7 @@ public class FilterRuleTest {
         RecordBox boxB = RecordBox.get().add("mid", "42");
 
         Assert.assertTrue(rule.consume(boxA.getRecord()));
-        Assert.assertEquals(rule.getData(), getByteArray(expectedA.getRecord()));
+        Assert.assertEquals(rule.getData(), getListBytes(expectedA.getRecord()));
 
         Assert.assertFalse(rule.consume(boxB.getRecord()));
         Assert.assertNull(rule.getData());
@@ -96,7 +96,7 @@ public class FilterRuleTest {
         Assert.assertNull(rule.getData());
 
         Assert.assertTrue(rule.consume(boxA.getRecord()));
-        Assert.assertEquals(rule.getData(), getByteArray(expectedA.getRecord()));
+        Assert.assertEquals(rule.getData(), getListBytes(expectedA.getRecord()));
 
         for (int i = 0; i < 10; ++i) {
             Assert.assertFalse(rule.consume(boxA.getRecord()));

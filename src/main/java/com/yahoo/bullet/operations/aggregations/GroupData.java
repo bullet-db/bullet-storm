@@ -156,6 +156,7 @@ public class GroupData implements Serializable {
                 record.setDouble(getResultName(operation), calculateAvg(value, operation.getField()));
                 break;
             case COUNT_FIELD:
+                // Internal use only for AVG. Not exposed.
                 break;
             case MIN:
             case MAX:
@@ -201,9 +202,10 @@ public class GroupData implements Serializable {
      * @return A reified object or null if not successful.
      */
     public static GroupData fromBytes(byte[] data) {
-        try {
+        try (
             ByteArrayInputStream bis = new ByteArrayInputStream(data);
             ObjectInputStream ois = new ObjectInputStream(bis);
+        ) {
             return (GroupData) ois.readObject();
         } catch (IOException | ClassNotFoundException | RuntimeException e) {
             log.error("Could not reify a GroupData from raw data {}", data);
@@ -219,11 +221,11 @@ public class GroupData implements Serializable {
      * @return the serialized byte[] or null if not successful.
      */
     public static byte[] toBytes(GroupData metric) {
-        try {
+        try (
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
             ObjectOutputStream oos = new ObjectOutputStream(bos);
+        ) {
             oos.writeObject(metric);
-            oos.close();
             return bos.toByteArray();
         } catch (IOException | RuntimeException e) {
             log.error("Could not serialize given GroupData contents", metric.metrics);
