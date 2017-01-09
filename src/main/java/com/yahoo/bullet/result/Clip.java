@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @Getter
 public class Clip implements JSONFormatter {
@@ -19,9 +20,9 @@ public class Clip implements JSONFormatter {
     public static final String RECORDS_KEY = "records";
 
     private Metadata meta = new Metadata();
-    private List<Map<String, Object>> records = new ArrayList<>();
+    private List<BulletRecord> records = new ArrayList<>();
 
-    private Map<String, Object> asMap(BulletRecord record) {
+    private static Map<String, Object> asMap(BulletRecord record) {
         Map<String, Object> mapped = new HashMap<>();
         record.forEach(entry -> mapped.put(entry.getKey(), entry.getValue()));
         return mapped;
@@ -29,12 +30,13 @@ public class Clip implements JSONFormatter {
 
     /**
      * Adds a {@link BulletRecord} to the records in the Clip.
+     *
      * @param record The input record.
      * @return This Clip for chaining.
      */
     public Clip add(BulletRecord record) {
         if (record != null) {
-            records.add(asMap(record));
+            records.add(record);
         }
         return this;
     }
@@ -70,7 +72,7 @@ public class Clip implements JSONFormatter {
     public String asJSON() {
         Map<String, Object> wrapper = new HashMap<>();
         wrapper.put(META_KEY, meta.asMap());
-        wrapper.put(RECORDS_KEY, records);
+        wrapper.put(RECORDS_KEY, records.stream().map(Clip::asMap).collect(Collectors.toList()));
         return JSONFormatter.asJSON(wrapper);
     }
 
@@ -98,7 +100,7 @@ public class Clip implements JSONFormatter {
      * Construct a Clip with the given metadata.
      *
      * @param meta The Metadata to add. The objects in the Metadata must be serializable to JSON
-     *             with {@link com.google.gson.Gson}
+     *             with {@link com.google.gson.Gson}.
      * @return This object for chaining
      */
     public static Clip of(Metadata meta) {

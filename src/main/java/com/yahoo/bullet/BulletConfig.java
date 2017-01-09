@@ -45,7 +45,14 @@ public class BulletConfig extends Config {
     public static final String SPECIFICATION_MAX_DURATION = "rule.max.duration";
     public static final String AGGREGATION_DEFAULT_SIZE = "rule.aggregation.default.size";
     public static final String AGGREGATION_MAX_SIZE = "rule.aggregation.max.size";
+    public static final String AGGREGATION_COMPOSITE_FIELD_SEPARATOR = "rule.aggregation.composite.field.separator";
+
     public static final String RAW_AGGREGATION_MICRO_BATCH_SIZE = "rule.aggregation.raw.micro.batch.size";
+
+    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES = "rule.aggregation.count.distinct.sketch.entries";
+    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_SAMPLING = "rule.aggregation.count.distinct.sketch.sampling";
+    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_FAMILY = "rule.aggregation.count.distinct.sketch.family";
+    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_RESIZE_FACTOR = "rule.aggregation.count.distinct.sketch.resize.factor";
 
     public static final String RECORD_INJECT_TIMESTAMP = "record.inject.timestamp.enable";
     public static final String RECORD_INJECT_TIMESTAMP_KEY = "record.inject.timestamp.key";
@@ -54,6 +61,8 @@ public class BulletConfig extends Config {
     public static final String RESULT_METADATA_METRICS = "result.metadata.metrics";
     public static final String RESULT_METADATA_METRICS_CONCEPT_KEY = "name";
     public static final String RESULT_METADATA_METRICS_NAME_KEY = "key";
+
+    public static final String RESULT_METADATA_METRICS_MAPPING = "result.metadata.metrics.mapping";
 
     /**
      * Constructor that loads specific file augmented with defaults.

@@ -6,13 +6,12 @@
 package com.yahoo.bullet.tracing;
 
 import com.yahoo.bullet.parsing.ParsingException;
-import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import lombok.Getter;
 
-import java.util.List;
 import java.util.Map;
 
-public class AggregationRule extends AbstractRule<byte[], List<BulletRecord>> {
+public class AggregationRule extends AbstractRule<byte[], Clip> {
     @Getter
     protected long lastAggregationTime = 0L;
 
@@ -39,11 +38,11 @@ public class AggregationRule extends AbstractRule<byte[], List<BulletRecord>> {
      *
      * Get the aggregate so far.
      *
-     * @return A non-null aggregated resulting List of {@link BulletRecord}.
+     * @return A non-null aggregated resulting {@link Clip}.
      */
     @Override
-    public List<BulletRecord> getData() {
-        List<BulletRecord> result = specification.getAggregate();
+    public Clip getData() {
+        Clip result = specification.getAggregate();
         lastAggregationTime = System.currentTimeMillis();
         return result;
     }

@@ -64,7 +64,7 @@ public class AggregationRuleTest {
         long creationTime = rule.getStartTime();
         byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, Aggregation.DEFAULT_SIZE - 1).forEach((x) -> rule.consume(record));
-        Assert.assertEquals(rule.getData().size(), Aggregation.DEFAULT_SIZE - 1);
+        Assert.assertEquals(rule.getData().getRecords().size(), Aggregation.DEFAULT_SIZE - 1);
         long lastAggregationTime = rule.getLastAggregationTime();
         Assert.assertTrue(creationTime <= lastAggregationTime);
     }
@@ -75,7 +75,7 @@ public class AggregationRuleTest {
         byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, Aggregation.DEFAULT_SIZE - 1).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
-        Assert.assertEquals((Integer) rule.getData().size(), Aggregation.DEFAULT_SIZE);
+        Assert.assertEquals((Integer) rule.getData().getRecords().size(), Aggregation.DEFAULT_SIZE);
     }
 
     @Test
@@ -84,7 +84,7 @@ public class AggregationRuleTest {
         byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, 9).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
-        Assert.assertEquals(rule.getData().size(), 10);
+        Assert.assertEquals(rule.getData().getRecords().size(), 10);
     }
 
     @Test
@@ -93,7 +93,7 @@ public class AggregationRuleTest {
         byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, Aggregation.DEFAULT_MAX_SIZE - 1).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
-        Assert.assertEquals((Integer) rule.getData().size(), Aggregation.DEFAULT_MAX_SIZE);
+        Assert.assertEquals((Integer) rule.getData().getRecords().size(), Aggregation.DEFAULT_MAX_SIZE);
     }
 
     @Test
@@ -105,7 +105,7 @@ public class AggregationRuleTest {
         byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, 199).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
-        Assert.assertEquals(rule.getData().size(), 200);
+        Assert.assertEquals(rule.getData().getRecords().size(), 200);
     }
 
 }

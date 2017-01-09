@@ -52,26 +52,7 @@ public class FilterClause extends Clause {
         if (operation == null || values == null || values.isEmpty()) {
             return true;
         }
-        return compare(operation, extractField(field, record), values);
-    }
-
-    /**
-     * Extracts the field from the given {@link BulletRecord}.
-     *
-     * @param field The field to get. It can be "." separated to look inside maps.
-     * @param record The record containing data.
-     * @return The extracted field or null if error or not found.
-     */
-    public static Object extractField(String field, BulletRecord record) {
-        if (field == null) {
-            return null;
-        }
-        String[] split = Specification.getFields(field);
-        try {
-            return split.length > 1 ? record.get(split[0], split[1]) : record.get(field);
-        } catch (ClassCastException cce) {
-            return null;
-        }
+        return compare(operation, Specification.extractField(field, record), values);
     }
 
     @SuppressWarnings("unchecked")

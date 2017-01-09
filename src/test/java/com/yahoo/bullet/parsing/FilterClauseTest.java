@@ -6,7 +6,6 @@
 package com.yahoo.bullet.parsing;
 
 import com.yahoo.bullet.operations.FilterOperations.FilterType;
-import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
@@ -26,7 +25,6 @@ import static com.yahoo.bullet.parsing.RuleUtils.makeClause;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
 
 public class FilterClauseTest {
     public static FilterClause getFieldFilter(String field, FilterType operation, String... values) {
@@ -199,20 +197,6 @@ public class FilterClauseTest {
         RecordBox box = RecordBox.get().add("unreal", 123L);
         // Trying to cast
         Assert.assertFalse(filterClause.check(box.getRecord()));
-    }
-
-    @Test
-    public void testExtractField() {
-        BulletRecord record = RecordBox.get().add("field", "foo").add("map_field.foo", "bar")
-                                             .addMap("map_field", Pair.of("foo", "baz"))
-                                             .addList("list_field", singletonMap("foo", "baz"))
-                                       .getRecord();
-
-        Assert.assertNull(FilterClause.extractField(null, record));
-        Assert.assertNull(FilterClause.extractField("", record));
-        Assert.assertNull(FilterClause.extractField("id", record));
-        Assert.assertEquals(FilterClause.extractField("map_field.foo", record), "baz");
-        Assert.assertNull(FilterClause.extractField("list_field.bar", record));
     }
 
     @Test

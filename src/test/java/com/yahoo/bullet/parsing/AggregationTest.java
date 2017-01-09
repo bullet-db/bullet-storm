@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.PERCENTILE;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
@@ -146,7 +147,7 @@ public class AggregationTest {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
         aggregation.setAttributes(makeAttributes(makeGroupOperation(SUM, null, null)));
-        aggregation.configure(new HashMap<>());
+        aggregation.configure(emptyMap());
 
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
@@ -158,7 +159,7 @@ public class AggregationTest {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
         aggregation.setAttributes(makeAttributes(makeGroupOperation(COUNT_FIELD, "someField", "myCountField")));
-        aggregation.configure(new HashMap<>());
+        aggregation.configure(emptyMap());
 
         Set<GroupOperation> operations = aggregation.getGroupOperations();
         Assert.assertEquals(operations.size(), 0);
@@ -226,6 +227,37 @@ public class AggregationTest {
         TestHelpers.assertContains(operations, new GroupOperation(COUNT, null, null));
         TestHelpers.assertContains(operations, new GroupOperation(COUNT, "foo", null));
         TestHelpers.assertContains(operations, new GroupOperation(COUNT, "bar", null));
+    }
+
+    @Test
+    public void testFailValidateOnCountDistinctFieldsMissing() {
+        Aggregation aggregation = new Aggregation();
+        aggregation.setType(COUNT_DISTINCT);
+        aggregation.configure(emptyMap());
+
+        List<Error> errors = aggregation.validate().get();
+        Assert.assertEquals(errors.size(), 1);
+        Assert.assertEquals(errors.get(0), Aggregation.COUNT_DISTINCT_REQUIRES_FIELD_ERROR);
+
+    }
+
+    @Test
+    public void testToString() {
+        Aggregation aggregation = new Aggregation();
+        aggregation.configure(emptyMap());
+
+        Assert.assertEquals(aggregation.toString(), "{size: 1, type: RAW, fields: null, attributes: null}");
+
+        aggregation.setType(COUNT_DISTINCT);
+        Assert.assertEquals(aggregation.toString(), "{size: 1, type: COUNT_DISTINCT, fields: null, attributes: null}");
+
+        aggregation.setFields(singletonMap("field", "newName"));
+        Assert.assertEquals(aggregation.toString(),
+                            "{size: 1, type: COUNT_DISTINCT, " + "fields: {field=newName}, attributes: null}");
+
+        aggregation.setAttributes(singletonMap("foo", asList(1, 2, 3)));
+        Assert.assertEquals(aggregation.toString(),
+                "{size: 1, type: COUNT_DISTINCT, " + "fields: {field=newName}, attributes: {foo=[1, 2, 3]}}");
     }
 }
 

@@ -26,7 +26,7 @@ public enum Type {
     /**
      * Only support the atomic types for now since all our operations are on atomic types.
      */
-    public static List<Type> TYPES = Type.simpleTypes();
+    public static List<Type> SUPPORTED_TYPES = Type.simpleTypes();
     private final Class underlyingType;
 
     /**
@@ -48,7 +48,7 @@ public enum Type {
     }
 
     /**
-     * Tries to get the type of a given object from {@link #TYPES}.
+     * Tries to get the type of a given object from {@link #SUPPORTED_TYPES}.
      *
      * @param object The object whose type is to be determined.
      * @return {@link Type} for this object, the {@link Type#NULL} if the object was null or null
@@ -58,7 +58,7 @@ public enum Type {
         if (object == null) {
             return Type.NULL;
         }
-        for (Type type : TYPES) {
+        for (Type type : SUPPORTED_TYPES) {
             if (type.getUnderlyingType().isInstance(object)) {
                 return type;
             }
