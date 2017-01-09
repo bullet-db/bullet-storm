@@ -142,7 +142,7 @@ result.metadata.metrics:
     - name: "Sketch Family"
       key: "sketchFamily"
     - name: "Sketch Size"
-      key: "sketchFamily"
+      key: "sketchSize"
     - name: "Sketch Theta"
       key: "sketchTheta"
 

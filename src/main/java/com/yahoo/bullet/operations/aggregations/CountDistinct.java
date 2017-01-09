@@ -17,9 +17,11 @@ import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
 import com.yahoo.sketches.theta.UpdateSketch;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -31,7 +33,7 @@ import static java.util.Arrays.asList;
 public class CountDistinct implements Strategy {
     private UpdateSketch updateSketch;
     private Union unionSketch;
-    private Set<String> fields;
+    private List<String> fields;
     private String newName;
 
     private boolean consumed = false;
@@ -83,7 +85,7 @@ public class CountDistinct implements Strategy {
         Map config = aggregation.getConfiguration();
         Map<String, Object> attributes = aggregation.getAttributes();
 
-        fields = aggregation.getFields().keySet();
+        fields = new ArrayList<>(aggregation.getFields().keySet());
         newName = attributes == null ? DEFAULT_NEW_NAME :
                                        attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
         metadataKeys = (Map<String, String>) config.getOrDefault(BulletConfig.RESULT_METADATA_METRICS_MAPPING,
@@ -164,7 +166,7 @@ public class CountDistinct implements Strategy {
         }
     }
 
-    private static String getFieldsAsString(Set<String> fields, BulletRecord record, String separator) {
+    private static String getFieldsAsString(List<String> fields, BulletRecord record, String separator) {
         // This explicitly does not do a TypedObject checking. Nulls turn into a String that will be counted.
         return fields.stream().map(field -> Specification.extractField(field, record))
                               .map(Objects::toString)
