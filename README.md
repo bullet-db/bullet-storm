@@ -153,10 +153,11 @@ the size of the aggregation (this applies for aggregations high cardinality aggr
 
 The current aggregation types that are supported are:
 
-| Aggregation | Meaning |
-| ----------- | ------- |
-| GROUP       | The resulting output would be a record containing the result of an operation for each unique group in the specified fields (only supported with no fields at this time, which groups all records) |
-| LIMIT       | The resulting output would be at most the number specified in size. |
+| Aggregation    | Meaning |
+| -------------- | ------- |
+| GROUP          | The resulting output would be a record containing the result of an operation for each unique group in the specified fields (only supported with no fields at this time, which groups all records) |
+| COUNT DISTINCT | Computes the number of distinct elements in the fields. (May be approximate) |
+| LIMIT          | The resulting output would be at most the number specified in size. |
 
 We currently only support GROUP operations if there is no fields being grouped on. In other words, you get the results of the operation on all records that matched your filters.
 
@@ -226,6 +227,16 @@ Attributes for GROUP:
     }
 ```
 
+Attributes for COUNT DISTINCT:
+
+```javascript
+    "attributes": {
+        "newName": "the name of the resulting count column"
+    }
+```
+
+Note that the new names you specify in the fields map for aggregations do not apply. You must use the attributes here to give your resulting output count column a name.
+
 See the [examples section](#examples) for a detailed description of how to perform these aggregations.
 
 #### Coming Soon
@@ -239,12 +250,11 @@ sublinear space. We will also use Sketches as a way to control high cardinality 
 the Sketching data structure to drop excess groups. It is up to the user launching Bullet to determine to set Sketch sizes large or
 small enough for to satisfy the queries that will be performed on that instance of Bullet.
 
-Using Sketches, we are working on other aggregations including but not limited to:
+Using Sketches, we have implemented COUNT DISTINCT and are working on other aggregations including but not limited to:
 
 | Aggregation    | Meaning |
 | -------------- | ------- |
 | GROUP          | We currently support GROUP with no fields (group all); grouping on specific fields will be supported soon |
-| COUNT DISTINCT | Computes the number of distinct elements in the column |
 | TOP K          | Returns the top K most freqently appearing values in the column |
 | DISTRIBUTION   | Computes distributions of the elements in the column |
 
@@ -255,14 +265,6 @@ Attributes for TOP K:
 ```javascript
     "attributes": {
         "k": 15,
-    }
-```
-
-Attributes for COUNT DISTINCT:
-
-```javascript
-    "attributes": {
-        "newName": "the name of the resulting count column"
     }
 ```
 

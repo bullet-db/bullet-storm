@@ -6,10 +6,9 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import java.util.List;
 
 public class StrategyTest {
     class TestStrategy implements Strategy {
@@ -27,7 +26,7 @@ public class StrategyTest {
         }
 
         @Override
-        public List<BulletRecord> getAggregation() {
+        public Clip getAggregation() {
             return null;
         }
     }

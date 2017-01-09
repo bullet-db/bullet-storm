@@ -7,11 +7,8 @@ package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import lombok.extern.slf4j.Slf4j;
-
-import java.util.List;
-
-import static java.util.Collections.singletonList;
 
 @Slf4j
 public class GroupAll implements Strategy {
@@ -44,7 +41,7 @@ public class GroupAll implements Strategy {
     }
 
     @Override
-    public List<BulletRecord> getAggregation() {
-        return singletonList(data.getAsBulletRecord());
+    public Clip getAggregation() {
+        return Clip.of(data.getAsBulletRecord());
     }
 }

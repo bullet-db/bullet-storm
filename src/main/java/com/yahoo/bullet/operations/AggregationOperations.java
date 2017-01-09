@@ -6,6 +6,7 @@
 package com.yahoo.bullet.operations;
 
 import com.google.gson.annotations.SerializedName;
+import com.yahoo.bullet.operations.aggregations.CountDistinct;
 import com.yahoo.bullet.operations.aggregations.GroupAll;
 import com.yahoo.bullet.operations.aggregations.GroupOperation;
 import com.yahoo.bullet.operations.aggregations.Raw;
@@ -93,19 +94,6 @@ public class AggregationOperations {
     }
 
     /**
-     * Checks if these type and fields repesent a Group by all columns aggregation.
-     *
-     * @param type The {@link AggregationOperations.AggregationType} to check.
-     * @param fields The fields of the {@link Aggregation}.
-     * @param operations The group operations of the {@link Aggregation}.
-     *
-     * @return a boolean denoting whether this is a Group by all columns aggregation.
-     */
-    public static boolean isGroupAll(AggregationType type, Map<String, String> fields, Set<GroupOperation> operations) {
-        return type == AggregationType.GROUP && isEmpty(fields) && !isEmpty(operations);
-    }
-
-    /**
      * Returns a new {@link Strategy} instance that can handle the provided type of aggregation.
      *
      * @param aggregation The {@link Aggregation} to get a {@link Strategy} for.
@@ -113,16 +101,25 @@ public class AggregationOperations {
      */
     public static Strategy getStrategyFor(Aggregation aggregation) {
         Objects.requireNonNull(aggregation);
-        Strategy strategy = null;
         AggregationType type = aggregation.getType();
+
         if (type == AggregationType.RAW) {
-            strategy = new Raw(aggregation);
+            return new Raw(aggregation);
         }
+
         Map<String, String> fields = aggregation.getFields();
-        Set<GroupOperation> operations = aggregation.getGroupOperations();
-        if (isGroupAll(type, fields, operations)) {
-            strategy = new GroupAll(aggregation);
+        boolean noFields = isEmpty(fields);
+
+        if (type == AggregationType.COUNT_DISTINCT && !noFields) {
+            return new CountDistinct(aggregation);
         }
-        return strategy;
+
+        Set<GroupOperation> operations = aggregation.getGroupOperations();
+        boolean noOperations = isEmpty(operations);
+        if (type == AggregationType.GROUP && noFields && !noOperations) {
+            return new GroupAll(aggregation);
+        }
+
+        return null;
     }
 }

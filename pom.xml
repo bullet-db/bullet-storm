@@ -39,6 +39,7 @@
         <storm.version>1.0.2</storm.version>
         <storm.metrics.version>1.0.2</storm.metrics.version>
         <bullet.record.version>0.0.3</bullet.record.version>
+        <sketches.version>0.8.3</sketches.version>
     </properties>
 
     <dependencies>
@@ -88,6 +89,11 @@
             <groupId>com.yahoo.bullet</groupId>
             <artifactId>bullet-record</artifactId>
             <version>${bullet.record.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.yahoo.datasketches</groupId>
+            <artifactId>sketches-core</artifactId>
+            <version>${sketches.version}</version>
         </dependency>
         <dependency>
             <groupId>net.sf.jopt-simple</groupId>

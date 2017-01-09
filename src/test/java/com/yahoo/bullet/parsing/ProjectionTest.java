@@ -121,4 +121,21 @@ public class ProjectionTest {
         // currently Projection.validate() does nothing
         Assert.assertFalse(errors.isPresent());
     }
+
+    @Test
+    public void testToString() {
+        Projection projection = new Projection();
+
+        Assert.assertEquals(projection.toString(), "{fields: null}");
+
+        projection.setFields(emptyMap());
+        Assert.assertEquals(projection.toString(), "{fields: {}}");
+
+        Map<String, String> fields = new HashMap<>();
+        fields.put(null, "test");
+        fields.put("map_field.foo", "foo");
+        projection.setFields(fields);
+
+        Assert.assertEquals(projection.toString(), "{fields: {null=test, map_field.foo=foo}}");
+    }
 }

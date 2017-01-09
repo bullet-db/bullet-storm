@@ -5,6 +5,8 @@
  */
 package com.yahoo.bullet.drpc;
 
+import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.tracing.AbstractRule;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
@@ -13,6 +15,8 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.tuple.Tuple;
 
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -23,6 +27,8 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
     protected int tickInterval;
     protected Map configuration;
     protected OutputCollector collector;
+    protected Map<String, String> metadataKeys;
+
     // TODO consider a rotating map with multilevels and reinserts upon rotating instead for scalability
     protected Map<Long, R> rulesMap;
 
@@ -43,9 +49,20 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-        this.configuration = stormConf;
+        // stormConf is not modifyable. Need to make a copy.
+        this.configuration = new HashMap<>(stormConf);
         this.collector = collector;
         rulesMap = new LinkedHashMap<>();
+
+        // Get all known Concepts
+        metadataKeys = Metadata.getConceptNames(configuration, new HashSet<>(Metadata.KNOWN_CONCEPTS));
+        if (!metadataKeys.isEmpty()) {
+            log.info("Metadata collection is enabled");
+            log.info("Collecting metadata for these concepts:\n{}", metadataKeys);
+            // Add all metadataKeys back to configuration for reuse so no need refetch them on every new rule
+            configuration.put(BulletConfig.RESULT_METADATA_METRICS_MAPPING, metadataKeys);
+        }
+
     }
 
     /**

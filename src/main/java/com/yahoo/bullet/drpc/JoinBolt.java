@@ -9,9 +9,9 @@ import com.google.gson.JsonParseException;
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.parsing.ParsingException;
-import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
+import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.bullet.tracing.AggregationRule;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
@@ -25,15 +25,10 @@ import org.apache.storm.utils.Utils;
 
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Set;
 import java.util.function.Consumer;
-
-import static java.util.Arrays.asList;
-import static java.util.Collections.emptyList;
 
 @Slf4j
 public class JoinBolt extends RuleBolt<AggregationRule> {
@@ -43,16 +38,12 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
     public static final int DEFAULT_ERROR_TICKOUT = 3;
     /** This is the default number of ticks for which we will a rule post expiry. */
     public static final int DEFAULT_RULE_TICKOUT = 3;
-    public static final Set<String> CONCEPTS = new HashSet<>(asList(Metadata.RULE_ID, Metadata.RULE_BODY, Metadata.CREATION_TIME, Metadata.TERMINATION_TIME));
 
     private Map<Long, Tuple> activeReturns;
     // For doing a LEFT OUTER JOIN between Rules and ReturnInfo if the Rule has validation issues
     private RotatingMap<Long, Clip> bufferedErrors;
     // For doing a LEFT OUTER JOIN between Rules and intermediate aggregation, if the aggregations are lagging.
     private RotatingMap<Long, AggregationRule> bufferedRules;
-
-    private boolean isMetadataEnabled = false;
-    private Map<String, String> metadataKeys;
 
     /**
      * Default constructor.
@@ -75,34 +66,15 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
 
         activeReturns = new HashMap<>();
 
-        Number errorTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, DEFAULT_ERROR_TICKOUT);
+        Number errorTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT,
+                                                                        DEFAULT_ERROR_TICKOUT);
         int errorTickout = errorTickoutNumber.intValue();
         bufferedErrors = new RotatingMap<>(errorTickout);
 
-        Number ruleTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_RULE_TICK_TIMEOUT, DEFAULT_RULE_TICKOUT);
+        Number ruleTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_RULE_TICK_TIMEOUT,
+                                                                       DEFAULT_RULE_TICKOUT);
         int ruleTickout = ruleTickoutNumber.intValue();
         bufferedRules = new RotatingMap<>(ruleTickout);
-
-        isMetadataEnabled = (Boolean) configuration.getOrDefault(BulletConfig.RESULT_METADATA_ENABLE, false);
-        if (isMetadataEnabled) {
-            log.info("Metadata collection is enabled");
-            metadataKeys = getMetadataMetrics(configuration);
-        }
-    }
-
-    private static Map<String, String> getMetadataMetrics(Map configuration) {
-        Map<String, String> keys = new HashMap<>();
-        List<Map> metricsKeys = (List<Map>) configuration.getOrDefault(BulletConfig.RESULT_METADATA_METRICS, emptyList());
-        // For each metric configured, load the name of the field to add it to the metadata as.
-        for (Map m : metricsKeys) {
-            String concept = (String) m.get(BulletConfig.RESULT_METADATA_METRICS_CONCEPT_KEY);
-            String name = (String) m.get(BulletConfig.RESULT_METADATA_METRICS_NAME_KEY);
-            if (CONCEPTS.contains(concept)) {
-                log.info("Enabling logging of {} as {} in metadata", concept, name);
-                keys.put(concept, name);
-            }
-        }
-        return keys;
     }
 
     @Override
@@ -242,10 +214,10 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         Objects.requireNonNull(returnTuple);
 
         // TODO Anchor this tuple to all tuples that caused its emission : rule tuple, return tuple, data tuple(s)
-        List<BulletRecord> records = rule.getData();
-        Metadata meta = getMetadata(id, rule);
-        emit(Clip.of(records).add(meta), returnTuple);
-        int emitted = records.size();
+        Clip records = rule.getData();
+        records.add(getMetadata(id, rule));
+        emit(records, returnTuple);
+        int emitted = records.getRecords().size();
         log.info("Rule {} has been satisfied with {} records. Cleaning up...", id, emitted);
         rulesMap.remove(id);
         bufferedRules.remove(id);
@@ -260,20 +232,20 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
     }
 
     private Metadata getMetadata(Long id, AggregationRule rule) {
-        if (!isMetadataEnabled) {
+        if (metadataKeys.isEmpty()) {
             return null;
         }
         Metadata meta = new Metadata();
-        consumeRegisteredConcept(Metadata.RULE_ID, (k) -> meta.add(k, id));
-        consumeRegisteredConcept(Metadata.RULE_BODY, (k) -> meta.add(k, rule.toString()));
-        consumeRegisteredConcept(Metadata.CREATION_TIME, (k) -> meta.add(k, rule.getStartTime()));
-        consumeRegisteredConcept(Metadata.TERMINATION_TIME, (k) -> meta.add(k, rule.getLastAggregationTime()));
+        consumeRegisteredConcept(Concept.RULE_ID, (k) -> meta.add(k, id));
+        consumeRegisteredConcept(Concept.RULE_BODY, (k) -> meta.add(k, rule.toString()));
+        consumeRegisteredConcept(Concept.CREATION_TIME, (k) -> meta.add(k, rule.getStartTime()));
+        consumeRegisteredConcept(Concept.TERMINATION_TIME, (k) -> meta.add(k, rule.getLastAggregationTime()));
         return meta;
     }
 
-    private void consumeRegisteredConcept(String concept, Consumer<String> action) {
+    private void consumeRegisteredConcept(Concept concept, Consumer<String> action) {
         // Only consume the concept if we have a key for it: i.e. it was registered
-        String key = metadataKeys.get(concept);
+        String key = metadataKeys.get(concept.getName());
         if (key != null) {
             action.accept(key);
         }

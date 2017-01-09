@@ -15,8 +15,8 @@ import java.util.HashSet;
 public class TypeTest {
     @Test
     public void testCurrentTypes() {
-        Assert.assertEquals(new HashSet<>(Type.TYPES), new HashSet<>(Arrays.asList(Type.LONG, Type.BOOLEAN, Type.DOUBLE, Type.STRING)));
-        Assert.assertEquals(Type.TYPES, Type.simpleTypes());
+        Assert.assertEquals(new HashSet<>(Type.SUPPORTED_TYPES), new HashSet<>(Arrays.asList(Type.LONG, Type.BOOLEAN, Type.DOUBLE, Type.STRING)));
+        Assert.assertEquals(Type.SUPPORTED_TYPES, Type.simpleTypes());
     }
 
     @Test

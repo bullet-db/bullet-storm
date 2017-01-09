@@ -110,7 +110,7 @@ public class RawTest {
         Assert.assertNull(raw.getSerializedAggregation());
         raw.combine(null);
         Assert.assertNull(raw.getSerializedAggregation());
-        Assert.assertEquals(raw.getAggregation().size(), 0);
+        Assert.assertEquals(raw.getAggregation().getRecords().size(), 0);
     }
 
     @Test
@@ -158,7 +158,7 @@ public class RawTest {
     public void testLimitZero() {
         Raw raw = makeRaw(0);
 
-        List<BulletRecord> aggregate = raw.getAggregation();
+        List<BulletRecord> aggregate = raw.getAggregation().getRecords();
         Assert.assertFalse(raw.isAcceptingData());
         Assert.assertFalse(raw.isMicroBatch());
         Assert.assertEquals(aggregate.size(), 0);
@@ -169,7 +169,7 @@ public class RawTest {
         Assert.assertFalse(raw.isAcceptingData());
         Assert.assertFalse(raw.isMicroBatch());
         Assert.assertNull(raw.getSerializedAggregation());
-        Assert.assertEquals(raw.getAggregation().size(), 0);
+        Assert.assertEquals(raw.getAggregation().getRecords().size(), 0);
     }
 
     @Test
@@ -180,7 +180,7 @@ public class RawTest {
 
         records.stream().map(TestHelpers::getListBytes).forEach(raw::combine);
 
-        List<BulletRecord> aggregate = raw.getAggregation();
+        List<BulletRecord> aggregate = raw.getAggregation().getRecords();
         // We should have 5 records
         Assert.assertEquals(aggregate.size(), 5);
         // We should have all the records
@@ -196,7 +196,7 @@ public class RawTest {
 
         records.stream().map(TestHelpers::getListBytes).forEach(raw::combine);
 
-        List<BulletRecord> aggregate = raw.getAggregation();
+        List<BulletRecord> aggregate = raw.getAggregation().getRecords();
         // We should have 10 records
         Assert.assertEquals(aggregate.size(), 10);
         // We should have the all records
@@ -213,7 +213,7 @@ public class RawTest {
 
         records.stream().map(TestHelpers::getListBytes).forEach(raw::combine);
 
-        List<BulletRecord> aggregate = raw.getAggregation();
+        List<BulletRecord> aggregate = raw.getAggregation().getRecords();
         // We should have 10 records
         Assert.assertEquals(aggregate.size(), 10);
         // We should have the first 10 records
@@ -240,7 +240,7 @@ public class RawTest {
         // We should have 19 records at this point, and the next consume should just take the first one in the batch
         raw.combine(extraTen);
 
-        List<BulletRecord> actual = raw.getAggregation();
+        List<BulletRecord> actual = raw.getAggregation().getRecords();
         Assert.assertEquals(actual.size(), 20);
 
         // We should have 1, 2, ... 19, 0 as the records

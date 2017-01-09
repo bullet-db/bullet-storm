@@ -70,4 +70,9 @@ public class Projection implements Configurable, Validatable {
     public Optional<List<Error>> validate() {
         return Optional.empty();
     }
+
+    @Override
+    public String toString() {
+        return "{fields: " + fields + "}";
+    }
 }
