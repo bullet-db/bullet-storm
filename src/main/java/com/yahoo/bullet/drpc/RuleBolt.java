@@ -15,6 +15,7 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.tuple.Tuple;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -48,7 +49,8 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-        this.configuration = stormConf;
+        // stormConf is not modifyable. Need to make a copy.
+        this.configuration = new HashMap<>(stormConf);
         this.collector = collector;
         rulesMap = new LinkedHashMap<>();
 
