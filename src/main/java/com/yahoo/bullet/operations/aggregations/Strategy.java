@@ -29,6 +29,7 @@ public interface Strategy {
     default boolean isMicroBatch() {
         return false;
     }
+
     /**
      * Consumes a single {@link BulletRecord} into the aggregation.
      *

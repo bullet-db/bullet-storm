@@ -28,6 +28,7 @@ public class BulletConfig extends Config {
     public static final String SPECIFICATION_MAX_DURATION = "rule.max.duration";
     public static final String AGGREGATION_DEFAULT_SIZE = "rule.aggregation.default.size";
     public static final String AGGREGATION_MAX_SIZE = "rule.aggregation.max.size";
+    public static final String RAW_AGGREGATION_MICRO_BATCH_SIZE = "rule.aggregation.raw.micro.batch.size";
 
     public static final String RECORD_INJECT_TIMESTAMP = "record.inject.timestamp.enable";
     public static final String RECORD_INJECT_TIMESTAMP_KEY = "record.inject.timestamp.key";

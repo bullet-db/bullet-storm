@@ -17,7 +17,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.TestHelpers.getByteArray;
+import static com.yahoo.bullet.TestHelpers.getListBytes;
 import static com.yahoo.bullet.parsing.RuleUtils.getAggregationRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeAggregationRule;
 import static java.util.Collections.emptyMap;
@@ -62,7 +62,7 @@ public class AggregationRuleTest {
     public void testAggregationTime() {
         AggregationRule rule = getAggregationRule("{'aggregation' : {}}", emptyMap());
         long creationTime = rule.getStartTime();
-        byte[] record = getByteArray(new BulletRecord());
+        byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, Aggregation.DEFAULT_SIZE - 1).forEach((x) -> rule.consume(record));
         Assert.assertEquals(rule.getData().size(), Aggregation.DEFAULT_SIZE - 1);
         long lastAggregationTime = rule.getLastAggregationTime();
@@ -72,7 +72,7 @@ public class AggregationRuleTest {
     @Test
     public void testDefaultLimiting() {
         AggregationRule rule = getAggregationRule("{'aggregation' : {}}", emptyMap());
-        byte[] record = getByteArray(new BulletRecord());
+        byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, Aggregation.DEFAULT_SIZE - 1).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
         Assert.assertEquals((Integer) rule.getData().size(), Aggregation.DEFAULT_SIZE);
@@ -81,7 +81,7 @@ public class AggregationRuleTest {
     @Test
     public void testCustomLimiting() {
         AggregationRule rule = getAggregationRule(makeAggregationRule(AggregationType.RAW, 10), emptyMap());
-        byte[] record = getByteArray(new BulletRecord());
+        byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, 9).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
         Assert.assertEquals(rule.getData().size(), 10);
@@ -90,7 +90,7 @@ public class AggregationRuleTest {
     @Test
     public void testSizeUpperBound() {
         AggregationRule rule = getAggregationRule(makeAggregationRule(AggregationType.RAW, 1000), emptyMap());
-        byte[] record = getByteArray(new BulletRecord());
+        byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, Aggregation.DEFAULT_MAX_SIZE - 1).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
         Assert.assertEquals((Integer) rule.getData().size(), Aggregation.DEFAULT_MAX_SIZE);
@@ -102,7 +102,7 @@ public class AggregationRuleTest {
         config.put(BulletConfig.AGGREGATION_MAX_SIZE, 200);
 
         AggregationRule rule = getAggregationRule(makeAggregationRule(AggregationType.RAW, 1000), config);
-        byte[] record = getByteArray(new BulletRecord());
+        byte[] record = getListBytes(new BulletRecord());
         IntStream.range(0, 199).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
         Assert.assertEquals(rule.getData().size(), 200);
