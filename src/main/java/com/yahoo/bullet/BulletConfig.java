@@ -8,6 +8,13 @@ package com.yahoo.bullet;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+
+import static java.util.Arrays.asList;
 
 @Slf4j
 public class BulletConfig extends Config {
@@ -64,6 +71,16 @@ public class BulletConfig extends Config {
 
     public static final String RESULT_METADATA_METRICS_MAPPING = "result.metadata.metrics.mapping";
 
+    public static Set<String> TOPOLOGY_SUBMISSION_SETTINGS =
+            new HashSet<>(asList(DRPC_SPOUT_PARALLELISM, DRPC_SPOUT_CPU_LOAD, DRPC_SPOUT_MEMORY_ON_HEAP_LOAD,
+                                 DRPC_SPOUT_MEMORY_OFF_HEAP_LOAD, PREPARE_BOLT_PARALLELISM, PREPARE_BOLT_CPU_LOAD,
+                                 PREPARE_BOLT_MEMORY_ON_HEAP_LOAD, PREPARE_BOLT_MEMORY_OFF_HEAP_LOAD,
+                                 FILTER_BOLT_PARALLELISM, FILTER_BOLT_CPU_LOAD, FILTER_BOLT_MEMORY_ON_HEAP_LOAD,
+                                 FILTER_BOLT_MEMORY_OFF_HEAP_LOAD, JOIN_BOLT_PARALLELISM, JOIN_BOLT_CPU_LOAD,
+                                 JOIN_BOLT_MEMORY_ON_HEAP_LOAD, JOIN_BOLT_MEMORY_OFF_HEAP_LOAD,
+                                 RETURN_BOLT_PARALLELISM, RETURN_BOLT_CPU_LOAD, RETURN_BOLT_MEMORY_ON_HEAP_LOAD,
+                                 RETURN_BOLT_MEMORY_OFF_HEAP_LOAD, TOPOLOGY_SCHEDULER, TOPOLOGY_FUNCTION,
+                                 TOPOLOGY_NAME, TOPOLOGY_WORKERS, TOPOLOGY_DEBUG, TOPOLOGY_METRICS_ENABLE));
     /**
      * Constructor that loads specific file augmented with defaults.
      *
@@ -81,5 +98,14 @@ public class BulletConfig extends Config {
      */
     public BulletConfig() throws IOException {
         super();
+    }
+
+    /**
+     * Gets all the settings besides the {@link #TOPOLOGY_SUBMISSION_SETTINGS}.
+     *
+     * @return A {@link Map} of the other settings.
+     */
+    public Map<String, Object> getBulletSettingsOnly() {
+        return getAllBut(Optional.of(TOPOLOGY_SUBMISSION_SETTINGS));
     }
 }

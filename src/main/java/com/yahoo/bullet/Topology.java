@@ -121,6 +121,7 @@ public class Topology {
         Objects.requireNonNull(recordComponent);
         Objects.requireNonNull(builder);
 
+        String name = (String) config.get(BulletConfig.TOPOLOGY_NAME);
         String function = (String) config.get(BulletConfig.TOPOLOGY_FUNCTION);
 
         Number drpcSpoutParallelism = (Number) config.get(BulletConfig.DRPC_SPOUT_PARALLELISM);
@@ -148,11 +149,6 @@ public class Topology {
         Number returnBoltMemoryOnHeapLoad = (Number) config.get(BulletConfig.RETURN_BOLT_MEMORY_ON_HEAP_LOAD);
         Number returnBoltMemoryOffHeapLoad = (Number) config.get(BulletConfig.RETURN_BOLT_MEMORY_OFF_HEAP_LOAD);
 
-        Long defaultDuration = (Long) config.get(BulletConfig.SPECIFICATION_DEFAULT_DURATION);
-        Long maxDuration = (Long) config.get(BulletConfig.SPECIFICATION_MAX_DURATION);
-        Long defaultSize = (Long) config.get(BulletConfig.AGGREGATION_DEFAULT_SIZE);
-        Long maxSize = (Long) config.get(BulletConfig.AGGREGATION_MAX_SIZE);
-        Integer microBatchSize = ((Number) config.get(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE)).intValue();
         Integer tickInterval = ((Number) config.get(BulletConfig.TICK_INTERVAL_SECS)).intValue();
 
         builder.setSpout(TopologyConstants.DRPC_COMPONENT, new DRPCSpout(function), drpcSpoutParallelism)
@@ -198,13 +194,6 @@ public class Topology {
         Number workers = (Number) config.get(BulletConfig.TOPOLOGY_WORKERS);
         stormConfig.setNumWorkers(workers.intValue());
 
-        // Defaults for Rules
-        stormConfig.put(BulletConfig.SPECIFICATION_DEFAULT_DURATION, defaultDuration);
-        stormConfig.put(BulletConfig.SPECIFICATION_MAX_DURATION, maxDuration);
-        stormConfig.put(BulletConfig.AGGREGATION_DEFAULT_SIZE, defaultSize);
-        stormConfig.put(BulletConfig.AGGREGATION_MAX_SIZE, maxSize);
-        stormConfig.put(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, microBatchSize);
-
         // Metrics
         Boolean enableMetrics = (Boolean) config.get(BulletConfig.TOPOLOGY_METRICS_ENABLE);
         if (enableMetrics) {
@@ -212,27 +201,9 @@ public class Topology {
             stormConfig.put(Config.TOPOLOGY_WORKER_METRICS, METRICS);
         }
 
-        // Inject timestamp into record. Only applies to raw records (not aggregations)
-        Boolean shouldInjectTimestamp = (Boolean) config.get(BulletConfig.RECORD_INJECT_TIMESTAMP);
-        String timestampKey = (String) config.get(BulletConfig.RECORD_INJECT_TIMESTAMP_KEY);
-        stormConfig.put(BulletConfig.RECORD_INJECT_TIMESTAMP, shouldInjectTimestamp);
-        stormConfig.put(BulletConfig.RECORD_INJECT_TIMESTAMP_KEY, timestampKey);
+        // Put the rest of the Bullet settings without checking their types
+        stormConfig.putAll(config.getBulletSettingsOnly());
 
-        // Join Bolt Error Tick Timeout (how many ticks will an error be buffered before it is dropped)
-        Number joinBoltErrorTickTimeout = (Number) config.get(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT);
-        stormConfig.put(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, joinBoltErrorTickTimeout);
-
-        // Join Bolt Rule Tick Timeout (how many ticks a rule will be buffered post expiry before it is dropped)
-        Number joinBoltRuleTickTimeout = (Number) config.get(BulletConfig.JOIN_BOLT_RULE_TICK_TIMEOUT);
-        stormConfig.put(BulletConfig.JOIN_BOLT_RULE_TICK_TIMEOUT, joinBoltRuleTickTimeout);
-
-        // Metadata
-        Boolean enableMetadata = (Boolean) config.get(BulletConfig.RESULT_METADATA_ENABLE);
-        List<Map<String, String>> metadataConfig = (List<Map<String, String>>) config.get(BulletConfig.RESULT_METADATA_METRICS);
-        stormConfig.put(BulletConfig.RESULT_METADATA_ENABLE, enableMetadata);
-        stormConfig.put(BulletConfig.RESULT_METADATA_METRICS, metadataConfig);
-
-        String name = (String) config.get(BulletConfig.TOPOLOGY_NAME);
         StormSubmitter.submitTopology(name, stormConfig, builder.createTopology());
     }
 
