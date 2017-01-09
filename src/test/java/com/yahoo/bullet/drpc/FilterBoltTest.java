@@ -9,8 +9,10 @@ import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.TestHelpers;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.FilterOperations;
+import com.yahoo.bullet.operations.aggregations.CountDistinct;
 import com.yahoo.bullet.operations.aggregations.GroupData;
 import com.yahoo.bullet.operations.aggregations.GroupOperation;
+import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
 import com.yahoo.bullet.tracing.FilterRule;
@@ -37,14 +39,15 @@ import static com.yahoo.bullet.operations.FilterOperations.FilterType.GREATER_TH
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.OR;
 import static com.yahoo.bullet.parsing.LogicalClauseTest.clause;
 import static com.yahoo.bullet.parsing.RuleUtils.getFilterRule;
+import static com.yahoo.bullet.parsing.RuleUtils.makeAggregationRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeFieldFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeGroupFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeSimpleAggregationFilterRule;
-import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -469,7 +472,7 @@ public class FilterBoltTest {
 
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
                                  makeGroupFilterRule("timestamp", Arrays.asList("1", "2"), EQUALS,
-                                                     AggregationType.GROUP, 1, emptyList(),
+                                                     AggregationType.GROUP, 1,
                                                      singletonList(new GroupOperation(COUNT, null, "cnt"))));
         bolt.execute(rule);
 
@@ -503,7 +506,7 @@ public class FilterBoltTest {
 
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
                                  makeSimpleAggregationFilterRule("field", singletonList("b235gf23b"),
-                                         EQUALS, AggregationType.RAW, 7));
+                                                                 EQUALS, AggregationType.RAW, 7));
         bolt.execute(rule);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -527,5 +530,43 @@ public class FilterBoltTest {
 
         expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record, record);
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
+    }
+
+    @Test
+    public void testCountDistinct() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES, 512);
+        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(), collector);
+
+        Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
+                                 makeAggregationRule(AggregationType.COUNT_DISTINCT, 1, null,
+                                         Pair.of("field", "field")));
+        bolt.execute(rule);
+
+        IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
+                               .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                               .forEach(bolt::execute);
+
+        Assert.assertEquals(collector.getEmittedCount(), 0);
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+
+        Assert.assertEquals(collector.getEmittedCount(), 1);
+
+        byte[] rawData = getRawPayloadOfNthTuple(1);
+        Assert.assertNotNull(rawData);
+
+        Aggregation aggregation = new Aggregation();
+        aggregation.setConfiguration(config);
+        aggregation.setFields(singletonMap("field", "foo"));
+        CountDistinct distinct = new CountDistinct(aggregation);
+        distinct.combine(rawData);
+
+        BulletRecord actual = distinct.getAggregation().getRecords().get(0);
+        BulletRecord expected = RecordBox.get().add(CountDistinct.DEFAULT_NEW_NAME, 256.0).getRecord();
+        Assert.assertEquals(actual, expected);
+
     }
 }

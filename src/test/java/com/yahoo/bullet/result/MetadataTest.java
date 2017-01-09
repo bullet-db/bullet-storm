@@ -5,20 +5,49 @@
  */
 package com.yahoo.bullet.result;
 
+import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.parsing.Error;
+import com.yahoo.bullet.result.Metadata.Concept;
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 
 public class MetadataTest {
+    @SafeVarargs
+    public static List<Map<String, String>> asMetadataEntries(Map.Entry<String, String>... pairs) {
+        List<Map<String, String>> list = new ArrayList<>();
+        for (Map.Entry<String, String> pair : pairs) {
+            Map<String, String> map = new HashMap<>();
+            map.put(BulletConfig.RESULT_METADATA_METRICS_CONCEPT_KEY, pair.getKey());
+            map.put(BulletConfig.RESULT_METADATA_METRICS_NAME_KEY, pair.getValue());
+            list.add(map);
+        }
+        return list;
+    }
+
+    @Test
+    public void testConceptFinding() {
+        Assert.assertEquals(Concept.from("Creation Time"), Concept.CREATION_TIME);
+        Assert.assertEquals(Concept.from("Rule Identifier"), Concept.RULE_ID);
+        Assert.assertEquals(Concept.from("Aggregation Metadata"), Concept.AGGREGATION_METADATA);
+        Assert.assertEquals(Concept.from("Standard Deviations"), Concept.STANDARD_DEVIATIONS);
+        Assert.assertNull(Concept.from("foo"));
+        Assert.assertNull(Concept.from("standard deviations"));
+    }
+
     @Test
     public void testErrorsAddition() {
         Error errorA = Error.of("foo", asList("1", "2"));
@@ -69,5 +98,36 @@ public class MetadataTest {
         expected.put("baz", singletonMap("a", 1));
 
         Assert.assertEquals(metaA.asMap(), expected);
+    }
+
+    @Test
+    public void testConceptKeyExtractionWithMetadataNotEnabled() {
+        Map<String, Object> configuration = new HashMap<>();
+        configuration.put(BulletConfig.RESULT_METADATA_METRICS, asMetadataEntries(Pair.of("Estimated Result", "foo")));
+
+        Set<Concept> concepts = new HashSet<>(singletonList(Concept.ESTIMATED_RESULT));
+
+        Assert.assertEquals(Metadata.getConceptNames(configuration, concepts), Collections.emptyMap());
+    }
+
+    @Test
+    public void testConceptKeyExtraction() {
+        Map<String, Object> configuration = new HashMap<>();
+        configuration.put(BulletConfig.RESULT_METADATA_ENABLE, true);
+        configuration.put(BulletConfig.RESULT_METADATA_METRICS,
+                          asMetadataEntries(Pair.of("Estimated Result", "foo"),
+                                            Pair.of("Aggregation Metadata", "bar"),
+                                            Pair.of("Standard Deviations", "baz")));
+
+        Set<Concept> concepts = new HashSet<>(asList(Concept.ESTIMATED_RESULT,
+                                                     Concept.AGGREGATION_METADATA,
+                                                     Concept.STANDARD_DEVIATIONS));
+
+        Map<String, String> expectedMap = new HashMap<>();
+        expectedMap.put(Concept.ESTIMATED_RESULT.getName(), "foo");
+        expectedMap.put(Concept.AGGREGATION_METADATA.getName(), "bar");
+        expectedMap.put(Concept.STANDARD_DEVIATIONS.getName(), "baz");
+
+        Assert.assertEquals(Metadata.getConceptNames(configuration, concepts), expectedMap);
     }
 }

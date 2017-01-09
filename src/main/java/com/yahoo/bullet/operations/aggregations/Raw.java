@@ -8,6 +8,7 @@ package com.yahoo.bullet.operations.aggregations;
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.ByteArrayInputStream;
@@ -29,7 +30,6 @@ import java.util.List;
  * the {@link List} till the aggregation size is reached.
  *
  * This {@link Strategy} will only consume or combine till the specified aggregation size is reached.
- *
  */
 @Slf4j
 public class Raw implements Strategy {
@@ -104,7 +104,8 @@ public class Raw implements Strategy {
      * In the case of a Raw aggregation, serializing means return the serialized {@link List} of
      * {@link BulletRecord} seen before the last call to this method. Once the data has been serialized, further calls
      * to obtain it again without calling {@link #consume(BulletRecord)} or {@link #combine(byte[])} will result in
-     * nulls.
+     * nulls. In other words, the Raw strategy micro-batches and finalizes the aggregation so far when this
+     * method is called.
      *
      * @return the serialized byte[] representing the {@link List} of {@link BulletRecord} or null if it could not.
      */
@@ -121,12 +122,12 @@ public class Raw implements Strategy {
     /**
      * Gets the aggregated records so far since the last call to {@link #getSerializedAggregation()}.
      *
-     * @return a List of the combined {@link BulletRecord} so far. The List has a size that is at most the maximum
+     * @return a {@link Clip} of the combined records so far. The records have a size that is at most the maximum
      * specified by the {@link Aggregation}.
      */
     @Override
-    public List<BulletRecord> getAggregation() {
-        return aggregate;
+    public Clip getAggregation() {
+        return Clip.of(aggregate);
     }
 
     private byte[] write(List<BulletRecord> batch) {

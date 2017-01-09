@@ -49,9 +49,11 @@ public class Aggregation implements Configurable, Validatable {
     // In case, any strategies need it.
     private Map configuration;
 
-    // We only support COUNT for now.
+    // TODO: Move this to a Validation object tied in properly with Strategies when all are added.
     public static final Set<AggregationType> SUPPORTED_AGGREGATION_TYPES = new HashSet<>(asList(AggregationType.GROUP,
+                                                                                                AggregationType.COUNT_DISTINCT,
                                                                                                 AggregationType.RAW));
+
     public static final Set<GroupOperationType> SUPPORTED_GROUP_OPERATIONS = new HashSet<>(asList(GroupOperationType.COUNT,
                                                                                                   GroupOperationType.AVG,
                                                                                                   GroupOperationType.MAX,
@@ -59,13 +61,17 @@ public class Aggregation implements Configurable, Validatable {
                                                                                                   GroupOperationType.SUM));
 
     public static final String TYPE_NOT_SUPPORTED_ERROR_PREFIX = "Aggregation type not supported";
-    public static final String TYPE_NOT_SUPPORTED_RESOLUTION = "Current supported aggregation types are: RAW, GROUP";
+    public static final String TYPE_NOT_SUPPORTED_RESOLUTION = "Current supported aggregation types are: RAW, GROUP, " +
+            "                                                   COUNT DISTINCT";
 
     public static final String SUPPORTED_GROUP_OPERATIONS_RESOLUTION =
             "Currently supported operations are: COUNT, AVG, MIN, MAX, SUM";
 
     public static final String GROUP_OPERATION_REQUIRES_FIELD = "Group operation requires a field: ";
-    public static final String GROUP_OPERATION_REQUIRES_FIELD_RESOLUTION = "Please add field for this operation.";
+    public static final String OPERATION_REQUIRES_FIELD_RESOLUTION = "Please add a field for this operation.";
+
+    public static final Error COUNT_DISTINCT_REQUIRES_FIELD_ERROR =
+            makeError("Count Distinct requires atleast one field", OPERATION_REQUIRES_FIELD_RESOLUTION);
 
     // Temporary
     public static final Error GROUP_FIELDS_NOT_SUPPORTED_ERROR = makeError("Group type aggregation cannot have fields",
@@ -76,6 +82,8 @@ public class Aggregation implements Configurable, Validatable {
 
     public static final Integer DEFAULT_SIZE = 1;
     public static final Integer DEFAULT_MAX_SIZE = 30;
+
+    public static final String DEFAULT_FIELD_SEPARATOR = "|";
 
     public static final String OPERATIONS = "operations";
     public static final String OPERATION_TYPE = "type";
@@ -119,6 +127,11 @@ public class Aggregation implements Configurable, Validatable {
                 return Optional.of(singletonList(GROUP_ALL_OPERATION_ERROR));
             }
         }
+        if (type == AggregationType.COUNT_DISTINCT) {
+            if (isEmpty(fields)) {
+                return Optional.of(singletonList(COUNT_DISTINCT_REQUIRES_FIELD_ERROR));
+            }
+        }
         // Supported aggregation types should be documented in TYPE_NOT_SUPPORTED_RESOLUTION
         if (!SUPPORTED_AGGREGATION_TYPES.contains(type)) {
             String typeSuffix = type == null ? "" : ": " + type;
@@ -129,7 +142,7 @@ public class Aggregation implements Configurable, Validatable {
             for (GroupOperation operation : groupOperations) {
                 if (operation.getField() == null && operation.getType() != GroupOperationType.COUNT) {
                     return Optional.of(singletonList(makeError(GROUP_OPERATION_REQUIRES_FIELD + operation.getType(),
-                                                               GROUP_OPERATION_REQUIRES_FIELD_RESOLUTION)));
+                                                               OPERATION_REQUIRES_FIELD_RESOLUTION)));
                 }
             }
         }
@@ -168,5 +181,10 @@ public class Aggregation implements Configurable, Validatable {
         String newName = data.get(OPERATION_NEW_NAME);
         // Unknown GroupOperations are ignored.
         return operation.isPresent() ? new GroupOperation(operation.get(), field, newName) : null;
+    }
+
+    @Override
+    public String toString() {
+        return "{size: " + size + ", type: " + type + ", fields: " + fields + ", attributes: " + attributes + "}";
     }
 }

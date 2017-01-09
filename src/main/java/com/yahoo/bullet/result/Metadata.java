@@ -5,23 +5,67 @@
  */
 package com.yahoo.bullet.result;
 
+import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.parsing.Error;
+import lombok.Getter;
 
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
+
+import static java.util.Arrays.asList;
 
 public class Metadata {
     private Map<String, Object> meta = new HashMap<>();
+    public static final List<Concept> KNOWN_CONCEPTS = asList(Concept.values());
 
+    @Getter
+    public enum Concept {
+        CREATION_TIME("Creation Time"),
+        TERMINATION_TIME("Termination Time"),
+        RULE_ID("Rule Identifier"),
+        RULE_BODY("Rule Body"),
+        AGGREGATION_METADATA("Aggregation Metadata"),
+
+        ESTIMATED_RESULT("Estimated Result"),
+        STANDARD_DEVIATIONS("Standard Deviations"),
+        SKETCH_FAMILY("Sketch Family"),
+        SKETCH_SIZE("Sketch Size"),
+        SKETCH_THETA("Sketch Theta");
+
+        private String name;
+
+        Concept(String name) {
+            this.name = name;
+        }
+
+        /**
+         * Returns true iff the given String concept is this Concept.
+         *
+         * @param concept The String version of this concept.
+         * @return A boolean denoting whether this concept is this String.
+         */
+        public boolean isMe(String concept) {
+            return name.equals(concept);
+        }
+
+        /**
+         * Creates a Concept instance from a String version of it.
+         *
+         * @param concept The string version of the Concept.
+         * @return A Concept or null if the string does not match any known Concept.
+         */
+        public static Concept from(String concept) {
+            return KNOWN_CONCEPTS.stream().filter(c -> c.isMe(concept)).findFirst().orElse(null);
+        }
+    }
+
+    // This is not a Concept because it is not configurable. It will be returned no matter what with this key.
     public static final String ERROR_KEY = "errors";
-    public static final String CREATION_TIME = "Creation Time";
-    public static final String TERMINATION_TIME = "Termination Time";
-    public static final String RULE_ID = "Rule Identifier";
-    public static final String RULE_BODY = "Rule Body";
 
     /**
      * Returns a backing view of the meta information as a Map.
@@ -47,6 +91,7 @@ public class Metadata {
      * @param errors Error objects to add.
      * @return This object for chaining.
      */
+    @SuppressWarnings("unchecked")
     public Metadata addErrors(List<Error> errors) {
         Objects.requireNonNull(errors);
         List<Error> existing = (List<Error>) meta.get(ERROR_KEY);
@@ -65,7 +110,7 @@ public class Metadata {
      */
     public static Metadata of(Error... errors) {
         Metadata meta = new Metadata();
-        meta.addErrors(Arrays.asList(errors));
+        meta.addErrors(asList(errors));
         return meta;
     }
 
@@ -90,5 +135,33 @@ public class Metadata {
             this.meta.putAll(metadata.asMap());
         }
         return this;
+    }
+
+    /**
+     * For each {@link Concept} in a given {@link Set}, return a mapping of the {@link Concept} to its name.
+     *
+     * @param configuration The configuration that contains the metadata configuration.
+     * @param concepts A {@link Set} of {@link Concept} to get the mappings for.
+     *
+     * @return A mapping of the names or an empty mapping if metadata is not enabled or none of the concepts were found.
+     */
+    @SuppressWarnings("unchecked")
+    public static Map<String, String> getConceptNames(Map configuration, Set<Concept> concepts) {
+        boolean isMetadataEnabled = (Boolean) configuration.getOrDefault(BulletConfig.RESULT_METADATA_ENABLE, false);
+        if (!isMetadataEnabled) {
+            return Collections.emptyMap();
+        }
+        List<Map> keys = (List<Map>) configuration.getOrDefault(BulletConfig.RESULT_METADATA_METRICS,
+                                                                Collections.emptyList());
+        Map<String, String> mapping = new HashMap<>();
+        // For each metric configured, load the name of the field to add it to the metadata as.
+        for (Map m : keys) {
+            String concept = (String) m.get(BulletConfig.RESULT_METADATA_METRICS_CONCEPT_KEY);
+            String name = (String) m.get(BulletConfig.RESULT_METADATA_METRICS_NAME_KEY);
+            if (concepts.contains(Concept.from(concept))) {
+                mapping.put(concept, name);
+            }
+        }
+        return mapping;
     }
 }

@@ -5,6 +5,7 @@
  */
 package com.yahoo.bullet.operations;
 
+import com.yahoo.bullet.operations.aggregations.CountDistinct;
 import com.yahoo.bullet.operations.aggregations.GroupAll;
 import com.yahoo.bullet.operations.aggregations.Raw;
 import com.yahoo.bullet.parsing.Aggregation;
@@ -21,9 +22,6 @@ public class AggregationOperationsTest {
     public void testUnimplementedStrategies() {
         Aggregation aggregation = new Aggregation();
         aggregation.configure(Collections.emptyMap());
-
-        aggregation.setType(AggregationOperations.AggregationType.COUNT_DISTINCT);
-        Assert.assertNull(AggregationOperations.getStrategyFor(aggregation));
 
         aggregation.setType(AggregationOperations.AggregationType.GROUP);
         Assert.assertNull(AggregationOperations.getStrategyFor(aggregation));
@@ -62,5 +60,15 @@ public class AggregationOperationsTest {
         aggregation.configure(Collections.emptyMap());
 
         Assert.assertEquals(AggregationOperations.getStrategyFor(aggregation).getClass(), GroupAll.class);
+    }
+
+    @Test
+    public void testCountDistinctStrategy() {
+        Aggregation aggregation = new Aggregation();
+        aggregation.setType(AggregationOperations.AggregationType.COUNT_DISTINCT);
+        aggregation.setFields(singletonMap("field", "foo"));
+        aggregation.configure(Collections.emptyMap());
+
+        Assert.assertEquals(AggregationOperations.getStrategyFor(aggregation).getClass(), CountDistinct.class);
     }
 }

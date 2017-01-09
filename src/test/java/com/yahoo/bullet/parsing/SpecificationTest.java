@@ -8,8 +8,12 @@ package com.yahoo.bullet.parsing;
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.FilterOperations.FilterType;
+import com.yahoo.bullet.operations.aggregations.Strategy;
 import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
+import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.RecordBox;
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -32,6 +36,38 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class SpecificationTest {
+
+    private class FailingStrategy implements Strategy {
+        public int consumptionFailure = 0;
+        public int combiningFailure = 0;
+        public int serializingFailure = 0;
+        public int aggregationFailure = 0;
+
+        @Override
+        public void consume(BulletRecord data) {
+            consumptionFailure++;
+            throw new RuntimeException("Consuming record test failure");
+        }
+
+        @Override
+        public void combine(byte[] serializedAggregation) {
+            combiningFailure++;
+            throw new RuntimeException("Combining serialized aggregation test failure");
+        }
+
+        @Override
+        public byte[] getSerializedAggregation() {
+            serializingFailure++;
+            throw new RuntimeException("Serializing aggregation test failure");
+        }
+
+        @Override
+        public Clip getAggregation() {
+            aggregationFailure++;
+            throw new RuntimeException("Getting aggregation test failure");
+        }
+    }
+
     public static Stream<BulletRecord> makeStream(int count) {
         return IntStream.range(0, count).mapToObj(x -> RecordBox.get().getRecord());
     }
@@ -59,7 +95,21 @@ public class SpecificationTest {
         Assert.assertEquals(specification.getAggregation().getType(), AggregationType.RAW);
         Assert.assertEquals(specification.getAggregation().getSize(), Aggregation.DEFAULT_SIZE);
         Assert.assertTrue(specification.isAcceptingData());
-        Assert.assertEquals(specification.getAggregate(), emptyList());
+        Assert.assertEquals(specification.getAggregate().getRecords(), emptyList());
+    }
+
+    @Test
+    public void testExtractField() {
+        BulletRecord record = RecordBox.get().add("field", "foo").add("map_field.foo", "bar")
+                                             .addMap("map_field", Pair.of("foo", "baz"))
+                                             .addList("list_field", singletonMap("foo", "baz"))
+                                             .getRecord();
+
+        Assert.assertNull(Specification.extractField(null, record));
+        Assert.assertNull(Specification.extractField("", record));
+        Assert.assertNull(Specification.extractField("id", record));
+        Assert.assertEquals(Specification.extractField("map_field.foo", record), "baz");
+        Assert.assertNull(Specification.extractField("list_field.bar", record));
     }
 
     @Test
@@ -72,7 +122,7 @@ public class SpecificationTest {
         Assert.assertNull(specification.getAggregation());
         specification.configure(Collections.emptyMap());
         Assert.assertTrue(specification.isAcceptingData());
-        Assert.assertEquals(specification.getAggregate(), emptyList());
+        Assert.assertEquals(specification.getAggregate().getRecords(), emptyList());
     }
 
     @Test
@@ -226,7 +276,7 @@ public class SpecificationTest {
         Assert.assertTrue(makeStream(Aggregation.DEFAULT_SIZE - 1).map(specification::filter).allMatch(x -> x));
         // Check that we only get the default number out
         makeList(Aggregation.DEFAULT_SIZE + 2).forEach(specification::aggregate);
-        Assert.assertEquals((Integer) specification.getAggregate().size(), Aggregation.DEFAULT_SIZE);
+        Assert.assertEquals((Integer) specification.getAggregate().getRecords().size(), Aggregation.DEFAULT_SIZE);
     }
 
     @Test
@@ -261,5 +311,59 @@ public class SpecificationTest {
         specification.setAggregation(null);
         Optional<List<Error>> errorList = specification.validate();
         Assert.assertFalse(errorList.isPresent());
+    }
+
+    @Test
+    public void testAggregationExceptions() {
+        Aggregation aggregation = mock(Aggregation.class);
+        FailingStrategy failure = new FailingStrategy();
+        when(aggregation.getStrategy()).thenReturn(failure);
+
+        Specification specification = new Specification();
+        specification.setAggregation(aggregation);;
+
+        specification.aggregate(RecordBox.get().getRecord());
+        specification.aggregate(new byte[0]);
+
+        Assert.assertNull(specification.getSerializedAggregate());
+        Clip actual = specification.getAggregate();
+
+        Assert.assertNotNull(actual.getMeta());
+        Assert.assertEquals(actual.getRecords().size(), 0);
+
+        Map<String, Object> actualMeta = actual.getMeta().asMap();
+
+        Assert.assertEquals(actualMeta.size(), 1);
+        Assert.assertNotNull(actualMeta.get(Metadata.ERROR_KEY));
+
+        Error expectedError = Error.makeError("Getting aggregation test failure",
+                                              Specification.AGGREGATION_FAILURE_RESOLUTION);
+        Assert.assertEquals(actualMeta.get(Metadata.ERROR_KEY), singletonList(expectedError));
+
+        Assert.assertEquals(failure.consumptionFailure, 1);
+        Assert.assertEquals(failure.combiningFailure, 1);
+        Assert.assertEquals(failure.serializingFailure, 1);
+        Assert.assertEquals(failure.aggregationFailure, 1);
+    }
+
+    @Test
+    public void testToString() {
+        Specification specification = new Specification();
+        specification.configure(emptyMap());
+
+        Assert.assertEquals(specification.toString(),
+                            "{filters: null, projection: null, " +
+                            "aggregation: {size: 1, type: RAW, fields: null, attributes: null}, duration: 30000}");
+
+        specification.setFilters(singletonList(FilterClauseTest.getFieldFilter(FilterType.EQUALS, "foo", "bar")));
+        Projection projection = new Projection();
+        projection.setFields(singletonMap("field", "bid"));
+        specification.setProjection(projection);
+        specification.configure(emptyMap());
+
+        Assert.assertEquals(specification.toString(),
+                            "{filters: [{operation: EQUALS, field: field, values: [foo, bar]}], " +
+                            "projection: {fields: {field=bid}}, " +
+                            "aggregation: {size: 1, type: RAW, fields: null, attributes: null}, duration: 30000}");
     }
 }
