@@ -142,7 +142,7 @@ public class Aggregation implements Configurable, Validatable {
             for (GroupOperation operation : groupOperations) {
                 if (operation.getField() == null && operation.getType() != GroupOperationType.COUNT) {
                     return Optional.of(singletonList(makeError(GROUP_OPERATION_REQUIRES_FIELD + operation.getType(),
-                            OPERATION_REQUIRES_FIELD_RESOLUTION)));
+                                                               OPERATION_REQUIRES_FIELD_RESOLUTION)));
                 }
             }
         }
