@@ -2,6 +2,26 @@
 
 [![Build Status](https://travis-ci.org/yahoo/bullet-storm.svg?branch=master)](https://travis-ci.org/yahoo/bullet-storm) [![Coverage Status](https://coveralls.io/repos/github/yahoo/bullet-storm/badge.svg?branch=master)](https://coveralls.io/github/yahoo/bullet-storm?branch=master) [![Download](https://api.bintray.com/packages/yahoo/maven/bullet-storm/images/download.svg) ](https://bintray.com/yahoo/maven/bullet-storm/_latestVersion)
 
+## Table of Contents
+1. [Introduction](#introduction)
+2. [Storm](#storm-drpc)
+3. [Query](#query)
+    1. [Types](#types)
+    2. [Filters](#filters)
+        1. [Logical Filters](#logical-filters)
+        2. [Relational Filters](#relational-filters)
+    3. [Projections](#projections)
+    4. [Aggregations](#aggregations)
+        1. [Coming Soon](#coming-soon)
+    5. [Termination Conditions](#termination-conditions)
+    6. [Results](#results)
+4. [Examples](#examples)
+5. [Configuration](#configuration)
+6. [Installation](#installation)
+    1. [Older Storm Versions](#older-storm-versions)
+7. [Launch](#launch)
+
+## Introduction
 Bullet is a real-time query engine that lets you perform queries on streaming data **without a need for a persistence store**. This makes it
 extremely **light-weight, cheap and fast**.
 
@@ -270,17 +290,17 @@ Attributes for TOP K:
 
 The attributes for the DISTRIBUTION aggregation haven't been decided yet.
 
-### Constraints
+### Termination Conditions
 
-In order to avoid DOS, we have the following constraints imposed on a query (this is configurable when launching Bullet but this is the default behavior):
-1. A query can only last for a duration of 30000 ms. If one is not provided, 30000 is used instead. The maximum duration supported is 120000 ms. Anything greater will be clamped to 120000 ms.
-2. The size in aggregation can at most be 30. Records will be collected till 30 is reached, if a size > 30 is provided. If no size is provided, a default of 1 is used.
+A query terminates when the following conditions are reached (this is configurable when launching Bullet but this is the default behavior):
+1. A particular duration is reached. Whatever has been collected thus far at that time will be returned. The default duration is 30000 ms. If a duration is not provided in the query, 30000 is used instead. The maximum duration is 120000 ms. Anything greater will be clamped to 120000 ms. Both these can be configured in the settings. The maximum time a query can run for depends on the maximum time Storm DRPC request can last in your Storm topology.
+2. A particular number of records have been collected. If no size is provided, a default of 1 is used. The default maximum is 30. Records will be collected till 30 is reached, if a size > 30 is provided.
 
 If negative values are given for size and duration, the defaults of 1 and 30000 are used respectively.
 
-### Return Value
+### Results
 
-Bullet responses are JSON objects with two fields:
+Bullet results are JSON objects with two fields:
 
 | Field   | Contents |
 | ------- | -------- |
@@ -737,7 +757,7 @@ Storm topologies are generally launched with "fat" jars (jar-with-dependencies),
 </plugin>
 ```
 
-### Storm versions below 1.0
+### Older Storm Versions 
 
 Since package prefixes changed from `backtype.storm` to `org.apache.storm` in Storm 1.0 and above, you will need to get the storm-0.10 version of Bullet if
 your Storm cluster is still not at 1.0 or higher. You change your dependency to:

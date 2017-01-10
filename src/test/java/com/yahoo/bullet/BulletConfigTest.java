@@ -87,4 +87,12 @@ public class BulletConfigTest {
         Assert.assertEquals(mappings.get("foo"), "bar");
         Assert.assertEquals(mappings.get("true"), true);
     }
+
+    @Test
+    public void testGettingBulletSettingsOnly() throws IOException {
+        BulletConfig config = new BulletConfig();
+        Map<String, Object> settings = config.getBulletSettingsOnly();
+        BulletConfig.TOPOLOGY_SUBMISSION_SETTINGS.stream().forEach(s -> Assert.assertFalse(settings.containsKey(s)));
+        Assert.assertTrue(settings.size() > 0);
+    }
 }
