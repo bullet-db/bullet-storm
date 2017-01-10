@@ -293,7 +293,9 @@ The attributes for the DISTRIBUTION aggregation haven't been decided yet.
 ### Termination Conditions
 
 A query terminates when the following conditions are reached (this is configurable when launching Bullet but this is the default behavior):
+
 1. A particular duration is reached. Whatever has been collected thus far at that time will be returned. The default duration is 30000 ms. If a duration is not provided in the query, 30000 is used instead. The maximum duration is 120000 ms. Anything greater will be clamped to 120000 ms. Both these can be configured in the settings. The maximum time a query can run for depends on the maximum time Storm DRPC request can last in your Storm topology.
+
 2. A particular number of records have been collected. If no size is provided, a default of 1 is used. The default maximum is 30. Records will be collected till 30 is reached, if a size > 30 is provided.
 
 If negative values are given for size and duration, the defaults of 1 and 30000 are used respectively.
