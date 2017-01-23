@@ -15,8 +15,8 @@ import java.util.Random;
 
 @Slf4j
 public class Client {
-    public static final String DRPC_SERVERS_KEY = "drpc.servers";
-    public static final String DRPC_PORT_KEY = "drpc.port";
+    public static final String DRPC_SERVERS_KEY = "storm.servers";
+    public static final String DRPC_PORT_KEY = "storm.port";
 
     private static String pickRandomlyFrom(List<String> strings) {
         if (strings == null && strings.isEmpty()) {

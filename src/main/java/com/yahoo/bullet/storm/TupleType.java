@@ -3,7 +3,7 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet.drpc;
+package com.yahoo.bullet.storm;
 
 import lombok.Getter;
 import backtype.storm.tuple.Tuple;
@@ -11,18 +11,18 @@ import backtype.storm.tuple.Tuple;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static com.yahoo.bullet.drpc.TopologyConstants.ARGS_STREAM;
-import static com.yahoo.bullet.drpc.TopologyConstants.FILTER_COMPONENT;
-import static com.yahoo.bullet.drpc.TopologyConstants.FILTER_STREAM;
-import static com.yahoo.bullet.drpc.TopologyConstants.ID_STREAM;
-import static com.yahoo.bullet.drpc.TopologyConstants.JOIN_COMPONENT;
-import static com.yahoo.bullet.drpc.TopologyConstants.JOIN_STREAM;
-import static com.yahoo.bullet.drpc.TopologyConstants.PREPARE_COMPONENT;
-import static com.yahoo.bullet.drpc.TopologyConstants.RECORD_COMPONENT;
-import static com.yahoo.bullet.drpc.TopologyConstants.RECORD_STREAM;
-import static com.yahoo.bullet.drpc.TopologyConstants.RETURN_STREAM;
-import static com.yahoo.bullet.drpc.TopologyConstants.TICK_COMPONENT;
-import static com.yahoo.bullet.drpc.TopologyConstants.TICK_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.ARGS_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.FILTER_COMPONENT;
+import static com.yahoo.bullet.storm.TopologyConstants.FILTER_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.ID_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.JOIN_COMPONENT;
+import static com.yahoo.bullet.storm.TopologyConstants.JOIN_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.PREPARE_COMPONENT;
+import static com.yahoo.bullet.storm.TopologyConstants.RECORD_COMPONENT;
+import static com.yahoo.bullet.storm.TopologyConstants.RECORD_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.RETURN_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.TICK_COMPONENT;
+import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
 
 public class TupleType {
     private static final Type[] ALL_TYPES = Type.values();

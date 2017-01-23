@@ -19,7 +19,6 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 @Slf4j
 public abstract class Config implements Serializable {
@@ -81,7 +80,7 @@ public abstract class Config implements Serializable {
         Set<String> inclusions = keys.orElse(data.keySet());
         return this.data.entrySet().stream()
                         .filter(e -> inclusions.contains(e.getKey()))
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                        .collect(HashMap::new, (m, e) -> m.put(e.getKey(), e.getValue()), HashMap::putAll);
     }
 
     /**
@@ -95,7 +94,7 @@ public abstract class Config implements Serializable {
         Set<String> exclusions = keys.orElse(new HashSet<>());
         return this.data.entrySet().stream()
                         .filter(e -> !exclusions.contains(e.getKey()))
-                        .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+                        .collect(HashMap::new, (m, e) -> m.put(e.getKey(), e.getValue()), HashMap::putAll);
     }
 
     /**

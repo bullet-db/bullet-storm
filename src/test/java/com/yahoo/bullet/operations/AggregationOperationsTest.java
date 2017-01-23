@@ -5,34 +5,11 @@
  */
 package com.yahoo.bullet.operations;
 
-import com.yahoo.bullet.operations.aggregations.CountDistinct;
-import com.yahoo.bullet.operations.aggregations.GroupAll;
-import com.yahoo.bullet.operations.aggregations.Raw;
-import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.operations.AggregationOperations.AggregationOperator;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import java.util.Collections;
-
-import static java.util.Arrays.asList;
-import static java.util.Collections.singletonMap;
-
 public class AggregationOperationsTest {
-    @Test
-    public void testUnimplementedStrategies() {
-        Aggregation aggregation = new Aggregation();
-        aggregation.configure(Collections.emptyMap());
-
-        aggregation.setType(AggregationOperations.AggregationType.GROUP);
-        Assert.assertNull(AggregationOperations.getStrategyFor(aggregation));
-
-        aggregation.setType(AggregationOperations.AggregationType.PERCENTILE);
-        Assert.assertNull(AggregationOperations.getStrategyFor(aggregation));
-
-        aggregation.setType(AggregationOperations.AggregationType.TOP);
-        Assert.assertNull(AggregationOperations.getStrategyFor(aggregation));
-    }
-
     @Test
     public void testGroupOperationTypeIdentifying() {
         AggregationOperations.GroupOperationType count = AggregationOperations.GroupOperationType.COUNT;
@@ -43,32 +20,58 @@ public class AggregationOperationsTest {
     }
 
     @Test
-    public void testRawStrategy() {
-        Aggregation aggregation = new Aggregation();
-        aggregation.configure(Collections.emptyMap());
+    public void testCustomAggregationOperator() {
+        AggregationOperator  product = (a, b) -> a != null && b != null ? a.doubleValue() * b.doubleValue() : null;
+        Assert.assertNull(product.apply(6L, null));
+        Assert.assertEquals(product.apply(6L, 2L).longValue(), 12L);
+        Assert.assertEquals(product.apply(6.1, 2L).doubleValue(), 12.2);
+    }
 
-        Assert.assertEquals(AggregationOperations.getStrategyFor(aggregation).getClass(), Raw.class);
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testMinUnsupported() {
+        AggregationOperations.MIN.apply(null, 2);
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testMaxUnsupported() {
+        AggregationOperations.MAX.apply(null, 2);
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testCountUnsupported() {
+        AggregationOperations.COUNT.apply(null, 2);
+    }
+
+    @Test(expectedExceptions = NullPointerException.class)
+    public void testSumUnsupported() {
+        AggregationOperations.MAX.apply(null, 2);
     }
 
     @Test
-    public void testGroupAllStrategy() {
-        Aggregation aggregation = new Aggregation();
-        aggregation.setType(AggregationOperations.AggregationType.GROUP);
-        aggregation.setAttributes(singletonMap(Aggregation.OPERATIONS,
-                                  asList(singletonMap(Aggregation.OPERATION_TYPE,
-                                         AggregationOperations.GroupOperationType.COUNT.getName()))));
-        aggregation.configure(Collections.emptyMap());
-
-        Assert.assertEquals(AggregationOperations.getStrategyFor(aggregation).getClass(), GroupAll.class);
+    public void testMin() {
+        Assert.assertEquals(AggregationOperations.MIN.apply(1, 2).intValue(), 1);
+        Assert.assertEquals(AggregationOperations.MIN.apply(2.1, 1.2).doubleValue(), 1.2);
+        Assert.assertEquals(AggregationOperations.MIN.apply(1.0, 1.0).doubleValue(), 1.0);
     }
 
     @Test
-    public void testCountDistinctStrategy() {
-        Aggregation aggregation = new Aggregation();
-        aggregation.setType(AggregationOperations.AggregationType.COUNT_DISTINCT);
-        aggregation.setFields(singletonMap("field", "foo"));
-        aggregation.configure(Collections.emptyMap());
+    public void testMax() {
+        Assert.assertEquals(AggregationOperations.MAX.apply(1, 2).intValue(), 2);
+        Assert.assertEquals(AggregationOperations.MAX.apply(2.1, 1.2).doubleValue(), 2.1);
+        Assert.assertEquals(AggregationOperations.MAX.apply(1.0, 1.0).doubleValue(), 1.0);
+    }
 
-        Assert.assertEquals(AggregationOperations.getStrategyFor(aggregation).getClass(), CountDistinct.class);
+    @Test
+    public void testSum() {
+        Assert.assertEquals(AggregationOperations.SUM.apply(1, 2).intValue(), 3);
+        Assert.assertEquals(AggregationOperations.SUM.apply(2.1, 1.2).doubleValue(), 3.3);
+        Assert.assertEquals(AggregationOperations.SUM.apply(2.0, 41).longValue(), 43L);
+    }
+
+    @Test
+    public void testCount() {
+        Assert.assertEquals(AggregationOperations.COUNT.apply(1, 2).intValue(), 3);
+        Assert.assertEquals(AggregationOperations.COUNT.apply(2.1, 1.2).doubleValue(), 3.0);
+        Assert.assertEquals(AggregationOperations.COUNT.apply(1.0, 41).longValue(), 42L);
     }
 }

@@ -19,6 +19,7 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Implements the LIMIT operation on multiple raw {@link BulletRecord}.
@@ -33,6 +34,7 @@ import java.util.List;
  */
 @Slf4j
 public class Raw implements Strategy {
+    public static final Integer DEFAULT_MAX_SIZE = 30;
     public static final Integer DEFAULT_MICRO_BATCH_SIZE = 1;
     private List<BulletRecord> aggregate = new ArrayList<>();
 
@@ -48,7 +50,11 @@ public class Raw implements Strategy {
      * @param aggregation The {@link Aggregation} that specifies how and what this will compute.
      */
     public Raw(Aggregation aggregation) {
-        size = aggregation.getSize();
+        Map config = aggregation.getConfiguration();
+        int maximumSize = ((Number) config.getOrDefault(BulletConfig.RAW_AGGREGATION_MAX_SIZE,
+                                                        DEFAULT_MAX_SIZE)).intValue();
+
+        size = Math.min(aggregation.getSize(), maximumSize);
         microBatchSize = ((Number) aggregation.getConfiguration().getOrDefault(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE,
                                                                                DEFAULT_MICRO_BATCH_SIZE)).intValue();
     }

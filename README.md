@@ -183,7 +183,7 @@ The current aggregation types that are supported are:
 
 | Aggregation    | Meaning |
 | -------------- | ------- |
-| GROUP          | The resulting output would be a record containing the result of an operation for each unique group in the specified fields (only supported with no fields at this time, which groups all records) |
+| GROUP          | The resulting output would be a record containing the result of an operation for each unique group in the specified fields |
 | COUNT DISTINCT | Computes the number of distinct elements in the fields. (May be approximate) |
 | LIMIT          | The resulting output would be at most the number specified in size. |
 
@@ -216,6 +216,7 @@ Currently we support GROUP aggregations on the following operations:
 
 | Operation      | Meaning |
 | -------------- | ------- |
+| COUNT          | Computes the number of the elements in the group |
 | SUM            | Computes the sum of the elements in the group |
 | MIN            | Returns the minimum of the elements in the group |
 | MAX            | Returns the maximum of the elements in the group |
@@ -282,7 +283,6 @@ Using Sketches, we have implemented COUNT DISTINCT and are working on other aggr
 
 | Aggregation    | Meaning |
 | -------------- | ------- |
-| GROUP          | We currently support GROUP with no fields (group all); grouping on specific fields will be supported soon |
 | TOP K          | Returns the top K most freqently appearing values in the column |
 | DISTRIBUTION   | Computes distributions of the elements in the column |
 
@@ -811,7 +811,8 @@ This query gets us the unique IP addresses in the next 10 s. It renames the resu
 ```
 
 The number of unique IPs in our dataset was 130551 in those 10 s (approximately) with the true value between (129596, 131512) at 68% confidence, (128652, 132477) at 95% confidence and (127716, 133448) at 99% confidence. In the *worst* case at 3 sigma (99% confidence),
-our error is 2.17%. The final result was computed with 131096 bytes or ~128 KiB as denoted by ```sketchSize```. This happens to be maximum size the the COUNT DISTINCT sketch will take up at the default nominal entries, so even if we had billions of unique IPs, the size will be the same and the error may be higher (depends on the distribution). For example, the error when the same query was run for 30 s was 2.28% at 99% confidence (actual unique IPs: 559428, upper bound: 572514).
+our error is 2.17%. The final result was computed with 131096 bytes or ~128 KiB as denoted by ```sketchSize```. This happens to be maximum size the the COUNT DISTINCT sketch will take up at the default nominal entries, so even if we had billions of unique IPs, the size will be the same and the error may be higher (depends on the distribution). For example, the error when the same query was run for 30 s was 2.28% at 99% confidence (actual unique IPs: 559428, upper bound: 572514). In fact, the worst the error can get at this
+Sketch size is 2.34% as defined [here](https://datasketches.github.io/docs/Theta/ThetaErrorTable.html), *regardless of the number of unique entries added to the Sketch!*.
 
 ## Configuration
 

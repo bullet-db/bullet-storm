@@ -8,6 +8,7 @@ package com.yahoo.bullet.tracing;
 import com.google.gson.JsonParseException;
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
+import com.yahoo.bullet.operations.aggregations.Raw;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
 import org.testng.Assert;
@@ -63,8 +64,8 @@ public class AggregationRuleTest {
         AggregationRule rule = getAggregationRule("{'aggregation' : {}}", emptyMap());
         long creationTime = rule.getStartTime();
         byte[] record = getListBytes(new BulletRecord());
-        IntStream.range(0, Aggregation.DEFAULT_SIZE - 1).forEach((x) -> rule.consume(record));
-        Assert.assertEquals(rule.getData().getRecords().size(), Aggregation.DEFAULT_SIZE - 1);
+        IntStream.range(0, Aggregation.DEFAULT_SIZE).forEach((x) -> rule.consume(record));
+        Assert.assertEquals(rule.getData().getRecords().size(), (int) Aggregation.DEFAULT_SIZE);
         long lastAggregationTime = rule.getLastAggregationTime();
         Assert.assertTrue(creationTime <= lastAggregationTime);
     }
@@ -91,15 +92,16 @@ public class AggregationRuleTest {
     public void testSizeUpperBound() {
         AggregationRule rule = getAggregationRule(makeAggregationRule(AggregationType.RAW, 1000), emptyMap());
         byte[] record = getListBytes(new BulletRecord());
-        IntStream.range(0, Aggregation.DEFAULT_MAX_SIZE - 1).forEach(x -> Assert.assertFalse(rule.consume(record)));
+        IntStream.range(0, Raw.DEFAULT_MAX_SIZE - 1).forEach(x -> Assert.assertFalse(rule.consume(record)));
         Assert.assertTrue(rule.consume(record));
-        Assert.assertEquals((Integer) rule.getData().getRecords().size(), Aggregation.DEFAULT_MAX_SIZE);
+        Assert.assertEquals((Integer) rule.getData().getRecords().size(), Raw.DEFAULT_MAX_SIZE);
     }
 
     @Test
     public void testConfiguredUpperBound() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.AGGREGATION_MAX_SIZE, 200);
+        config.put(BulletConfig.AGGREGATION_MAX_SIZE, 2000);
+        config.put(BulletConfig.RAW_AGGREGATION_MAX_SIZE, 200);
 
         AggregationRule rule = getAggregationRule(makeAggregationRule(AggregationType.RAW, 1000), config);
         byte[] record = getListBytes(new BulletRecord());
