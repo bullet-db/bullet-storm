@@ -10,12 +10,10 @@ import com.yahoo.sketches.tuple.Sketches;
 import com.yahoo.sketches.tuple.Union;
 import com.yahoo.sketches.tuple.UpdatableSketch;
 import com.yahoo.sketches.tuple.UpdatableSketchBuilder;
-import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.util.Objects;
 
-@AllArgsConstructor
 public class TupleSketch implements KMVSketch {
     private final UpdatableSketch<CachingGroupData, GroupDataSummary> updateSketch;
     private final Union<GroupDataSummary> unionSketch;
