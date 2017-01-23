@@ -16,10 +16,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import static com.yahoo.bullet.parsing.AggregationUtils.addParsedMetadata;
+import static com.yahoo.bullet.parsing.AggregationUtils.makeGroupFields;
 import static java.util.Arrays.asList;
 
 public class CountDistinctTest {
@@ -27,22 +27,14 @@ public class CountDistinctTest {
     public static CountDistinct makeCountDistinct(Map<Object, Object> configuration, String newName,
                                                   List<String> fields, Map.Entry<Concept, String>... metadata) {
         Aggregation aggregation = new Aggregation();
-        Map<String, String> asMap = fields.stream().collect(Collectors.toMap(Function.identity(), Function.identity()));
+        Map<String, String> asMap = makeGroupFields(fields);
         aggregation.setFields(asMap);
 
         if (newName != null) {
             aggregation.setAttributes(Collections.singletonMap(CountDistinct.NEW_NAME_KEY, newName));
         }
 
-        if (metadata != null) {
-            Map<String, String> metadataKeys = new HashMap<>();
-            for (Map.Entry<Concept, String> e : metadata) {
-                metadataKeys.put(e.getKey().getName(), e.getValue());
-            }
-            configuration.put(BulletConfig.RESULT_METADATA_METRICS_MAPPING, metadataKeys);
-            configuration.put(BulletConfig.RESULT_METADATA_METRICS_MAPPING, metadataKeys);
-        }
-        aggregation.setConfiguration(configuration);
+        aggregation.setConfiguration(addParsedMetadata(configuration, metadata));
 
         return new CountDistinct(aggregation);
     }

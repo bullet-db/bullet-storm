@@ -3,19 +3,16 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet.operations.aggregations;
+package com.yahoo.bullet.operations.aggregations.grouping;
 
 import com.yahoo.bullet.operations.AggregationOperations;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationOperator;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
+import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.record.BulletRecord;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -26,8 +23,7 @@ import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationTy
 
 /**
  * This class represents the results of a GroupOperations. The result is always a {@link Number}, so
- * that is what this class stores. It is {@link Serializable} and provides convenience static methods to
- * manually perform serialization {@link #toBytes(GroupData)} and deserialization {@link #fromBytes(byte[])}
+ * that is what this class stores. It is {@link Serializable}.
  *
  * It can compute all the operations if presented with a {@link BulletRecord}, merge other GroupData and
  * present the results of the operations as a BulletRecord.
@@ -38,14 +34,19 @@ public class GroupData implements Serializable {
 
     public static final String NAME_SEPARATOR = "_";
 
-    private Map<GroupOperation, Number> metrics = new HashMap<>();
+    @Setter
+    protected Map<String, String> groupFields;
+    protected Map<GroupOperation, Number> metrics;
 
     /**
-     * Constructor that initializes the GroupData with a {@link Set} of {@link GroupOperation}.
+     * Creates a {@link Map} of {@link GroupOperation} to their numeric metric values from a {@link Set} of
+     * {@link GroupOperation}.
      *
-     * @param operations the non-null operations that this will compute metrics for.
+     * @param operations A set of operations.
+     * @return A empty map of metrics that represent these operations.
      */
-    public GroupData(Set<GroupOperation> operations) {
+    public static Map<GroupOperation, Number> makeInitialMetrics(Set<GroupOperation> operations) {
+        Map<GroupOperation, Number> metrics = new HashMap<>();
         // Initialize with nulls.
         for (GroupOperation operation : operations) {
             metrics.put(operation, null);
@@ -54,6 +55,40 @@ public class GroupData implements Serializable {
                 metrics.put(new GroupOperation(COUNT_FIELD, operation.getField(), null), null);
             }
         }
+        return metrics;
+    }
+
+    /**
+     * Constructor that initializes the GroupData with a {@link Set} of {@link GroupOperation} and a {@link Map} of
+     * Strings that represent the group fields.
+     *
+     * @param groupFields The mappings of field names to their values that represent this group.
+     * @param operations the non-null operations that this will compute metrics for.
+     */
+    public GroupData(Map<String, String> groupFields, Set<GroupOperation> operations) {
+        this.groupFields = groupFields;
+        this.metrics = makeInitialMetrics(operations);
+    }
+
+    /**
+     * Constructor that initializes the GroupData with a {@link Set} of {@link GroupOperation}.
+     *
+     * @param operations the non-null operations that this will compute metrics for.
+     */
+    public GroupData(Set<GroupOperation> operations) {
+        this(null, operations);
+    }
+
+    /**
+     * Constructor that initializes the GroupData with an existing {@link Map} of {@link GroupOperation} to values and
+     * a {@link Map} of Strings that represent the group fields. These arguments are not copied.
+     *
+     * @param groupFields The mappings of field names to their values that represent this group.
+     * @param metrics the non-null {@link Map} of metrics for this object.
+     */
+    public GroupData(Map<String, String> groupFields, Map<GroupOperation, Number> metrics) {
+        this.groupFields = groupFields;
+        this.metrics = metrics;
     }
 
     /**
@@ -72,7 +107,7 @@ public class GroupData implements Serializable {
      * @param serializedGroupData the serialized bytes of a GroupData.
      */
     public void combine(byte[] serializedGroupData) {
-        GroupData otherMetric = GroupData.fromBytes(serializedGroupData);
+        GroupData otherMetric = SerializerDeserializer.fromBytes(serializedGroupData);
         if (otherMetric == null) {
             log.error("Could not create a GroupData. Skipping...");
             return;
@@ -98,6 +133,22 @@ public class GroupData implements Serializable {
     public BulletRecord getAsBulletRecord() {
         BulletRecord record = new BulletRecord();
         metrics.entrySet().stream().forEach(e -> addToRecord(e, record));
+        return record;
+    }
+
+    /**
+     * Gets the data stored for the group as a {@link BulletRecord}.
+     *
+     * @param mapping A non-null new name mapping for the names of the group fields.
+     * @return A non-null {@link BulletRecord} containing the data stored in this object.
+     */
+    public BulletRecord getAsBulletRecord(Map<String, String> mapping) {
+        BulletRecord record = getAsBulletRecord();
+        for (Map.Entry<String, String> e : groupFields.entrySet()) {
+            String field = e.getKey();
+            String mapped = mapping.get(field);
+            record.setString(mapped == null || mapped.isEmpty() ? field : mapped, e.getValue());
+        }
         return record;
     }
 
@@ -193,45 +244,6 @@ public class GroupData implements Serializable {
             return type.getName();
         }
         return type.getName() + NAME_SEPARATOR + operation.getField();
-    }
-
-    /**
-     * Convenience method to deserialize an instance from raw serialized data produced by {@link #toBytes(GroupData)}.
-     *
-     * @param data The raw serialized byte[] representing the data.
-     * @return A reified object or null if not successful.
-     */
-    public static GroupData fromBytes(byte[] data) {
-        try (
-            ByteArrayInputStream bis = new ByteArrayInputStream(data);
-            ObjectInputStream ois = new ObjectInputStream(bis);
-        ) {
-            return (GroupData) ois.readObject();
-        } catch (IOException | ClassNotFoundException | RuntimeException e) {
-            log.error("Could not reify a GroupData from raw data {}", data);
-            log.error("Exception when parsing GroupData", e);
-        }
-        return null;
-    }
-
-    /**
-     * Convenience method to serializes the given GroupData to raw byte[].
-     *
-     * @param metric The GroupData to serialize.
-     * @return the serialized byte[] or null if not successful.
-     */
-    public static byte[] toBytes(GroupData metric) {
-        try (
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
-        ) {
-            oos.writeObject(metric);
-            return bos.toByteArray();
-        } catch (IOException | RuntimeException e) {
-            log.error("Could not serialize given GroupData contents", metric.metrics);
-            log.error("Exception when serializing GroupData", e);
-        }
-        return null;
     }
 
     /*

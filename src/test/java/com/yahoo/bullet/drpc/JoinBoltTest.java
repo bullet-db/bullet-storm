@@ -8,10 +8,15 @@ package com.yahoo.bullet.drpc;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.operations.aggregations.CountDistinct;
-import com.yahoo.bullet.operations.aggregations.GroupData;
-import com.yahoo.bullet.operations.aggregations.GroupOperation;
+import com.yahoo.bullet.operations.aggregations.CountDistinctTest;
+import com.yahoo.bullet.operations.aggregations.GroupBy;
+import com.yahoo.bullet.operations.aggregations.GroupByTest;
+import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
+import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.parsing.AggregationUtils;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
@@ -41,6 +46,7 @@ import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
+import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
 import static com.yahoo.bullet.parsing.RuleUtils.getAggregationRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeAggregationRule;
@@ -99,10 +105,10 @@ public class JoinBoltTest {
         GroupData groupData = new GroupData(new HashSet<>(singletonList(new GroupOperation(COUNT,
                                                                         null, countField))));
         IntStream.range(0, count).forEach(i -> groupData.consume(RecordBox.get().getRecord()));
-        return GroupData.toBytes(groupData);
+        return SerializerDeserializer.toBytes(groupData);
     }
 
-    public static final void enableMetadataInConfig(Map<String, Object> config, String metaConcept, String key) {
+    public static void enableMetadataInConfig(Map<String, Object> config, String metaConcept, String key) {
         List<Map<String, String>> metadataConfig = (List<Map<String, String>>) config.getOrDefault(BulletConfig.RESULT_METADATA_METRICS, new ArrayList<>());
         Map<String, String> conceptConfig = new HashMap<>();
         conceptConfig.put(BulletConfig.RESULT_METADATA_METRICS_CONCEPT_KEY, metaConcept);
@@ -651,18 +657,15 @@ public class JoinBoltTest {
 
     @Test
     public void testCountDistinct() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES, 512);
+        Map<Object, Object> config = CountDistinctTest.makeConfiguration(8, 512);
 
-        Aggregation aggregation = new Aggregation();
-        aggregation.setConfiguration(config);
-        aggregation.setFields(singletonMap("field", "foo"));
+        CountDistinct distinct = CountDistinctTest.makeCountDistinct(config, singletonList("field"));
 
-        CountDistinct distinct = new CountDistinct(aggregation);
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord()).forEach(distinct::consume);
         byte[] first = distinct.getSerializedAggregation();
 
-        distinct = new CountDistinct(aggregation);
+        distinct = CountDistinctTest.makeCountDistinct(config, singletonList("field"));
+
         IntStream.range(128, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord()).forEach(distinct::consume);
         byte[] second = distinct.getSerializedAggregation();
 
@@ -690,6 +693,56 @@ public class JoinBoltTest {
         bolt.execute(tick);
 
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
+        Assert.assertEquals(collector.getAllEmitted().count(), 1);
+    }
+
+    @Test
+    public void testGroupBy() {
+        final int entries = 16;
+        Map<Object, Object> config = GroupByTest.makeConfiguration(entries);
+
+        GroupBy groupBy = GroupByTest.makeGroupBy(config, singletonMap("fieldA", "A"), entries,
+                                                  AggregationUtils.makeGroupOperation(COUNT, null, "cnt"),
+                                                  AggregationUtils.makeGroupOperation(SUM, "fieldB", "sumB"));
+
+        IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("fieldA", i % 16).add("fieldB", i / 16).getRecord())
+                               .forEach(groupBy::consume);
+        byte[] first = groupBy.getSerializedAggregation();
+
+        groupBy = GroupByTest.makeGroupBy(config, singletonMap("fieldA", "A"), entries,
+                                          AggregationUtils.makeGroupOperation(COUNT, null, "cnt"),
+                                          AggregationUtils.makeGroupOperation(SUM, "fieldB", "sumB"));
+
+        IntStream.range(256, 1024).mapToObj(i -> RecordBox.get().add("fieldA", i % 16).add("fieldB", i / 16).getRecord())
+                                  .forEach(groupBy::consume);
+
+        byte[] second = groupBy.getSerializedAggregation();
+
+        // Send generated data to JoinBolt
+        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(), collector);
+
+        List<GroupOperation> operations = asList(new GroupOperation(COUNT, null, "cnt"),
+                                                 new GroupOperation(SUM, "fieldB", "sumB"));
+        String ruleString = makeGroupFilterRule("ts", singletonList("1"), EQUALS, GROUP,
+                                                entries, operations, Pair.of("fieldA", "A"));
+
+        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, ruleString);
+        bolt.execute(rule);
+
+        Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
+        bolt.execute(returnInfo);
+
+        sendRawByteTuplesTo(bolt, 42L, asList(first, second));
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+            bolt.execute(tick);
+            Assert.assertEquals(collector.getAllEmitted().count(), 0);
+        }
+        bolt.execute(tick);
+
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
 }

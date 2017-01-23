@@ -7,7 +7,7 @@ package com.yahoo.bullet.parsing;
 
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.FilterOperations.FilterType;
-import com.yahoo.bullet.operations.aggregations.GroupOperation;
+import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.operations.typesystem.Type;
 import com.yahoo.bullet.tracing.AggregationRule;
 import com.yahoo.bullet.tracing.FilterRule;

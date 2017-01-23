@@ -16,12 +16,13 @@ import org.testng.annotations.Test;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.TestHelpers.getListBytes;
-import static java.util.Collections.singletonMap;
 import static java.util.stream.Collectors.toList;
 
 public class RawTest {
@@ -35,11 +36,18 @@ public class RawTest {
         }
     }
 
-    public static Raw makeRaw(int size, int microBatchSize) {
+    public static Raw makeRaw(int size, int microBatchSize, int maxSize) {
         Aggregation aggregation = new Aggregation();
         aggregation.setSize(size);
-        aggregation.setConfiguration(singletonMap(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, microBatchSize));
+        Map<String, Object> config = new HashMap<>();
+        config.put(BulletConfig.RAW_AGGREGATION_MAX_SIZE, maxSize);
+        config.put(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, microBatchSize);
+        aggregation.setConfiguration(config);
         return new Raw(aggregation);
+    }
+
+    public static Raw makeRaw(int size, int microBatchSize) {
+        return makeRaw(size, microBatchSize, Raw.DEFAULT_MAX_SIZE);
     }
 
     public static Raw makeRaw(int size) {
@@ -248,5 +256,17 @@ public class RawTest {
                                                .collect(Collectors.toCollection(ArrayList::new));
         expected.add(RecordBox.get().add("i", 0).getRecord());
         Assert.assertEquals(actual, expected);
+    }
+
+    @Test
+    public void testLimitConfiguredMaximums() {
+        Raw raw = makeRaw(50000, 1, 200);
+        List<BulletRecord> records = IntStream.range(0, 300).mapToObj(x -> RecordBox.get().add("i", x).getRecord())
+                                              .collect(toList());
+        records.stream().map(TestHelpers::getListBytes).forEach(raw::combine);
+
+        List<BulletRecord> aggregate = raw.getAggregation().getRecords();
+        Assert.assertEquals(aggregate.size(), 200);
+        Assert.assertEquals(aggregate, records.subList(0, 200));
     }
 }

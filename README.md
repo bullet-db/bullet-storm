@@ -811,7 +811,8 @@ This query gets us the unique IP addresses in the next 10 s. It renames the resu
 ```
 
 The number of unique IPs in our dataset was 130551 in those 10 s (approximately) with the true value between (129596, 131512) at 68% confidence, (128652, 132477) at 95% confidence and (127716, 133448) at 99% confidence. In the *worst* case at 3 sigma (99% confidence),
-our error is 2.17%. The final result was computed with 131096 bytes or ~128 KiB as denoted by ```sketchSize```. This happens to be maximum size the the COUNT DISTINCT sketch will take up at the default nominal entries, so even if we had billions of unique IPs, the size will be the same and the error may be higher (depends on the distribution). For example, the error when the same query was run for 30 s was 2.28% at 99% confidence (actual unique IPs: 559428, upper bound: 572514).
+our error is 2.17%. The final result was computed with 131096 bytes or ~128 KiB as denoted by ```sketchSize```. This happens to be maximum size the the COUNT DISTINCT sketch will take up at the default nominal entries, so even if we had billions of unique IPs, the size will be the same and the error may be higher (depends on the distribution). For example, the error when the same query was run for 30 s was 2.28% at 99% confidence (actual unique IPs: 559428, upper bound: 572514). In fact, the worst the error can get at this
+Sketch size is 2.34% as defined [here](https://datasketches.github.io/docs/Theta/ThetaErrorTable.html), *regardless of the number of unique entries added to the Sketch!*.
 
 ## Configuration
 
