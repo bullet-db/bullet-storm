@@ -183,7 +183,7 @@ The current aggregation types that are supported are:
 
 | Aggregation    | Meaning |
 | -------------- | ------- |
-| GROUP          | The resulting output would be a record containing the result of an operation for each unique group in the specified fields (only supported with no fields at this time, which groups all records) |
+| GROUP          | The resulting output would be a record containing the result of an operation for each unique group in the specified fields |
 | COUNT DISTINCT | Computes the number of distinct elements in the fields. (May be approximate) |
 | LIMIT          | The resulting output would be at most the number specified in size. |
 
@@ -216,6 +216,7 @@ Currently we support GROUP aggregations on the following operations:
 
 | Operation      | Meaning |
 | -------------- | ------- |
+| COUNT          | Computes the number of the elements in the group |
 | SUM            | Computes the sum of the elements in the group |
 | MIN            | Returns the minimum of the elements in the group |
 | MAX            | Returns the maximum of the elements in the group |
@@ -282,7 +283,6 @@ Using Sketches, we have implemented COUNT DISTINCT and are working on other aggr
 
 | Aggregation    | Meaning |
 | -------------- | ------- |
-| GROUP          | We currently support GROUP with no fields (group all); grouping on specific fields will be supported soon |
 | TOP K          | Returns the top K most freqently appearing values in the column |
 | DISTRIBUTION   | Computes distributions of the elements in the column |
 
