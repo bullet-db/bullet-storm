@@ -5,9 +5,9 @@
  */
 package com.yahoo.bullet;
 
-import com.yahoo.bullet.drpc.FilterBolt;
-import com.yahoo.bullet.drpc.JoinBolt;
-import com.yahoo.bullet.drpc.TopologyConstants;
+import com.yahoo.bullet.storm.FilterBolt;
+import com.yahoo.bullet.storm.JoinBolt;
+import com.yahoo.bullet.storm.TopologyConstants;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.extern.slf4j.Slf4j;

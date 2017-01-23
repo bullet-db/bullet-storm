@@ -3,7 +3,7 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet.drpc;
+package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.TestHelpers;
@@ -31,8 +31,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.drpc.TupleUtils.makeIDTuple;
-import static com.yahoo.bullet.drpc.TupleUtils.makeTuple;
+import static com.yahoo.bullet.storm.TupleUtils.makeIDTuple;
+import static com.yahoo.bullet.storm.TupleUtils.makeTuple;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.AND;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
