@@ -899,7 +899,7 @@ This query groups by the country and the device and for each unique group gets t
       "uniquesEstimate":43.0,
       "sketchTheta":1.0
     },
-    "rule_body":"<RULE_BODY_HERE>_"
+    "rule_body":"<RULE_BODY_HERE>",
     "rule_finish_time":1485217172780,
     "rule_receive_time":1485217148840
   }
