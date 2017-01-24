@@ -24,6 +24,7 @@
     6. [GROUP ALL Multiple Aggregations](#group-all-multiple-aggregations)
     7. [Exact COUNT DISTINCT Aggregation](#exact-count-distinct-aggregation)
     8. [Approximate COUNT DISTINCT Aggregation](#approximate-count-distinct-aggregation)
+    9. [GROUP by Aggregation](#group-by-aggregation)
 5. [Configuration](#configuration)
 6. [Installation](#installation)
     1. [Older Storm Versions](#older-storm-versions)
@@ -813,6 +814,106 @@ This query gets us the unique IP addresses in the next 10 s. It renames the resu
 The number of unique IPs in our dataset was 130551 in those 10 s (approximately) with the true value between (129596, 131512) at 68% confidence, (128652, 132477) at 95% confidence and (127716, 133448) at 99% confidence. In the *worst* case at 3 sigma (99% confidence),
 our error is 2.17%. The final result was computed with 131096 bytes or ~128 KiB as denoted by ```sketchSize```. This happens to be maximum size the the COUNT DISTINCT sketch will take up at the default nominal entries, so even if we had billions of unique IPs, the size will be the same and the error may be higher (depends on the distribution). For example, the error when the same query was run for 30 s was 2.28% at 99% confidence (actual unique IPs: 559428, upper bound: 572514). In fact, the worst the error can get at this
 Sketch size is 2.34% as defined [here](https://datasketches.github.io/docs/Theta/ThetaErrorTable.html), *regardless of the number of unique entries added to the Sketch!*.
+
+### GROUP by Aggregation
+
+```javascript
+{
+   "filters":[
+      {
+         "field": "demographics",
+         "operation": "!=",
+         "values": ["null"]
+      }
+   ],
+   "aggregation":{
+      "type": "GROUP",
+      "size": 50,
+      "fields": {
+          "demographics.country": "country",
+          "device": ""
+      },
+      "attributes": {
+         "operations": [
+            {
+               "type": "COUNT",
+               "newName": "count"
+            },
+            {
+               "type": "AVG",
+               "field": "demographics.age",
+               "newName": "averageAge"
+            },
+            {
+               "type": "AVG",
+               "field": "timespent",
+               "newName": "averageTimespent"
+            }
+         ]
+      }
+   },
+   "duration": 20000
+}
+```
+
+This query groups by the country and the device and for each unique group gets the count, average age and time spent by the users for the next 20 seconds. It renames demographics.country to country and does not rename device. It limits the groups to 50. If there were more than
+50 groups, the results would be a uniform sampling of the groups (but each group in the result would have the correct result). These parameters can all be tweaked [in the configuration](#configuration).
+
+```javascript
+{
+  "records":[
+    {
+      "country":"uk",
+      "device":"desktop",
+      "count":203034,
+      "averageAge":32.42523,
+      "averageTimespent":"1.342"
+    },
+    {
+      "country":"us",
+      "device":"desktop",
+      "count":1934030,
+      "averageAge":29.42523,
+      "averageTimespent":"3.234520"
+    },
+    <...and 41 other such records here>
+  ],
+  "meta":{
+    "rule_id":1705911449584057747,
+    "aggregation":{
+      "standardDeviations":{
+        "1":{
+          "upperBound":43.0,
+          "lowerBound":43.0
+        },
+        "2":{
+          "upperBound":43.0,
+          "lowerBound":43.0
+        },
+        "3":{
+          "upperBound":43.0,
+          "lowerBound":43.0
+        }
+      },
+      "wasEstimated":false,
+      "uniquesEstimate":43.0,
+      "sketchTheta":1.0
+    },
+    "rule_body":"<RULE_BODY_HERE>_"
+    "rule_finish_time":1485217172780,
+    "rule_receive_time":1485217148840
+  }
+}
+```
+
+We recieved 43 rows for this result. The maximum groups that was allowed for the instance of Bullet was 512. If there were more groups than the maximum specified by your configuration, **a uniform sample** across them would be chosen
+for the result. However, for each group, the values computed (average, count) would be exact. The standard deviations, whether the result was estimated and the number of approximate uniques in the metadata would reflect the change.
+
+If you asked for 50 rows in the aggregation (as the query did above) but there were more than 50 in the result (but < 512), the metadata would reflect the fact that the result was not estimated. You would still get a uniform sample
+but by increasing your aggregation size higher, you could get the rest.
+
+For readability, if you were just trying to get the unique values for a field or a set of fields, you could leave out the attributes section and specify your fields section. You could also call the type ```DISTINCT``` instead of
+```GROUP``` to make that explicit. ```DISTINCT``` is just an alias for ```GROUP```.
 
 ## Configuration
 
