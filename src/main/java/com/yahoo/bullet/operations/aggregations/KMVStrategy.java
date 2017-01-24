@@ -32,6 +32,7 @@ public abstract class KMVStrategy<S extends KMVSketch> implements Strategy {
     public static final String META_STD_DEV_UB = "upperBound";
     public static final String META_STD_DEV_LB = "lowerBound";
 
+    // A type of KMVSketch that wraps how we use them - unioning, updating, serializing merging and getting metadata.
     protected S sketch;
 
     // Separator for multiple fields when inserting into the Sketch

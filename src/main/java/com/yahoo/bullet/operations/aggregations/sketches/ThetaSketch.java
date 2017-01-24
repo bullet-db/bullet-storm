@@ -10,8 +10,6 @@ import com.yahoo.sketches.theta.Union;
 import com.yahoo.sketches.theta.UpdateSketch;
 import lombok.Getter;
 
-import java.util.Objects;
-
 public class ThetaSketch implements KMVSketch {
     private final UpdateSketch updateSketch;
     private final Union unionSketch;
@@ -70,25 +68,21 @@ public class ThetaSketch implements KMVSketch {
 
     @Override
     public boolean isEstimationMode() {
-        Objects.requireNonNull(mergedSketch);
         return mergedSketch.isEstimationMode();
     }
 
     @Override
     public double getTheta() {
-        Objects.requireNonNull(mergedSketch);
         return mergedSketch.getTheta();
     }
 
     @Override
     public double getLowerBound(int standardDeviation) {
-        Objects.requireNonNull(mergedSketch);
         return mergedSketch.getLowerBound(standardDeviation);
     }
 
     @Override
     public double getUpperBound(int standardDeviation) {
-        Objects.requireNonNull(mergedSketch);
         return mergedSketch.getUpperBound(standardDeviation);
     }
 }

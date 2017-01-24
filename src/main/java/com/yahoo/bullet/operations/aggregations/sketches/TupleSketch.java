@@ -12,8 +12,6 @@ import com.yahoo.sketches.tuple.UpdatableSketch;
 import com.yahoo.sketches.tuple.UpdatableSketchBuilder;
 import lombok.Getter;
 
-import java.util.Objects;
-
 public class TupleSketch implements KMVSketch {
     private final UpdatableSketch<CachingGroupData, GroupDataSummary> updateSketch;
     private final Union<GroupDataSummary> unionSketch;
@@ -75,25 +73,21 @@ public class TupleSketch implements KMVSketch {
 
     @Override
     public boolean isEstimationMode() {
-        Objects.requireNonNull(mergedSketch);
         return mergedSketch.isEstimationMode();
     }
 
     @Override
     public double getTheta() {
-        Objects.requireNonNull(mergedSketch);
         return mergedSketch.getTheta();
     }
 
     @Override
     public double getLowerBound(int standardDeviation) {
-        Objects.requireNonNull(mergedSketch);
         return mergedSketch.getLowerBound(standardDeviation);
     }
 
     @Override
     public double getUpperBound(int standardDeviation) {
-        Objects.requireNonNull(mergedSketch);
         return mergedSketch.getUpperBound(standardDeviation);
     }
 }

@@ -190,8 +190,7 @@ public class Aggregation implements Configurable, Validatable {
             List<Map<String, String>> operations = (List<Map<String, String>>) object;
             // Return a list of distinct, non-null, GroupOperations
             return operations.stream().map(Aggregation::makeGroupOperation)
-                    .filter(Objects::nonNull)
-                    .collect(Collectors.toSet());
+                                      .filter(Objects::nonNull).collect(Collectors.toSet());
         } catch (ClassCastException cce) {
             return Collections.emptySet();
         }

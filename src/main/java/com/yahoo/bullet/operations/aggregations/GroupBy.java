@@ -29,7 +29,7 @@ import java.util.stream.Collectors;
  */
 public class GroupBy extends KMVStrategy<TupleSketch> {
     private int size;
-    private final Map<String, String> fieldMapping;
+    private final Map<String, String> fieldsToNames;
 
     // This is reused for the duration of the strategy.
     private final CachingGroupData container;
@@ -46,7 +46,7 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
         super(aggregation);
 
         size = aggregation.getSize();
-        fieldMapping = aggregation.getFields();
+        fieldsToNames = aggregation.getFields();
         Map<GroupOperation, Number> metrics = GroupData.makeInitialMetrics(aggregation.getGroupOperations());
         container = new CachingGroupData(null, metrics);
 
@@ -80,7 +80,7 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
         for (int count = 0; iterator.next() && count < size; count++) {
             GroupData data = iterator.getSummary().getData();
             // Add the record with the remapped group names to new names.
-            clip.add(data.getAsBulletRecord(fieldMapping));
+            clip.add(data.getAsBulletRecord(fieldsToNames));
         }
         return addMetadata(clip);
     }
