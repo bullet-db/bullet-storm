@@ -3,16 +3,17 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet.drpc;
+package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.TestHelpers;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.FilterOperations;
+import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.operations.aggregations.CountDistinct;
-import com.yahoo.bullet.operations.aggregations.GroupData;
-import com.yahoo.bullet.operations.aggregations.GroupOperation;
-import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.operations.aggregations.CountDistinctTest;
+import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
+import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
 import com.yahoo.bullet.tracing.FilterRule;
@@ -30,8 +31,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.drpc.TupleUtils.makeIDTuple;
-import static com.yahoo.bullet.drpc.TupleUtils.makeTuple;
+import static com.yahoo.bullet.storm.TupleUtils.makeIDTuple;
+import static com.yahoo.bullet.storm.TupleUtils.makeTuple;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.AND;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
@@ -46,8 +47,8 @@ import static com.yahoo.bullet.parsing.RuleUtils.makeGroupFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeSimpleAggregationFilterRule;
+import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -277,7 +278,7 @@ public class FilterBoltTest {
     public void testDifferentRuleMatchingSameTuple() {
         Tuple ruleA = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, makeFieldFilterRule("b235gf23b"));
         Tuple ruleB = makeIDTuple(TupleType.Type.RULE_TUPLE, 43L,
-                                  makeFilterRule("timestamp", Arrays.asList("1", "2", "3", "45"),
+                                  makeFilterRule("timestamp", asList("1", "2", "3", "45"),
                                                  EQUALS));
         bolt.execute(ruleA);
         bolt.execute(ruleB);
@@ -298,7 +299,7 @@ public class FilterBoltTest {
     public void testDifferentRuleMatchingDifferentTuple() {
         Tuple ruleA = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, makeFieldFilterRule("b235gf23b"));
         Tuple ruleB = makeIDTuple(TupleType.Type.RULE_TUPLE, 43L,
-                                  makeFilterRule("timestamp", Arrays.asList("1", "2", "3", "45"),
+                                  makeFilterRule("timestamp", asList("1", "2", "3", "45"),
                                                  FilterOperations.FilterType.NOT_EQUALS));
         bolt.execute(ruleA);
         bolt.execute(ruleB);
@@ -471,7 +472,7 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new ExpiringFilterBolt(), collector);
 
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                 makeGroupFilterRule("timestamp", Arrays.asList("1", "2"), EQUALS,
+                                 makeGroupFilterRule("timestamp", asList("1", "2"), EQUALS,
                                                      AggregationType.GROUP, 1,
                                                      singletonList(new GroupOperation(COUNT, null, "cnt"))));
         bolt.execute(rule);
@@ -492,7 +493,7 @@ public class FilterBoltTest {
         bolt.execute(tick);
 
         Assert.assertEquals(collector.getEmittedCount(), 1);
-        GroupData actual = GroupData.fromBytes(getRawPayloadOfNthTuple(1));
+        GroupData actual = SerializerDeserializer.fromBytes(getRawPayloadOfNthTuple(1));
         BulletRecord expected = RecordBox.get().add("cnt", 10).getRecord();
 
         Assert.assertTrue(isEqual(actual, expected));
@@ -534,13 +535,12 @@ public class FilterBoltTest {
 
     @Test
     public void testCountDistinct() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES, 512);
+        Map<Object, Object> config = CountDistinctTest.makeConfiguration(8, 512);
         bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(), collector);
 
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
                                  makeAggregationRule(AggregationType.COUNT_DISTINCT, 1, null,
-                                         Pair.of("field", "field")));
+                                                     Pair.of("field", "field")));
         bolt.execute(rule);
 
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
@@ -558,10 +558,7 @@ public class FilterBoltTest {
         byte[] rawData = getRawPayloadOfNthTuple(1);
         Assert.assertNotNull(rawData);
 
-        Aggregation aggregation = new Aggregation();
-        aggregation.setConfiguration(config);
-        aggregation.setFields(singletonMap("field", "foo"));
-        CountDistinct distinct = new CountDistinct(aggregation);
+        CountDistinct distinct = CountDistinctTest.makeCountDistinct(config, singletonList("field"));
         distinct.combine(rawData);
 
         BulletRecord actual = distinct.getAggregation().getRecords().get(0);

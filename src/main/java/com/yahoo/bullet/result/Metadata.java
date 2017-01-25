@@ -32,6 +32,7 @@ public class Metadata {
         AGGREGATION_METADATA("Aggregation Metadata"),
 
         ESTIMATED_RESULT("Estimated Result"),
+        UNIQUES_ESTIMATE("Uniques Estimate"),
         STANDARD_DEVIATIONS("Standard Deviations"),
         SKETCH_FAMILY("Sketch Family"),
         SKETCH_SIZE("Sketch Size"),

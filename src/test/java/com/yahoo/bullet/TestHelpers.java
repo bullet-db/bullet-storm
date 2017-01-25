@@ -16,6 +16,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -40,9 +41,7 @@ public class TestHelpers {
 
     public static byte[] getListBytes(BulletRecord... records) {
         List<BulletRecord> asList = new ArrayList<>();
-        for (BulletRecord record : records) {
-            asList.add(record);
-        }
+        Collections.addAll(asList, records);
         return serialize(asList);
     }
 

@@ -6,18 +6,8 @@
 package com.yahoo.bullet.operations;
 
 import com.google.gson.annotations.SerializedName;
-import com.yahoo.bullet.operations.aggregations.CountDistinct;
-import com.yahoo.bullet.operations.aggregations.GroupAll;
-import com.yahoo.bullet.operations.aggregations.GroupOperation;
-import com.yahoo.bullet.operations.aggregations.Raw;
-import com.yahoo.bullet.operations.aggregations.Strategy;
-import com.yahoo.bullet.parsing.Aggregation;
 import lombok.Getter;
 
-import java.util.Collection;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Set;
 import java.util.function.BiFunction;
 
 public class AggregationOperations {
@@ -72,54 +62,4 @@ public class AggregationOperations {
     public static final AggregationOperator MAX = (x, y) -> x.doubleValue() >  y.doubleValue() ? x : y;
     public static final AggregationOperator SUM = (x, y) -> x.doubleValue() + y.doubleValue();
     public static final AggregationOperator COUNT = (x, y) -> x.longValue() + y.longValue();
-
-    /**
-     * Checks to see if a {@link Map} contains items.
-     *
-     * @param map The map to check.
-     * @return a boolean denoting if this map contains items.
-     */
-    public static boolean isEmpty(Map map) {
-        return map == null || map.isEmpty();
-    }
-
-    /**
-     * Checks to see if a {@link Collection} contains items.
-     *
-     * @param collection The collection to check.
-     * @return a boolean denoting if this list contains items.
-     */
-    public static boolean isEmpty(Collection collection) {
-        return collection == null || collection.isEmpty();
-    }
-
-    /**
-     * Returns a new {@link Strategy} instance that can handle the provided type of aggregation.
-     *
-     * @param aggregation The {@link Aggregation} to get a {@link Strategy} for.
-     * @return the created instance of a strategy that can implement the provided AggregationType or null if it cannot.
-     */
-    public static Strategy getStrategyFor(Aggregation aggregation) {
-        Objects.requireNonNull(aggregation);
-        AggregationType type = aggregation.getType();
-
-        if (type == AggregationType.RAW) {
-            return new Raw(aggregation);
-        }
-
-        Map<String, String> fields = aggregation.getFields();
-        boolean noFields = isEmpty(fields);
-
-        if (type == AggregationType.COUNT_DISTINCT && !noFields) {
-            return new CountDistinct(aggregation);
-        }
-
-        Set<GroupOperation> operations = aggregation.getGroupOperations();
-        boolean noOperations = isEmpty(operations);
-        if (type == AggregationType.GROUP && noFields && !noOperations) {
-            return new GroupAll(aggregation);
-        }
-
-        return null;
-    }
 }

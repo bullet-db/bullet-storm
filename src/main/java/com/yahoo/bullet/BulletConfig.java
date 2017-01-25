@@ -53,12 +53,17 @@ public class BulletConfig extends Config {
     public static final String AGGREGATION_MAX_SIZE = "rule.aggregation.max.size";
     public static final String AGGREGATION_COMPOSITE_FIELD_SEPARATOR = "rule.aggregation.composite.field.separator";
 
+    public static final String RAW_AGGREGATION_MAX_SIZE = "rule.aggregation.max.size";
     public static final String RAW_AGGREGATION_MICRO_BATCH_SIZE = "rule.aggregation.raw.micro.batch.size";
 
     public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES = "rule.aggregation.count.distinct.sketch.entries";
     public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_SAMPLING = "rule.aggregation.count.distinct.sketch.sampling";
     public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_FAMILY = "rule.aggregation.count.distinct.sketch.family";
     public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_RESIZE_FACTOR = "rule.aggregation.count.distinct.sketch.resize.factor";
+
+    public static final String GROUP_AGGREGATION_SKETCH_ENTRIES = "rule.aggregation.group.sketch.entries";
+    public static final String GROUP_AGGREGATION_SKETCH_SAMPLING = "rule.aggregation.group.sketch.sampling";
+    public static final String GROUP_AGGREGATION_SKETCH_RESIZE_FACTOR = "rule.aggregation.group.sketch.resize.factor";
 
     public static final String RECORD_INJECT_TIMESTAMP = "record.inject.timestamp.enable";
     public static final String RECORD_INJECT_TIMESTAMP_KEY = "record.inject.timestamp.key";

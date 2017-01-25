@@ -4,7 +4,7 @@
 
     <groupId>com.yahoo.bullet</groupId>
     <artifactId>bullet-storm</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
+    <version>0.2.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>bullet-storm</name>
 
@@ -120,6 +120,16 @@
     <build>
 
         <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>2.16</version>
+                <configuration>
+                    <!-- Enables asserts for tests so the Memory Sketches modules can run assertions in testing -->
+                    <enableAssertions>true</enableAssertions>
+                </configuration>
+            </plugin>
+
             <plugin>
                 <artifactId>maven-checkstyle-plugin</artifactId>
                 <version>2.16</version>
