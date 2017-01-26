@@ -11,7 +11,7 @@ import com.yahoo.bullet.operations.typesystem.TypedObject;
 import com.yahoo.bullet.parsing.Clause;
 import com.yahoo.bullet.record.BulletRecord;
 
-import java.util.HashMap;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiPredicate;
@@ -98,7 +98,7 @@ public class FilterOperations {
     public static final LogicalOperator NOT = (r, l) -> !l.get(0).check(r);
 
     // Convenience maps from operators to operations, grouped by type.
-    public static final Map<FilterType, Comparator> RELATIONAL_OPERATORS = new HashMap<>();
+    public static final Map<FilterType, Comparator> RELATIONAL_OPERATORS = new EnumMap<>(FilterType.class);
     static {
         RELATIONAL_OPERATORS.put(FilterType.EQUALS, EQ);
         RELATIONAL_OPERATORS.put(FilterType.NOT_EQUALS, NE);
@@ -109,7 +109,7 @@ public class FilterOperations {
         RELATIONAL_OPERATORS.put(FilterType.REGEX_LIKE, RLIKE);
     }
 
-    public static final Map<FilterType, LogicalOperator> LOGICAL_OPERATORS = new HashMap<>();
+    public static final Map<FilterType, LogicalOperator> LOGICAL_OPERATORS = new EnumMap<>(FilterType.class);
     static {
         LOGICAL_OPERATORS.put(FilterType.AND, AND);
         LOGICAL_OPERATORS.put(FilterType.OR, OR);

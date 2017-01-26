@@ -8,6 +8,8 @@ package com.yahoo.bullet.operations;
 import com.google.gson.annotations.SerializedName;
 import lombok.Getter;
 
+import java.util.EnumMap;
+import java.util.Map;
 import java.util.function.BiFunction;
 
 public class AggregationOperations {
@@ -62,4 +64,14 @@ public class AggregationOperations {
     public static final AggregationOperator MAX = (x, y) -> x.doubleValue() >  y.doubleValue() ? x : y;
     public static final AggregationOperator SUM = (x, y) -> x.doubleValue() + y.doubleValue();
     public static final AggregationOperator COUNT = (x, y) -> x.longValue() + y.longValue();
+
+    public static final Map<GroupOperationType, AggregationOperator> OPERATORS = new EnumMap<>(GroupOperationType.class);
+    static {
+        OPERATORS.put(GroupOperationType.COUNT, COUNT);
+        OPERATORS.put(GroupOperationType.COUNT_FIELD, COUNT);
+        OPERATORS.put(GroupOperationType.SUM, SUM);
+        OPERATORS.put(GroupOperationType.MIN, MIN);
+        OPERATORS.put(GroupOperationType.MAX, MAX);
+        OPERATORS.put(GroupOperationType.AVG, SUM);
+    }
 }
