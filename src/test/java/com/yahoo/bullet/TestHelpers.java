@@ -48,7 +48,7 @@ public class TestHelpers {
     public static byte[] serialize(Object o) {
         try (
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
+            ObjectOutputStream oos = new ObjectOutputStream(bos)
         ) {
             oos.writeObject(o);
             return bos.toByteArray();
@@ -60,7 +60,7 @@ public class TestHelpers {
     public static Object deserialize(byte[] o) {
         try (
             ByteArrayInputStream bis = new ByteArrayInputStream(o);
-            ObjectInputStream ois = new ObjectInputStream(bis);
+            ObjectInputStream ois = new ObjectInputStream(bis)
         ) {
             return ois.readObject();
         } catch (Exception e) {

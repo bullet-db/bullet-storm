@@ -129,11 +129,11 @@ public class SpecificationTest {
     public void testDuration() {
         Specification specification = new Specification();
         specification.configure(emptyMap());
-        Assert.assertEquals(specification.getDuration(), specification.DEFAULT_DURATION_MS);
+        Assert.assertEquals(specification.getDuration(), Specification.DEFAULT_DURATION_MS);
 
         specification.setDuration(-1000);
         specification.configure(emptyMap());
-        Assert.assertEquals(specification.getDuration(), specification.DEFAULT_DURATION_MS);
+        Assert.assertEquals(specification.getDuration(), Specification.DEFAULT_DURATION_MS);
 
         specification.setDuration(0);
         specification.configure(emptyMap());
@@ -320,7 +320,7 @@ public class SpecificationTest {
         when(aggregation.getStrategy()).thenReturn(failure);
 
         Specification specification = new Specification();
-        specification.setAggregation(aggregation);;
+        specification.setAggregation(aggregation);
 
         specification.aggregate(RecordBox.get().getRecord());
         specification.aggregate(new byte[0]);

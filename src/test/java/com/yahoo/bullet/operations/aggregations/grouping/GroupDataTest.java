@@ -444,15 +444,17 @@ public class GroupDataTest {
 
         data.consume(RecordBox.get().add("someField", 8.6).getRecord());
         data.consume(RecordBox.get().add("someField", 51.4).getRecord());
-        expected = RecordBox.get().add("foo", 20.0).getRecord();
+        // Only the numerics are averaged
+        expected = RecordBox.get().add("foo", 30.0).getRecord();
         Assert.assertEquals(data.getAsBulletRecord(), expected);
 
         data.consume(RecordBox.get().add("someField", "nonNumericValue").getRecord());
-        expected = RecordBox.get().add("foo", 15.0).getRecord();
+        expected = RecordBox.get().add("foo", 30.0).getRecord();
         Assert.assertEquals(data.getAsBulletRecord(), expected);
 
-        data.consume(RecordBox.get().add("someField", -4.5).getRecord());
-        expected = RecordBox.get().add("foo", 11.1).getRecord();
+        data.consume(RecordBox.get().add("someField", 0).getRecord());
+        data.consume(RecordBox.get().add("someField", -20).getRecord());
+        expected = RecordBox.get().add("foo", 10.0).getRecord();
         Assert.assertEquals(data.getAsBulletRecord(), expected);
     }
 
@@ -527,7 +529,7 @@ public class GroupDataTest {
     }
 
     @Test
-    public void testCastingNonNumericMetrics() {
+    public void testCastingNonNumericCastableMetrics() {
         Map<String, String> fields = new HashMap<>();
         fields.put("fieldA", "foo");
         fields.put("fieldB", "bar");
@@ -542,6 +544,31 @@ public class GroupDataTest {
 
         BulletRecord expected = RecordBox.get().add("fieldA", "foo").add("fieldB", "bar")
                                                .add("sum", 84.0).add("avg", 42.0).getRecord();
+
+        BulletRecord actual = data.getAsBulletRecord(Collections.emptyMap());
+        Assert.assertTrue(actual.equals(expected));
+    }
+
+    @Test
+    public void testCastingNonNumericNotCastableMetrics() {
+        Map<String, String> fields = new HashMap<>();
+        fields.put("fieldA", "foo");
+        fields.put("fieldB", "bar");
+        GroupData data = make(fields, new GroupOperation(GroupOperationType.SUM, "mapA.someField", "sum"),
+                              new GroupOperation(GroupOperationType.AVG, "otherField", "avg"));
+        BulletRecord record;
+
+        record = RecordBox.get().addMap("mapA", Pair.of("someField", "48.2")).add("otherField", "17").getRecord();
+        data.consume(record);
+        // otherField is null
+        record = RecordBox.get().addMap("mapA", Pair.of("someField", "35.8")).addNull("otherField").getRecord();
+        data.consume(record);
+        // Null mapA and otherField is now a map
+        record = RecordBox.get().addMap("mapA").addMap("otherField", Pair.of("Now", "A map")).getRecord();
+        data.consume(record);
+
+        BulletRecord expected = RecordBox.get().add("fieldA", "foo").add("fieldB", "bar")
+                                               .add("sum", 84.0).add("avg", 17.0).getRecord();
 
         BulletRecord actual = data.getAsBulletRecord(Collections.emptyMap());
         Assert.assertTrue(actual.equals(expected));
