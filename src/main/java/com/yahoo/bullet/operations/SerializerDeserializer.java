@@ -22,7 +22,7 @@ public class SerializerDeserializer {
     public static <U extends Serializable> U fromBytes(byte[] data) {
         try (
             ByteArrayInputStream bis = new ByteArrayInputStream(data);
-            ObjectInputStream ois = new ObjectInputStream(bis);
+            ObjectInputStream ois = new ObjectInputStream(bis)
         ) {
             return (U) ois.readObject();
         } catch (IOException | ClassNotFoundException | RuntimeException e) {
@@ -42,7 +42,7 @@ public class SerializerDeserializer {
     public static <U extends Serializable> byte[] toBytes(U object) {
         try (
             ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos);
+            ObjectOutputStream oos = new ObjectOutputStream(bos)
         ) {
             oos.writeObject(object);
             return bos.toByteArray();
