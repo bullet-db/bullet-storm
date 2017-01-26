@@ -9,6 +9,9 @@ import com.yahoo.bullet.operations.AggregationOperations;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationOperator;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import com.yahoo.bullet.operations.SerializerDeserializer;
+import com.yahoo.bullet.operations.typesystem.Type;
+import com.yahoo.bullet.operations.typesystem.TypedObject;
+import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -19,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.AVG;
+import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
 
 /**
@@ -63,7 +67,7 @@ public class GroupData implements Serializable {
      * Strings that represent the group fields.
      *
      * @param groupFields The mappings of field names to their values that represent this group.
-     * @param operations the non-null operations that this will compute metrics for.
+     * @param operations  the non-null operations that this will compute metrics for.
      */
     public GroupData(Map<String, String> groupFields, Set<GroupOperation> operations) {
         this.groupFields = groupFields;
@@ -84,7 +88,7 @@ public class GroupData implements Serializable {
      * a {@link Map} of Strings that represent the group fields. These arguments are not copied.
      *
      * @param groupFields The mappings of field names to their values that represent this group.
-     * @param metrics the non-null {@link Map} of metrics for this object.
+     * @param metrics     the non-null {@link Map} of metrics for this object.
      */
     public GroupData(Map<String, String> groupFields, Map<GroupOperation, Number> metrics) {
         this.groupFields = groupFields;
@@ -154,25 +158,24 @@ public class GroupData implements Serializable {
 
     private void consume(Map.Entry<GroupOperation, Number> metric, BulletRecord data) {
         GroupOperation operation = metric.getKey();
-        Object value = data.get(operation.getField());
-        switch (operation.getType()) {
-            case MIN:
-                updateMetric(value, metric, AggregationOperations.MIN);
-                break;
-            case MAX:
-                updateMetric(value, metric, AggregationOperations.MAX);
-                break;
+        GroupOperationType type = operation.getType();
+
+        Number casted = 1L;
+        switch (type) {
             case COUNT:
-                updateMetric(1L, metric, AggregationOperations.COUNT);
                 break;
-            case COUNT_FIELD:
-                updateMetric(value != null ? 1L : null, metric, AggregationOperations.COUNT);
-                break;
+            case MIN:
+            case MAX:
             case SUM:
             case AVG:
-                updateMetric(value, metric, AggregationOperations.SUM);
+                casted = getFieldAsNumber(operation.getField(), data);
+                break;
+            case COUNT_FIELD:
+                casted = getFieldAsNumber(operation.getField(), data) ;
+                casted = casted != null ? 1L : null;
                 break;
         }
+        updateMetric(casted, metric, AggregationOperations.OPERATORS.get(type));
     }
 
     private void combine(Map.Entry<GroupOperation, Number> metric, GroupData otherData) {
@@ -250,12 +253,25 @@ public class GroupData implements Serializable {
      * This function accepts an AggregationOperator and applies it to the new and current value for the given
      * GroupOperation and updates metrics accordingly.
      */
-    private void updateMetric(Object object, Map.Entry<GroupOperation, Number> metric, AggregationOperator operator) {
-        // Also catches null.
-        if (object instanceof Number) {
-            Number current = metric.getValue();
-            Number number = (Number) object;
-            metrics.put(metric.getKey(), current == null ? number : operator.apply(number, current));
+    private void updateMetric(Number number, Map.Entry<GroupOperation, Number> metric, AggregationOperator operator) {
+        if (number == null) {
+            return;
         }
+        Number current = metric.getValue();
+        metrics.put(metric.getKey(), current == null ? number : operator.apply(number, current));
+    }
+
+    private Number getFieldAsNumber(String field, BulletRecord data) {
+        Object value = Specification.extractField(field, data);
+        // Also checks for null
+        if (value instanceof Number) {
+            return (Number) value;
+        }
+        TypedObject asNumber = TypedObject.makeNumber(value);
+        if (asNumber.getType() == Type.UNKNOWN) {
+            return null;
+        }
+        return (Number) asNumber.getValue();
     }
 }
+
