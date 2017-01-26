@@ -867,14 +867,14 @@ This query groups by the country and the device and for each unique group gets t
       "device":"desktop",
       "count":203034,
       "averageAge":32.42523,
-      "averageTimespent":"1.342"
+      "averageTimespent":1.342
     },
     {
       "country":"us",
       "device":"desktop",
       "count":1934030,
       "averageAge":29.42523,
-      "averageTimespent":"3.234520"
+      "averageTimespent":3.234520
     },
     <...and 41 other such records here>
   ],

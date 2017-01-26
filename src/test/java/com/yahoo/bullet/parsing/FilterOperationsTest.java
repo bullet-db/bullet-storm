@@ -128,12 +128,12 @@ public class FilterOperationsTest {
         Assert.assertTrue(FilterOperations.GE.compare(object, Arrays.asList("0", "3")));
         Assert.assertFalse(FilterOperations.GE.compare(object, Arrays.asList("2", "3")));
 
-        // Will become a string
+        // Will become UNKNOWN
         object = new TypedObject(singletonList("1"));
-        // String operation
-        Assert.assertTrue(FilterOperations.GT.compare(object, Arrays.asList("1", "2")));
-        Assert.assertTrue(FilterOperations.GE.compare(object, Arrays.asList("1", "2")));
-        // Can't be casted to a list, so the greater check will fail
+        Assert.assertFalse(FilterOperations.GT.compare(object, Arrays.asList("1", "2")));
+        Assert.assertFalse(FilterOperations.GE.compare(object, Arrays.asList("1", "2")));
+
+        // Will become UNKNOWN
         object = new TypedObject(Type.LIST, singletonList("1"));
         Assert.assertFalse(FilterOperations.GT.compare(object, Arrays.asList("1", "2")));
         Assert.assertFalse(FilterOperations.GE.compare(object, Arrays.asList("1", "2")));

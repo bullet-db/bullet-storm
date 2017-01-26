@@ -15,8 +15,10 @@ import java.util.HashSet;
 public class TypeTest {
     @Test
     public void testCurrentTypes() {
-        Assert.assertEquals(new HashSet<>(Type.SUPPORTED_TYPES), new HashSet<>(Arrays.asList(Type.LONG, Type.BOOLEAN, Type.DOUBLE, Type.STRING)));
-        Assert.assertEquals(Type.SUPPORTED_TYPES, Type.simpleTypes());
+        Assert.assertEquals(new HashSet<>(Type.PRIMITIVES),
+                            new HashSet<>(Arrays.asList(Type.LONG, Type.BOOLEAN, Type.DOUBLE, Type.STRING)));
+        Assert.assertEquals(new HashSet<>(Type.NUMERICS),
+                            new HashSet<>(Arrays.asList(Type.LONG, Type.DOUBLE)));
     }
 
     @Test
@@ -26,8 +28,8 @@ public class TypeTest {
         Assert.assertEquals(Type.getType("foo"), Type.STRING);
         Assert.assertEquals(Type.getType(1L), Type.LONG);
         Assert.assertEquals(Type.getType(1.2), Type.DOUBLE);
-        Assert.assertNull(Type.getType(1));
-        Assert.assertNull(Type.getType(new HashSet<String>()));
+        Assert.assertEquals(Type.getType(1), Type.UNKNOWN);
+        Assert.assertEquals(Type.getType(new HashSet<String>()), Type.UNKNOWN);
     }
 
     @Test
@@ -53,6 +55,14 @@ public class TypeTest {
         Assert.assertEquals(Type.STRING.cast("foo"), "foo");
         Assert.assertEquals(Type.STRING.cast("true"), "true");
         Assert.assertEquals(Type.STRING.cast("1.23"), "1.23");
+    }
+
+    @Test
+    public void testUnknownCasting() {
+        Assert.assertEquals(Type.UNKNOWN.cast("1"), "1");
+        Assert.assertEquals(Type.UNKNOWN.cast("{}"), "{}");
+        Assert.assertEquals(Type.UNKNOWN.cast("[]"), "[]");
+        Assert.assertEquals(Type.UNKNOWN.cast("1.23"), "1.23");
     }
 
     @Test

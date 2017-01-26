@@ -19,14 +19,14 @@ public enum Type {
     DOUBLE(Double.class),
     LIST(List.class),
     MAP(Map.class),
-    // Doesn't matter what underlyingType is for null, just need something that isn't encountered
-    NULL(Type.class);
+    // Doesn't matter what underlyingType is for NULL and UNKNOWN, just need something that isn't encountered
+    NULL(Type.class),
+    UNKNOWN(Type.class);
 
     public static final String NULL_EXPRESSION = "null";
-    /**
-     * Only support the atomic types for now since all our operations are on atomic types.
-     */
-    public static List<Type> SUPPORTED_TYPES = Type.simpleTypes();
+    public static List<Type> PRIMITIVES = Arrays.asList(BOOLEAN, LONG, DOUBLE, STRING);
+    public static List<Type> NUMERICS = Arrays.asList(LONG, DOUBLE);
+
     private final Class underlyingType;
 
     /**
@@ -39,32 +39,24 @@ public enum Type {
     }
 
     /**
-     * The atomic, simple, non-null types we support.
-     *
-     * @return The list of simple types.
-     */
-    public static List<Type> simpleTypes() {
-        return Arrays.asList(BOOLEAN, LONG, DOUBLE, STRING);
-    }
-
-    /**
-     * Tries to get the type of a given object from {@link #SUPPORTED_TYPES}.
+     * Tries to get the type of a given object from {@link #PRIMITIVES}.
      *
      * @param object The object whose type is to be determined.
-     * @return {@link Type} for this object, the {@link Type#NULL} if the object was null or null
+     * @return {@link Type} for this object, the {@link Type#NULL} if the object was null or {@link Type#UNKNOWN}
      *         if the type could not be determined.
      */
     public static Type getType(Object object) {
         if (object == null) {
             return Type.NULL;
         }
-        for (Type type : SUPPORTED_TYPES) {
+
+        // Only support the atomic, primitive types for now since all our operations are on atomic types.
+        for (Type type : PRIMITIVES) {
             if (type.getUnderlyingType().isInstance(object)) {
                 return type;
             }
         }
-        // Unknown type
-        return null;
+        return UNKNOWN;
     }
 
     /**
@@ -86,8 +78,11 @@ public enum Type {
             case STRING:
                 return value;
             case NULL:
-                return NULL_EXPRESSION.compareToIgnoreCase(value) == 0 ? null : value;
-            // We won't support the rest for castability
+                return value == null || NULL_EXPRESSION.compareToIgnoreCase(value) == 0 ? null : value;
+            case UNKNOWN:
+                return value;
+            // We won't support the rest for castability. This wouldn't happen if getType was used to create
+            // TypedObjects because because we only support PRIMITIVES and UNKNOWN
             default:
                 throw new ClassCastException("Cannot cast " + value + " to type " + this);
         }

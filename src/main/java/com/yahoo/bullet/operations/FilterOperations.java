@@ -14,11 +14,12 @@ import com.yahoo.bullet.record.BulletRecord;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static com.yahoo.bullet.operations.typesystem.TypedObject.IS_NOT_NULL;
+import static com.yahoo.bullet.operations.typesystem.TypedObject.IS_NOT_UNKNOWN;
 import static java.util.Arrays.asList;
 
 public class FilterOperations {
@@ -72,23 +73,23 @@ public class FilterOperations {
     // SOME_LONG_VALUE EQ [1.23, 35.2] will be false
     // SOME_LONG_VALUE NE [1.23. 425.3] will be false
     // SOME_LONG_VALUE GT/LT/GE/LE [12.4, 253.4] will be false! even if SOME_LONG_VALUE numerically could make it true.
-    public static final Comparator<String> EQ = (t, v) -> v.stream().map(t::typeCast).filter(Objects::nonNull)
+    public static final Comparator<String> EQ = (t, v) -> v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
                                                            .anyMatch(i -> t.compareTo(i) == 0);
-    public static final Comparator<String> NE = (t, v) -> v.stream().map(t::typeCast).filter(Objects::nonNull)
+    public static final Comparator<String> NE = (t, v) -> v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
                                                            .noneMatch(i -> t.compareTo(i) == 0);
     public static final Comparator<String> GT = (t, v) -> t.getType() != Type.NULL &&
-                                                          v.stream().map(t::typeCast).filter(Objects::nonNull)
+                                                          v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
                                                            .anyMatch(i -> t.compareTo(i) > 0);
     public static final Comparator<String> LT = (t, v) -> t.getType() != Type.NULL &&
-                                                          v.stream().map(t::typeCast).filter(Objects::nonNull)
+                                                          v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
                                                            .anyMatch(i -> t.compareTo(i) < 0);
     public static final Comparator<String> GE = (t, v) -> t.getType() != Type.NULL &&
-                                                          v.stream().map(t::typeCast).filter(Objects::nonNull)
+                                                          v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
                                                            .anyMatch(i -> t.compareTo(i) >= 0);
     public static final Comparator<String> LE = (t, v) -> t.getType() != Type.NULL &&
-                                                          v.stream().map(t::typeCast).filter(Objects::nonNull)
+                                                          v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
                                                            .anyMatch(i -> t.compareTo(i) <= 0);
-    public static final Comparator<Pattern> RLIKE = (t, v) -> t.getType() != Type.NULL &&
+    public static final Comparator<Pattern> RLIKE = (t, v) -> IS_NOT_NULL.test(t) &&
                                                               v.stream().map(p -> p.matcher(t.toString()))
                                                                .anyMatch(Matcher::matches);
 

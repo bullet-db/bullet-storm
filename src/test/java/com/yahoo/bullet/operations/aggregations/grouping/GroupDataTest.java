@@ -10,6 +10,7 @@ import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -495,7 +496,6 @@ public class GroupDataTest {
         fieldMapping.put("fieldB", "fieldB");
         BulletRecord expected = RecordBox.get().add("newFieldNameA", "foo").add("fieldB", "bar").addNull("sum").getRecord();
 
-
         Assert.assertTrue(data.getAsBulletRecord().equals(expectedUnmapped));
         Assert.assertTrue(data.getAsBulletRecord(fieldMapping).equals(expected));
 
@@ -524,5 +524,26 @@ public class GroupDataTest {
 
         expected = RecordBox.get().add("fieldB", 42.0).getRecord();
         Assert.assertTrue(data.getAsBulletRecord().equals(expected));
+    }
+
+    @Test
+    public void testCastingNonNumericMetrics() {
+        Map<String, String> fields = new HashMap<>();
+        fields.put("fieldA", "foo");
+        fields.put("fieldB", "bar");
+        GroupData data = make(fields, new GroupOperation(GroupOperationType.SUM, "mapA.someField", "sum"),
+                              new GroupOperation(GroupOperationType.AVG, "otherField", "avg"));
+        BulletRecord record;
+
+        record = RecordBox.get().addMap("mapA", Pair.of("someField", "48.2")).add("otherField", "17").getRecord();
+        data.consume(record);
+        record = RecordBox.get().addMap("mapA", Pair.of("someField", "35.8")).add("otherField", "67").getRecord();
+        data.consume(record);
+
+        BulletRecord expected = RecordBox.get().add("fieldA", "foo").add("fieldB", "bar")
+                                               .add("sum", 84.0).add("avg", 42.0).getRecord();
+
+        BulletRecord actual = data.getAsBulletRecord(Collections.emptyMap());
+        Assert.assertTrue(actual.equals(expected));
     }
 }

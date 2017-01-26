@@ -9,6 +9,9 @@ import com.yahoo.bullet.operations.AggregationOperations;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationOperator;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import com.yahoo.bullet.operations.SerializerDeserializer;
+import com.yahoo.bullet.operations.typesystem.Type;
+import com.yahoo.bullet.operations.typesystem.TypedObject;
+import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
@@ -154,7 +157,7 @@ public class GroupData implements Serializable {
 
     private void consume(Map.Entry<GroupOperation, Number> metric, BulletRecord data) {
         GroupOperation operation = metric.getKey();
-        Object value = data.get(operation.getField());
+        Object value = Specification.extractField(operation.getField(), data);
         switch (operation.getType()) {
             case MIN:
                 updateMetric(value, metric, AggregationOperations.MIN);
@@ -251,11 +254,17 @@ public class GroupData implements Serializable {
      * GroupOperation and updates metrics accordingly.
      */
     private void updateMetric(Object object, Map.Entry<GroupOperation, Number> metric, AggregationOperator operator) {
-        // Also catches null.
-        if (object instanceof Number) {
-            Number current = metric.getValue();
-            Number number = (Number) object;
-            metrics.put(metric.getKey(), current == null ? number : operator.apply(number, current));
+        Object casted = object;
+        // Also gets null
+        if (!(object instanceof Number)) {
+            TypedObject asNumber = TypedObject.makeNumber(object);
+            if (asNumber.getType() == Type.UNKNOWN) {
+                return;
+            }
+            casted = asNumber.getValue();
         }
+        Number current = metric.getValue();
+        Number number = (Number) casted;
+        metrics.put(metric.getKey(), current == null ? number : operator.apply(number, current));
     }
 }

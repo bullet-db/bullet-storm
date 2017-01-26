@@ -14,8 +14,8 @@ public class TypedObjectTest {
     @Test
     public void testTypedObjectWithUnsupportedType() {
         TypedObject object = new TypedObject(Collections.emptyList());
-        Assert.assertEquals(object.getType(), Type.STRING);
-        Assert.assertEquals(object.getValue(), Collections.emptyList().toString());
+        Assert.assertEquals(object.getType(), Type.UNKNOWN);
+        Assert.assertEquals(object.getValue(), Collections.emptyList());
     }
 
     @Test
@@ -53,14 +53,23 @@ public class TypedObjectTest {
 
     @Test
     public void testFailTypeCasting() {
-        TypedObject object = new TypedObject(1L);
-        Assert.assertNull(object.typeCast("1234.0"));
+        TypedObject object;
+        TypedObject casted;
+
+        object = new TypedObject(1L);
+        casted = object.typeCast("1234.0");
+        Assert.assertEquals(casted.getType(), Type.UNKNOWN);
+        Assert.assertNull(casted.getValue());
 
         object = new TypedObject(Type.MAP, Collections.emptyMap());
-        Assert.assertNull(object.typeCast("{}"));
+        casted = object.typeCast("{}");
+        Assert.assertEquals(casted.getType(), Type.UNKNOWN);
+        Assert.assertNull(casted.getValue());
 
         object = new TypedObject(Type.LIST, Collections.emptyList());
-        Assert.assertNull(object.typeCast("[]"));
+        casted = object.typeCast("[]");
+        Assert.assertEquals(casted.getType(), Type.UNKNOWN);
+        Assert.assertNull(casted.getValue());
     }
 
     @Test(expectedExceptions = ClassCastException.class)
@@ -107,6 +116,14 @@ public class TypedObjectTest {
     }
 
     @Test
+    public void testUnknownComparison() {
+        TypedObject objectA = new TypedObject(Collections.emptyList());
+        TypedObject objectB = new TypedObject(42.1);
+        Assert.assertEquals(objectA.compareTo(objectB), Integer.MIN_VALUE);
+        Assert.assertEquals(objectA.compareTo(objectA), Integer.MIN_VALUE);
+    }
+
+    @Test
     public void testNullComparisonToOthers() {
         TypedObject objectA = new TypedObject(null);
         TypedObject objectB = new TypedObject(42.1);
@@ -123,9 +140,51 @@ public class TypedObjectTest {
         object.compareTo(nullObject);
     }
 
+    @Test(expectedExceptions = ClassCastException.class)
+    public void testOtherComparisontoUnknown() {
+        TypedObject objectA = new TypedObject(Collections.emptyList());
+        TypedObject objectB = new TypedObject(42.1);
+        objectB.compareTo(objectA);
+    }
+
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Unsupported type cannot .*")
     public void testUnsupportedTypeComparison() {
         TypedObject object = new TypedObject(Type.MAP, Collections.emptyMap());
         object.compareTo(new TypedObject(42L));
+    }
+
+    @Test
+    public void testCastingToNumber() {
+        Object value;
+
+        TypedObject objectA = TypedObject.makeNumber("42.1");
+        value = objectA.getValue();
+        Assert.assertEquals(objectA.getType(), Type.DOUBLE);
+        Assert.assertNotNull(value);
+        Assert.assertTrue(Number.class.isInstance(value));
+        Assert.assertEquals(value, 42.1);
+
+        TypedObject objectB = TypedObject.makeNumber("42");
+        value = objectB.getValue();
+        Assert.assertEquals(objectB.getType(), Type.DOUBLE);
+        Assert.assertNotNull(value);
+        Assert.assertTrue(Number.class.isInstance(value));
+        Assert.assertEquals(value, 42.0);
+
+        TypedObject objectC = TypedObject.makeNumber("{}");
+        Assert.assertEquals(objectC.getType(), Type.UNKNOWN);
+        Assert.assertNull(objectC.getValue());
+
+        TypedObject objectD = TypedObject.makeNumber(Collections.emptyList());
+        Assert.assertEquals(objectD.getType(), Type.UNKNOWN);
+        Assert.assertNull(objectD.getValue());
+
+        TypedObject objectE = TypedObject.makeNumber(Collections.emptyMap());
+        Assert.assertEquals(objectE.getType(), Type.UNKNOWN);
+        Assert.assertNull(objectE.getValue());
+
+        TypedObject objectF = TypedObject.makeNumber(null);
+        Assert.assertEquals(objectF.getType(), Type.UNKNOWN);
+        Assert.assertNull(objectF.getValue());
     }
 }
