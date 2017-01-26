@@ -24,7 +24,8 @@
     6. [GROUP ALL Multiple Aggregations](#group-all-multiple-aggregations)
     7. [Exact COUNT DISTINCT Aggregation](#exact-count-distinct-aggregation)
     8. [Approximate COUNT DISTINCT Aggregation](#approximate-count-distinct-aggregation)
-    9. [GROUP by Aggregation](#group-by-aggregation)
+    9. [DISTINCT Aggregation](#distinct-aggregation)
+    10. [GROUP by Aggregation](#group-by-aggregation)
 5. [Configuration](#configuration)
 6. [Installation](#installation)
     1. [Older Storm Versions](#older-storm-versions)
@@ -69,6 +70,18 @@ you launch the instance of Bullet). If you are looking at raw events or doing an
 have at most this maximum number of records. Similarly, each query also has a maximum duration (window size) that your duration will be clamped to if it
 exceeds it.
 
+The three main sections of a Bullet query are:
+```javascript
+{
+    "filters": {},
+    "projection": {},
+    "aggregation": {}.
+    "duration": 20000
+}
+```
+
+The duration represents how long the query runs for (a window from when you submit it to that many milliseconds into the future). See the [Filters](#filters), [Projections](#projection) and [Aggregation](#aggregation) sections for their respective specifications. Each of those sections are objects.
+
 ### Types
 
 Data read by Bullet is typed. We support these types currently:
@@ -86,8 +99,7 @@ Data read by Bullet is typed. We support these types currently:
 2. Map of Strings to any Map in 1.
 3. List of any Map in 1.
 
-Fields inside maps can be accessed using the '.' notation in queries. For example, myMap.key will access the key field inside the
-myMap map. There is no support for accessing fields inside Lists as of yet. Only the entire list can be pulled for now.
+Fields inside maps can be accessed using the '.' notation in queries. For example, myMap.key will access the key field inside the myMap map. There is no support for accessing fields inside Lists as of yet. Only the entire list can be pulled for now.
 
 ### Filters
 
@@ -188,8 +200,6 @@ The current aggregation types that are supported are:
 | COUNT DISTINCT | Computes the number of distinct elements in the fields. (May be approximate) |
 | LIMIT          | The resulting output would be at most the number specified in size. |
 
-We currently only support GROUP operations if there is no fields being grouped on. In other words, you get the results of the operation on all records that matched your filters.
-
 The current format for an aggregation is (**note see above for what is supported at the moment**):
 
 ```javascript
@@ -256,6 +266,9 @@ Attributes for GROUP:
         ]
     }
 ```
+
+**You can perform SUM, MIN, MAX, AVG on non-numeric fields. Bullet will attempt to cast the field to a number first. If it cannot, that record with the field will be ignored for the operation. For the purposes of AVG, Bullet will
+perform the average across the numeric values for a field only.**
 
 Attributes for COUNT DISTINCT:
 
@@ -549,9 +562,8 @@ OR
 (tags["player"] AND demographics["age"] > "65")
 ```
 
-*Note: If demographics["age"] was of type Long, then Bullet will convert 85 to be an Long, but in this example, we are pretending that it is String.
-So, no conversion is made. Similarly for link_id, id, experience and page_id. tags is a Map of String to Boolean so Bullet
-converts "true" to the Boolean true.*
+*Note: If demographics["age"] was of type Long, then Bullet will convert 85 to be an Long, but in this example, we are pretending that it is String.  So, no conversion is made. Similarly for link_id, id, experience and page_id.
+tags is a Map of String to Boolean so Bullet converts "true" to the Boolean true.*
 
 This query is looking for a single event with a specific id and either the page_id is in two specific pages on the "web"
 experience or with a link_id that starts with 2, or a player event where the age is greater than "65".
@@ -575,7 +587,7 @@ A sample result could look like (it matched because of tags.player was true and 
     ],
     "meta": {
         "rule_id": 3239746252812284004,
-        "rule_body": "<entire rule body here>",
+        "rule_body": "<RULE_BODY_EDITED_OUT>",
         "rule_finish_time": 1481152233805,
         "rule_receive_time": 1481152233881
     }
@@ -689,7 +701,7 @@ A sample result would look like:
     ],
     "meta": {
         "rule_id": 8051040987827161000,
-        "rule_body": "<RULE BODY HERE>}",
+        "rule_body": "<RULE BODY HERE>",
         "rule_finish_time": 1482371927435,
         "rule_receive_time": 1482371916625
     }
@@ -745,7 +757,7 @@ This gets the count of the unique browser names and versions in the next 30 s (d
             "sketchTheta": 1.0,
             "sketchSize": 1280
         },
-        "rule_body": "<RULE BODY HERE>}",
+        "rule_body": "<RULE BODY HERE>",
         "rule_finish_time": 1484084869073,
         "rule_receive_time": 1484084832684
     }
@@ -804,7 +816,7 @@ This query gets us the unique IP addresses in the next 10 s. It renames the resu
             "sketchTheta": 0.12549877074343688,
             "sketchSize": 131096
         },
-        "rule_body": "<RULE BODY HERE>}",
+        "rule_body": "<RULE BODY HERE>",
         "rule_finish_time": 1484090240812,
         "rule_receive_time": 1484090223351
     }
@@ -814,6 +826,89 @@ This query gets us the unique IP addresses in the next 10 s. It renames the resu
 The number of unique IPs in our dataset was 130551 in those 10 s (approximately) with the true value between (129596, 131512) at 68% confidence, (128652, 132477) at 95% confidence and (127716, 133448) at 99% confidence. In the *worst* case at 3 sigma (99% confidence),
 our error is 2.17%. The final result was computed with 131096 bytes or ~128 KiB as denoted by ```sketchSize```. This happens to be maximum size the the COUNT DISTINCT sketch will take up at the default nominal entries, so even if we had billions of unique IPs, the size will be the same and the error may be higher (depends on the distribution). For example, the error when the same query was run for 30 s was 2.28% at 99% confidence (actual unique IPs: 559428, upper bound: 572514). In fact, the worst the error can get at this
 Sketch size is 2.34% as defined [here](https://datasketches.github.io/docs/Theta/ThetaErrorTable.html), *regardless of the number of unique entries added to the Sketch!*.
+
+### DISTINCT Aggregation
+
+
+```javascript
+{
+   "aggregation":{
+      "type": "DISTINCT",
+      "size": 10,
+      "fields": {
+         "browser_name": "browser"
+      }
+   }
+}
+```
+
+This query gets the distinct values for the browser_name field and limit the results to 10. It runs for 30 s.
+
+```javascript
+{
+  "records":[
+    {
+      "browser":"opera"
+    },
+    {
+      "browser":"flock"
+    },
+    {
+      "browser":"links"
+    },
+    {
+      "browser":"mozilla firefox"
+    },
+    {
+      "browser":"dolfin"
+    },
+    {
+      "browser":"lynx"
+    },
+    {
+      "browser":"chrome"
+    },
+    {
+      "browser":"microsoft internet explorer"
+    },
+    {
+      "browser":"aol browser"
+    },
+    {
+      "browser":"edge"
+    }
+  ],
+  "meta":{
+    "rule_id":-4872093887360741287,
+    "aggregation":{
+      "standardDeviations":{
+        "1":{
+          "upperBound":28.0,
+          "lowerBound":28.0
+        },
+        "2":{
+          "upperBound":28.0,
+          "lowerBound":28.0
+        },
+        "3":{
+          "upperBound":28.0,
+          "lowerBound":28.0
+        }
+      },
+      "wasEstimated":false,
+      "uniquesEstimate":28.0,
+      "sketchTheta":1.0
+    },
+    "rule_body":"<RULE_BODY_HERE>",
+    "rule_finish_time":1485469087971,
+    "rule_receive_time":1485469054070
+  }
+}
+```
+
+There were 28 unique results but we asked for 10, so the query returned a uniform sample across the 28 distinct values.
+
+DISTINCT is just an alias for GROUP. A GROUP by with no operations is exactly a DISTINCT.
 
 ### GROUP by Aggregation
 
@@ -906,14 +1001,14 @@ This query groups by the country and the device and for each unique group gets t
 }
 ```
 
-We recieved 43 rows for this result. The maximum groups that was allowed for the instance of Bullet was 512. If there were more groups than the maximum specified by your configuration, **a uniform sample** across them would be chosen
+We received 43 rows for this result. The maximum groups that was allowed for the instance of Bullet was 512. If there were more groups than the maximum specified by your configuration, **a uniform sample** across them would be chosen
 for the result. However, for each group, the values computed (average, count) would be exact. The standard deviations, whether the result was estimated and the number of approximate uniques in the metadata would reflect the change.
 
 If you asked for 50 rows in the aggregation (as the query did above) but there were more than 50 in the result (but < 512), the metadata would reflect the fact that the result was not estimated. You would still get a uniform sample
 but by increasing your aggregation size higher, you could get the rest.
 
 For readability, if you were just trying to get the unique values for a field or a set of fields, you could leave out the attributes section and specify your fields section. You could also call the type ```DISTINCT``` instead of
-```GROUP``` to make that explicit. ```DISTINCT``` is just an alias for ```GROUP```.
+```GROUP``` to make that explicit. ```DISTINCT``` is just an alias for ```GROUP```. See [the DISTINCT example](#distinct-aggregation).
 
 ## Configuration
 
