@@ -66,7 +66,7 @@ public class Aggregation implements Configurable, Validatable {
 
     public static final String TYPE_NOT_SUPPORTED_ERROR_PREFIX = "Aggregation type not supported";
     public static final String TYPE_NOT_SUPPORTED_RESOLUTION = "Current supported aggregation types are: RAW, GROUP, " +
-            "                                                   COUNT DISTINCT";
+                                                               "COUNT DISTINCT";
 
     public static final String SUPPORTED_GROUP_OPERATIONS_RESOLUTION =
             "Currently supported operations are: COUNT, AVG, MIN, MAX, SUM";
