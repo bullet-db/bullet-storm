@@ -7,6 +7,7 @@ package com.yahoo.bullet;
 
 import com.yahoo.bullet.storm.FilterBolt;
 import com.yahoo.bullet.storm.JoinBolt;
+import com.yahoo.bullet.storm.PrepareRequestBolt;
 import com.yahoo.bullet.storm.TopologyConstants;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -14,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
 import org.apache.storm.drpc.DRPCSpout;
-import org.apache.storm.drpc.PrepareRequest;
 import org.apache.storm.drpc.ReturnResults;
 import org.apache.storm.metric.LoggingMetricsConsumer;
 import org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy;
@@ -155,7 +155,7 @@ public class Topology {
                .setCPULoad(drpcSpoutCPULoad)
                .setMemoryLoad(drpcSpoutMemoryOnHeapLoad, drpcSpoutMemoryOffHeapLoad);
 
-        builder.setBolt(TopologyConstants.PREPARE_COMPONENT, new PrepareRequest(), prepareBoltParallelism)
+        builder.setBolt(TopologyConstants.PREPARE_COMPONENT, new PrepareRequestBolt(), prepareBoltParallelism)
                .shuffleGrouping(TopologyConstants.DRPC_COMPONENT)
                .setCPULoad(prepareBoltCPULoad)
                .setMemoryLoad(prepareBoltMemoryOnHeapLoad, prepareBoltMemoryOffHeapLoad);
