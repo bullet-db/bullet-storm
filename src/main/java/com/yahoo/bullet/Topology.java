@@ -7,6 +7,7 @@ package com.yahoo.bullet;
 
 import com.yahoo.bullet.storm.FilterBolt;
 import com.yahoo.bullet.storm.JoinBolt;
+import com.yahoo.bullet.storm.PrepareRequestBolt;
 import com.yahoo.bullet.storm.TopologyConstants;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -14,7 +15,6 @@ import lombok.extern.slf4j.Slf4j;
 import backtype.storm.Config;
 import backtype.storm.StormSubmitter;
 import backtype.storm.drpc.DRPCSpout;
-import backtype.storm.drpc.PrepareRequest;
 import backtype.storm.drpc.ReturnResults;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
@@ -113,7 +113,7 @@ public class Topology {
 
         builder.setSpout(TopologyConstants.DRPC_COMPONENT, new DRPCSpout(function), drpcSpoutParallelism);
 
-        builder.setBolt(TopologyConstants.PREPARE_COMPONENT, new PrepareRequest(), prepareBoltParallelism)
+        builder.setBolt(TopologyConstants.PREPARE_COMPONENT, new PrepareRequestBolt(), prepareBoltParallelism)
                .shuffleGrouping(TopologyConstants.DRPC_COMPONENT);
 
         // Hook in the source of the BulletRecords

@@ -1126,13 +1126,13 @@ storm jar your-fat-jar-with-dependencies.jar \
           --bullet-spout-off-heap-memory-load 256.0 \
           --bullet-spout-arg arg-to-your-spout-class-for-ex-a-path-to-a-config-file \
           --bullet-spout-arg another-arg-to-your-spout-class \
-          -c topology.acker.executors=0
+          -c topology.acker.executors=64 \
+          -c topology.max.spout.pending=10000
 ```
 
-You can pass other arguments to Storm using the -c argument. The example above turns off acking for the Bullet topology. **This is recommended to do since Bullet does not anchor tuples and DRPC follows the convention
-of leaving retries to the DRPC user (in our case, the Bullet web service).** If the DRPC tuples take longer than the default tuple acking timeout to be acked, your query will be failed even though it is still collecting
-data. You could set the tuple acking timeout (topology.message.timeout.secs) to higher than the default of 30 and longer than your maximum query duration but since DRPC does not re-emit your query in case of a
-failure, this is pointless anyway. The tuple tree will be kept around till the timeout needlessly. While you trade off query reliability and at least once processing guarantees, you can build retries into the query
-submitter if this is important to you.
+You can pass other arguments to Storm using the -c argument. The example above uses 64 ackers, which is the parallelism of the Filter Bolt. Storm DRPC follows the principle of leaving retries to the DRPC user (in our case, the Bullet web service).
+As a result, most of the DRPC components do not follow any at least once guarantees. However, you can enable at least once for the hop from your topology (or spout) to the Filter Bolt. This is why this example uses the parallelism of the Filter Bolt
+as the number of ackers since that is exactly the number of acker tasks we would need. Ackers are lightweight so you need not have the same number of tasks as Filter Bolts but you can tweak it accordingly. The example above also sets max spout pending
+to control how fast the spout emits.
 
 Code licensed under the Apache 2 license. See LICENSE file for terms.

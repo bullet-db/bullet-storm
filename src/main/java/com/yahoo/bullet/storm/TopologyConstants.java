@@ -7,7 +7,6 @@ package com.yahoo.bullet.storm;
 
 import backtype.storm.Constants;
 import backtype.storm.drpc.DRPCSpout;
-import backtype.storm.drpc.PrepareRequest;
 import backtype.storm.drpc.ReturnResults;
 import backtype.storm.utils.Utils;
 
@@ -24,7 +23,7 @@ public class TopologyConstants {
     public static final String RECORD_COMPONENT = "DataSource";
     public static final String TICK_COMPONENT = Constants.SYSTEM_COMPONENT_ID;
     public static final String DRPC_COMPONENT = DRPCSpout.class.getSimpleName();
-    public static final String PREPARE_COMPONENT = PrepareRequest.class.getSimpleName();
+    public static final String PREPARE_COMPONENT = PrepareRequestBolt.class.getSimpleName();
     public static final String FILTER_COMPONENT = FilterBolt.class.getSimpleName();
     public static final String JOIN_COMPONENT = JoinBolt.class.getSimpleName();
     public static final String RETURN_COMPONENT = ReturnResults.class.getSimpleName();
@@ -32,7 +31,7 @@ public class TopologyConstants {
     public static final String TICK_STREAM = Constants.SYSTEM_TICK_STREAM_ID;
     public static final String FILTER_STREAM = FilterBolt.FILTER_STREAM;
     public static final String JOIN_STREAM = JoinBolt.JOIN_STREAM;
-    public static final String RETURN_STREAM = PrepareRequest.RETURN_STREAM;
-    public static final String ARGS_STREAM = PrepareRequest.ARGS_STREAM;
-    public static final String ID_STREAM = PrepareRequest.ID_STREAM;
+    public static final String RETURN_STREAM = PrepareRequestBolt.RETURN_STREAM;
+    public static final String ARGS_STREAM = PrepareRequestBolt.ARGS_STREAM;
+    public static final String ID_STREAM = PrepareRequestBolt.ID_STREAM;
 }

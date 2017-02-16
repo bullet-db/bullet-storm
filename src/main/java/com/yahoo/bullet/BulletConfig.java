@@ -36,7 +36,7 @@ public class BulletConfig extends Config {
     public static final String AGGREGATION_MAX_SIZE = "rule.aggregation.max.size";
     public static final String AGGREGATION_COMPOSITE_FIELD_SEPARATOR = "rule.aggregation.composite.field.separator";
 
-    public static final String RAW_AGGREGATION_MAX_SIZE = "rule.aggregation.max.size";
+    public static final String RAW_AGGREGATION_MAX_SIZE = "rule.aggregation.raw.max.size";
     public static final String RAW_AGGREGATION_MICRO_BATCH_SIZE = "rule.aggregation.raw.micro.batch.size";
 
     public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES = "rule.aggregation.count.distinct.sketch.entries";
