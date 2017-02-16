@@ -228,7 +228,17 @@ public class AggregationTest {
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
         Assert.assertEquals(errors.get(0), Aggregation.REQUIRES_FIELD_ERROR);
+    }
 
+    @Test
+    public void testFailValidateOnGroupFieldsAndOperationsMissing() {
+        Aggregation aggregation = new Aggregation();
+        aggregation.setType(GROUP);
+        aggregation.configure(emptyMap());
+
+        List<Error> errors = aggregation.validate().get();
+        Assert.assertEquals(errors.size(), 1);
+        Assert.assertEquals(errors.get(0), Aggregation.REQUIRES_FIELD_OR_OPERATION_ERROR);
     }
 
     @Test

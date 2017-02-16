@@ -76,6 +76,8 @@ public class Aggregation implements Configurable, Validatable {
 
     public static final Error REQUIRES_FIELD_ERROR =
             makeError("This aggregation type requires at least one field", OPERATION_REQUIRES_FIELD_RESOLUTION);
+    public static final Error REQUIRES_FIELD_OR_OPERATION_ERROR =
+            makeError("This aggregation type requires at least one field or operation", "Please add a field or an operation");
 
     public static final Integer DEFAULT_SIZE = 1;
     public static final Integer DEFAULT_MAX_SIZE = 512;
@@ -114,18 +116,24 @@ public class Aggregation implements Configurable, Validatable {
 
     @Override
     public Optional<List<Error>> validate() {
-        if (type == AggregationType.COUNT_DISTINCT) {
-            if (isEmpty(fields)) {
-                return Optional.of(singletonList(REQUIRES_FIELD_ERROR));
-            }
-        }
         // Supported aggregation types should be documented in TYPE_NOT_SUPPORTED_RESOLUTION
         if (!SUPPORTED_AGGREGATION_TYPES.contains(type)) {
             String typeSuffix = type == null ? "" : ": " + type;
             return Optional.of(singletonList(makeError(TYPE_NOT_SUPPORTED_ERROR_PREFIX + typeSuffix,
                                                        TYPE_NOT_SUPPORTED_RESOLUTION)));
         }
-        if (!groupOperations.isEmpty()) {
+        boolean noFields = isEmpty(fields);
+        boolean noOperations = isEmpty(groupOperations);
+        if (noFields) {
+            if (type == AggregationType.COUNT_DISTINCT) {
+                return Optional.of(singletonList(REQUIRES_FIELD_ERROR));
+            }
+            if (type == AggregationType.GROUP && noOperations) {
+                return Optional.of(singletonList(REQUIRES_FIELD_OR_OPERATION_ERROR));
+            }
+        }
+
+        if (!noOperations) {
             for (GroupOperation operation : groupOperations) {
                 if (operation.getField() == null && operation.getType() != GroupOperationType.COUNT) {
                     return Optional.of(singletonList(makeError(GROUP_OPERATION_REQUIRES_FIELD + operation.getType(),
