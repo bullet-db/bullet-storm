@@ -565,15 +565,4 @@ public class FilterBoltTest {
         BulletRecord expected = RecordBox.get().add(CountDistinct.DEFAULT_NEW_NAME, 256.0).getRecord();
         Assert.assertEquals(actual, expected);
     }
-
-    @Test
-    public void testNull() {
-        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(), collector);
-
-        Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{\"filters\": [{\"field\": \"bcookie\", \"operation\": \"==\", \"values\":[\"foo\", null]}]}");
-        bolt.execute(rule);
-
-        // Two to flush bolt
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
-    }
 }
