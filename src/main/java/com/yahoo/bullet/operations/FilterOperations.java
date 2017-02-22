@@ -85,7 +85,8 @@ public class FilterOperations {
     public static final Comparator<String> GE = (t, v) -> IS_NOT_NULL.test(t) && safeCast(t, v).anyMatch(i -> t.compareTo(i) >= 0);
     public static final Comparator<String> LE = (t, v) -> IS_NOT_NULL.test(t) && safeCast(t, v).anyMatch(i -> t.compareTo(i) <= 0);
     public static final Comparator<Pattern> RLIKE = (t, v) -> IS_NOT_NULL.test(t) &&
-                                                    v.stream().map(p -> p.matcher(t.toString())).anyMatch(Matcher::matches);
+                                                              v.stream().map(p -> p.matcher(t.toString()))
+                                                               .anyMatch(Matcher::matches);
 
     public static final LogicalOperator AND = (r, l) -> l.stream().map(c -> c.check(r)).allMatch(Boolean::valueOf);
     public static final LogicalOperator  OR = (r, l) -> l.stream().map(c -> c.check(r)).anyMatch(Boolean::valueOf);
