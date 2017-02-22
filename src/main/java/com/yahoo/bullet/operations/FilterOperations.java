@@ -6,7 +6,6 @@
 package com.yahoo.bullet.operations;
 
 import com.google.gson.annotations.SerializedName;
-import com.yahoo.bullet.operations.typesystem.Type;
 import com.yahoo.bullet.operations.typesystem.TypedObject;
 import com.yahoo.bullet.parsing.Clause;
 import com.yahoo.bullet.record.BulletRecord;
@@ -14,9 +13,11 @@ import com.yahoo.bullet.record.BulletRecord;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.function.BiPredicate;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 import static com.yahoo.bullet.operations.typesystem.TypedObject.IS_NOT_NULL;
 import static com.yahoo.bullet.operations.typesystem.TypedObject.IS_NOT_UNKNOWN;
@@ -66,6 +67,10 @@ public class FilterOperations {
     public interface LogicalOperator extends BiPredicate<BulletRecord, List<Clause>> {
     }
 
+    private static Stream<TypedObject> safeCast(TypedObject object, List<String> values) {
+        return values.stream().filter(Objects::nonNull).map(object::typeCast).filter(IS_NOT_UNKNOWN);
+    }
+
     // These predicates WILL satisfy the "vacuous" truth checks. That is if the stream is empty, allMatch and
     // noneMatch will return true; anyMatch will return false. This means that if after failing to cast all values
     // to t's type causing the stream to be empty, the any/all/none matches will behave as above.
@@ -73,25 +78,14 @@ public class FilterOperations {
     // SOME_LONG_VALUE EQ [1.23, 35.2] will be false
     // SOME_LONG_VALUE NE [1.23. 425.3] will be false
     // SOME_LONG_VALUE GT/LT/GE/LE [12.4, 253.4] will be false! even if SOME_LONG_VALUE numerically could make it true.
-    public static final Comparator<String> EQ = (t, v) -> v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
-                                                           .anyMatch(i -> t.compareTo(i) == 0);
-    public static final Comparator<String> NE = (t, v) -> v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
-                                                           .noneMatch(i -> t.compareTo(i) == 0);
-    public static final Comparator<String> GT = (t, v) -> t.getType() != Type.NULL &&
-                                                          v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
-                                                           .anyMatch(i -> t.compareTo(i) > 0);
-    public static final Comparator<String> LT = (t, v) -> t.getType() != Type.NULL &&
-                                                          v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
-                                                           .anyMatch(i -> t.compareTo(i) < 0);
-    public static final Comparator<String> GE = (t, v) -> t.getType() != Type.NULL &&
-                                                          v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
-                                                           .anyMatch(i -> t.compareTo(i) >= 0);
-    public static final Comparator<String> LE = (t, v) -> t.getType() != Type.NULL &&
-                                                          v.stream().map(t::typeCast).filter(IS_NOT_UNKNOWN)
-                                                           .anyMatch(i -> t.compareTo(i) <= 0);
+    public static final Comparator<String> EQ = (t, v) -> safeCast(t, v).anyMatch(i -> t.compareTo(i) == 0);
+    public static final Comparator<String> NE = (t, v) -> safeCast(t, v).noneMatch(i -> t.compareTo(i) == 0);
+    public static final Comparator<String> GT = (t, v) -> IS_NOT_NULL.test(t) && safeCast(t, v).anyMatch(i -> t.compareTo(i) > 0);
+    public static final Comparator<String> LT = (t, v) -> IS_NOT_NULL.test(t) && safeCast(t, v).anyMatch(i -> t.compareTo(i) < 0);
+    public static final Comparator<String> GE = (t, v) -> IS_NOT_NULL.test(t) && safeCast(t, v).anyMatch(i -> t.compareTo(i) >= 0);
+    public static final Comparator<String> LE = (t, v) -> IS_NOT_NULL.test(t) && safeCast(t, v).anyMatch(i -> t.compareTo(i) <= 0);
     public static final Comparator<Pattern> RLIKE = (t, v) -> IS_NOT_NULL.test(t) &&
-                                                              v.stream().map(p -> p.matcher(t.toString()))
-                                                               .anyMatch(Matcher::matches);
+                                                    v.stream().map(p -> p.matcher(t.toString())).anyMatch(Matcher::matches);
 
     public static final LogicalOperator AND = (r, l) -> l.stream().map(c -> c.check(r)).allMatch(Boolean::valueOf);
     public static final LogicalOperator  OR = (r, l) -> l.stream().map(c -> c.check(r)).anyMatch(Boolean::valueOf);

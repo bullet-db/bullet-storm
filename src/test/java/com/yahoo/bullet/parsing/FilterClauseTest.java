@@ -6,6 +6,7 @@
 package com.yahoo.bullet.parsing;
 
 import com.yahoo.bullet.operations.FilterOperations.FilterType;
+import com.yahoo.bullet.operations.typesystem.Type;
 import com.yahoo.bullet.result.RecordBox;
 import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
@@ -219,5 +220,15 @@ public class FilterClauseTest {
         Optional<List<Error>> errors = filterClause.validate();
         // currently FilterClause.validate() does nothing
         Assert.assertFalse(errors.isPresent());
+    }
+
+    @Test
+    public void testNullInValues() {
+        FilterClause filterClause = getFieldFilter(EQUALS, null, "foo", null);
+        Assert.assertFalse(filterClause.check(RecordBox.get().getRecord()));
+        Assert.assertTrue(filterClause.check(RecordBox.get().add("field", "foo").getRecord()));
+        Assert.assertFalse(filterClause.check(RecordBox.get().add("field", "bar").getRecord()));
+        Assert.assertFalse(filterClause.check(RecordBox.get().addNull("field").getRecord()));
+        Assert.assertFalse(filterClause.check(RecordBox.get().add("field", Type.NULL_EXPRESSION).getRecord()));
     }
 }
