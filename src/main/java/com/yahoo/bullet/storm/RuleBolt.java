@@ -17,7 +17,6 @@ import org.apache.storm.tuple.Tuple;
 
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -52,7 +51,7 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
         // stormConf is not modifyable. Need to make a copy.
         this.configuration = new HashMap<>(stormConf);
         this.collector = collector;
-        rulesMap = new LinkedHashMap<>();
+        rulesMap = new HashMap<>();
 
         // Get all known Concepts
         metadataKeys = Metadata.getConceptNames(configuration, new HashSet<>(Metadata.KNOWN_CONCEPTS));
