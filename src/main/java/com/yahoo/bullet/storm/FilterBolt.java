@@ -90,7 +90,6 @@ public class FilterBolt extends RuleBolt<FilterRule> {
 
     private void checkRule(Tuple tuple) {
         BulletRecord record = (BulletRecord) tuple.getValue(0);
-        // TODO Consider how to anchor this tuple
         // For each rule that is satisfied, we will emit the data but we will not expire the rule.
         rulesMap.entrySet().stream().filter(e -> e.getValue().consume(record)).forEach(this::emitForRule);
     }

@@ -564,6 +564,5 @@ public class FilterBoltTest {
         BulletRecord actual = distinct.getAggregation().getRecords().get(0);
         BulletRecord expected = RecordBox.get().add(CountDistinct.DEFAULT_NEW_NAME, 256.0).getRecord();
         Assert.assertEquals(actual, expected);
-
     }
 }
