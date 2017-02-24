@@ -7,6 +7,7 @@ package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.TestHelpers;
+import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
@@ -131,12 +132,17 @@ public class RawTest {
     }
 
     @Test
-    public void tesReadingBadSerialization() throws IOException {
-        BulletRecord mocked = new NoSerDeBulletRecord();
-
+    public void testReadingBadSerialization() throws IOException {
         Raw raw = makeRaw(1);
         raw.combine(new byte[0]);
 
+        Assert.assertNull(raw.getSerializedAggregation());
+    }
+
+    @Test
+    public void testReadingEmpty() throws IOException {
+        Raw raw = makeRaw(1);
+        raw.combine(SerializerDeserializer.toBytes(new ArrayList<>()));
         Assert.assertNull(raw.getSerializedAggregation());
     }
 

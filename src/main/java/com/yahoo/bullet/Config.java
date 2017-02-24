@@ -70,6 +70,18 @@ public abstract class Config implements Serializable {
     }
 
     /**
+     * If there was a mapping for the key, the mapping is returned if not null, otherwise returns the defaultValue.
+     *
+     * @param key The key to get.
+     * @param defaultValue The defaultValue to return if there is no mapping or the mapping is null.
+     * @return The value of the key or the defaultValue.
+     */
+    public Object getOrDefault(String key, Object defaultValue) {
+        Object value = get(key);
+        return value != null ? value : defaultValue;
+    }
+
+    /**
      * Gets all mappings for a set of keys. If no keys are specified, all mappings
      * are returned.
      *

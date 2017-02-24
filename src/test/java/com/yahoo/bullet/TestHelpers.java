@@ -7,17 +7,13 @@ package com.yahoo.bullet;
 
 import com.google.gson.JsonElement;
 import com.google.gson.JsonParser;
+import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.record.BulletRecord;
 import org.testng.Assert;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
 import java.util.Objects;
 
 public class TestHelpers {
@@ -40,31 +36,8 @@ public class TestHelpers {
     }
 
     public static byte[] getListBytes(BulletRecord... records) {
-        List<BulletRecord> asList = new ArrayList<>();
+        ArrayList<BulletRecord> asList = new ArrayList<>();
         Collections.addAll(asList, records);
-        return serialize(asList);
-    }
-
-    public static byte[] serialize(Object o) {
-        try (
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos)
-        ) {
-            oos.writeObject(o);
-            return bos.toByteArray();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public static Object deserialize(byte[] o) {
-        try (
-            ByteArrayInputStream bis = new ByteArrayInputStream(o);
-            ObjectInputStream ois = new ObjectInputStream(bis)
-        ) {
-            return ois.readObject();
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return SerializerDeserializer.toBytes(asList);
     }
 }

@@ -42,6 +42,14 @@ public class BulletConfigTest {
     }
 
     @Test
+    public void testGettingWithDefault() throws IOException {
+        BulletConfig config = new BulletConfig("src/test/resources/test_config.yaml");
+        Assert.assertEquals(config.getOrDefault(BulletConfig.TOPOLOGY_NAME, "foo"), "test");
+        Assert.assertEquals(config.getOrDefault("does.not.exist", "foo"), "foo");
+        Assert.assertEquals(config.getOrDefault("fake.setting", "bar"), "bar");
+    }
+
+    @Test
     public void testGettingMultipleProperties() throws IOException {
         BulletConfig config = new BulletConfig();
         config.clear();
@@ -90,7 +98,7 @@ public class BulletConfigTest {
     @Test
     public void testGettingBulletSettingsOnly() throws IOException {
         BulletConfig config = new BulletConfig();
-        Map<String, Object> settings = config.getBulletSettingsOnly();
+        Map<String, Object> settings = config.getNonTopologySubmissionSettings();
         BulletConfig.TOPOLOGY_SUBMISSION_SETTINGS.stream().forEach(s -> Assert.assertFalse(settings.containsKey(s)));
         Assert.assertTrue(settings.size() > 0);
     }
