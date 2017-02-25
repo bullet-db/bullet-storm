@@ -34,4 +34,6 @@ public class TopologyConstants {
     public static final String RETURN_STREAM = PrepareRequestBolt.RETURN_STREAM;
     public static final String ARGS_STREAM = PrepareRequestBolt.ARGS_STREAM;
     public static final String ID_STREAM = PrepareRequestBolt.ID_STREAM;
+
+    public static final String METRIC_PREFIX = "bullet_";
 }

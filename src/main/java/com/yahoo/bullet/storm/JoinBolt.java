@@ -45,6 +45,16 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
     // For doing a LEFT OUTER JOIN between Rules and intermediate aggregation, if the aggregations are lagging.
     private RotatingMap<Long, AggregationRule> bufferedRules;
 
+    // Metrics
+    public static final String ACTIVE_RULES = TopologyConstants.METRIC_PREFIX + "active_rules";
+    public static final String CREATED_RULES = TopologyConstants.METRIC_PREFIX + "created_rules";
+    public static final String IMPROPER_RULES = TopologyConstants.METRIC_PREFIX + "improper_rules";
+    // Variable
+    private transient AbsoluteCountMetric activeRulesCount;
+    // Monotonically increasing
+    private transient AbsoluteCountMetric createdRulesCount;
+    private transient AbsoluteCountMetric improperRulesCount;
+
     /**
      * Default constructor.
      */
@@ -60,6 +70,7 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         super(tickInterval);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         super.prepare(stormConf, context, collector);
@@ -75,6 +86,12 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
                                                                        DEFAULT_RULE_TICKOUT);
         int ruleTickout = ruleTickoutNumber.intValue();
         bufferedRules = new RotatingMap<>(ruleTickout);
+
+        if (metricsEnabled) {
+            activeRulesCount = registerAbsoluteCountMetric(ACTIVE_RULES, context);
+            createdRulesCount = registerAbsoluteCountMetric(CREATED_RULES, context);
+            improperRulesCount = registerAbsoluteCountMetric(IMPROPER_RULES, context);
+        }
     }
 
     @Override
@@ -85,7 +102,7 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
                 handleTick();
                 break;
             case RULE_TUPLE:
-                initializeRule(tuple);
+                handleRule(tuple);
                 break;
             case RETURN_TUPLE:
                 initializeReturn(tuple);
@@ -133,6 +150,14 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         activeReturns.put(id, tuple);
     }
 
+    private void handleRule(Tuple tuple) {
+        AggregationRule rule = initializeRule(tuple);
+        if (rule != null) {
+            updateCount(createdRulesCount, 1L);
+            updateCount(activeRulesCount, 1L);
+        }
+    }
+
     private void handleTick() {
         // Buffer whatever we're retiring now and forceEmit all the bufferedRules that are being rotated out.
         // Whatever we're retiring now MUST not have been satisfied since we emit Rules when FILTER_TUPLES satisfy them.
@@ -149,6 +174,8 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         Metadata meta = Metadata.of(errors);
         Clip returnValue = Clip.of(meta);
         Tuple returnTuple = activeReturns.remove(id);
+        updateCount(improperRulesCount, 1L);
+
         if (returnTuple != null) {
             emit(returnValue, returnTuple);
             return;
@@ -159,14 +186,19 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
 
     private void emitRetired(Map<Long, AggregationRule> forceEmit) {
         // Force emit everything that was asked to be emitted if we can. These are rotated out rules from bufferedRules.
+        long emitted = 0;
         for (Map.Entry<Long, AggregationRule> e : forceEmit.entrySet()) {
             Long id = e.getKey();
             AggregationRule rule = e.getValue();
             Tuple returnTuple = activeReturns.remove(id);
             if (canEmit(id, rule, returnTuple)) {
+                emitted++;
                 emit(id, rule, returnTuple);
             }
         }
+        // We already decreased activeRulesCount by emitted. The others that are thrown away should decrease the count too.
+        updateCount(activeRulesCount, -forceEmit.size() + emitted);
+
         // For the others that were just retired, roll them over into bufferedRules
         retireRules().forEach(bufferedRules::put);
     }
@@ -213,7 +245,6 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         Objects.requireNonNull(rule);
         Objects.requireNonNull(returnTuple);
 
-        // TODO Anchor this tuple to all tuples that caused its emission : rule tuple, return tuple, data tuple(s)
         Clip records = rule.getData();
         records.add(getMetadata(id, rule));
         emit(records, returnTuple);
@@ -222,6 +253,7 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         rulesMap.remove(id);
         bufferedRules.remove(id);
         activeReturns.remove(id);
+        updateCount(activeRulesCount, -1L);
     }
 
     private void emit(Clip clip, Tuple returnTuple) {
@@ -249,5 +281,18 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         if (key != null) {
             action.accept(key);
         }
+    }
+
+    private void updateCount(AbsoluteCountMetric metric, long updateValue) {
+        if (metricsEnabled) {
+            metric.add(updateValue);
+        }
+    }
+
+    private AbsoluteCountMetric registerAbsoluteCountMetric(String name, TopologyContext context) {
+        Number interval = metricsIntervalMapping.getOrDefault(name,
+                                                              metricsIntervalMapping.get(DEFAULT_METRICS_INTERVAL_KEY));
+        log.info("Registered {} with interval {}", name, interval);
+        return context.registerMetric(name, new AbsoluteCountMetric(), interval.intValue());
     }
 }
