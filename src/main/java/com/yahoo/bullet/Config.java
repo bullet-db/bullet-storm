@@ -77,8 +77,7 @@ public abstract class Config implements Serializable {
      * @return The value of the key or the defaultValue.
      */
     public Object getOrDefault(String key, Object defaultValue) {
-        Object value = get(key);
-        return value != null ? value : defaultValue;
+        return data.getOrDefault(key, defaultValue);
     }
 
     /**
