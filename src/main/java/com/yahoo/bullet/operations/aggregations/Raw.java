@@ -6,26 +6,21 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
 /**
  * Implements the LIMIT operation on multiple raw {@link BulletRecord}.
  *
- * A call to {@link #getSerializedAggregation()} will return and removes the current collection of records, which
- * is a {@link List} of {@link BulletRecord}.
+ * A call to {@link #getSerializedAggregation()} or {@link #getAggregation()} will return and remove the current
+ * collection of records, which is a {@link List} of {@link BulletRecord}.
  *
  * A call to {@link #combine(byte[])} with the result of {@link #getSerializedAggregation()} will combine records from
  * the {@link List} till the aggregation size is reached.
@@ -36,7 +31,7 @@ import java.util.Map;
 public class Raw implements Strategy {
     public static final Integer DEFAULT_MAX_SIZE = 30;
     public static final Integer DEFAULT_MICRO_BATCH_SIZE = 1;
-    private List<BulletRecord> aggregate = new ArrayList<>();
+    private ArrayList<BulletRecord> aggregate = new ArrayList<>();
 
     private Integer size;
     private int consumed = 0;
@@ -66,7 +61,6 @@ public class Raw implements Strategy {
 
     @Override
     public boolean isMicroBatch() {
-        // Anything more than a single record is a micro-batch
         return aggregate.size() >= microBatchSize;
     }
 
@@ -91,8 +85,8 @@ public class Raw implements Strategy {
         if (!isAcceptingData() || serializedAggregation == null) {
             return;
         }
-        List<BulletRecord> batch = read(serializedAggregation);
-        if (batch.isEmpty()) {
+        ArrayList<BulletRecord> batch = SerializerDeserializer.fromBytes(serializedAggregation);
+        if (batch == null || batch.isEmpty()) {
             return;
         }
         int batchSize = batch.size();
@@ -120,46 +114,22 @@ public class Raw implements Strategy {
         if (aggregate.isEmpty()) {
             return null;
         }
-        List<BulletRecord> batch = aggregate;
+        ArrayList<BulletRecord> batch = aggregate;
         aggregate = new ArrayList<>();
-        return write(batch);
+        return SerializerDeserializer.toBytes(batch);
     }
 
     /**
-     * Gets the aggregated records so far since the last call to {@link #getSerializedAggregation()}.
+     * Gets the aggregated records so far since the last call to {@link #getSerializedAggregation()}. As with
+     * {@link #getSerializedAggregation()}, this method resets the aggregated data so far.
      *
      * @return a {@link Clip} of the combined records so far. The records have a size that is at most the maximum
      * specified by the {@link Aggregation}.
      */
     @Override
     public Clip getAggregation() {
-        return Clip.of(aggregate);
-    }
-
-    private byte[] write(List<BulletRecord> batch) {
-        try (
-            ByteArrayOutputStream bos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ObjectOutputStream(bos)
-        ) {
-            oos.writeObject(batch);
-            return bos.toByteArray();
-        } catch (IOException ioe) {
-            log.error("Could not serialize batch {}", batch);
-            log.error("Exception was ", ioe);
-        }
-        return null;
-    }
-
-    private List<BulletRecord> read(byte[] batch) {
-        try (
-            ByteArrayInputStream bis = new ByteArrayInputStream(batch);
-            ObjectInputStream ois = new ObjectInputStream(bis)
-        ) {
-            return (List<BulletRecord>) ois.readObject();
-        } catch (IOException | ClassNotFoundException | ClassCastException e) {
-            log.error("Could not deserialize batch {}", batch);
-            log.error("Exception was ", e);
-        }
-        return Collections.emptyList();
+        List<BulletRecord> aggregation = aggregate;
+        aggregate = new ArrayList<>();
+        return Clip.of(aggregation);
     }
 }

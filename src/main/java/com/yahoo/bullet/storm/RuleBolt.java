@@ -23,6 +23,13 @@ import java.util.stream.Collectors;
 @Slf4j
 public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
     public static final Integer DEFAULT_TICK_INTERVAL = 5;
+
+    public static final boolean DEFAULT_BUILT_IN_METRICS_ENABLE = false;
+    public static final String DEFAULT_METRICS_INTERVAL_KEY = "default";
+    public static final int DEFAULT_BUILT_IN_METRICS_INTERVAL_SECS = 60;
+
+    protected boolean metricsEnabled;
+    protected Map<String, Number> metricsIntervalMapping;
     protected int tickInterval;
     protected Map configuration;
     protected OutputCollector collector;
@@ -46,6 +53,7 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
         this(DEFAULT_TICK_INTERVAL);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         // stormConf is not modifyable. Need to make a copy.
@@ -62,6 +70,12 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
             configuration.put(BulletConfig.RESULT_METADATA_METRICS_MAPPING, metadataKeys);
         }
 
+        // Enable built in metrics
+        metricsEnabled = (Boolean) configuration.getOrDefault(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE,
+                                                              DEFAULT_BUILT_IN_METRICS_ENABLE);
+        metricsIntervalMapping = (Map<String, Number>) configuration.getOrDefault(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING,
+                                                                                  new HashMap<>());
+        metricsIntervalMapping.putIfAbsent(DEFAULT_METRICS_INTERVAL_KEY, DEFAULT_BUILT_IN_METRICS_INTERVAL_SECS);
     }
 
     /**
@@ -81,17 +95,19 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
     /**
      * Initializes a rule from a rule tuple.
      * @param tuple The rule tuple with the rule to initialize.
+     * @return The created rule.
      */
-    protected void initializeRule(Tuple tuple) {
+    protected R initializeRule(Tuple tuple) {
         Long id = tuple.getLong(TopologyConstants.ID_POSITION);
         String ruleString = tuple.getString(TopologyConstants.RULE_POSITION);
         R rule = getRule(id, ruleString);
         if (rule == null) {
             log.error("Failed to initialize rule for request {} with rule {}", id, ruleString);
-            return;
+            return null;
         }
         log.info("Initialized rule {} : {}", id, rule.toString());
         rulesMap.put(id, rule);
+        return rule;
     }
 
     /**

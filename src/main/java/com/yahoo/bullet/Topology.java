@@ -16,7 +16,7 @@ import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
 import org.apache.storm.drpc.DRPCSpout;
 import org.apache.storm.drpc.ReturnResults;
-import org.apache.storm.metric.LoggingMetricsConsumer;
+import org.apache.storm.metric.api.IMetricsConsumer;
 import org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy;
 import org.apache.storm.scheduler.resource.strategies.scheduling.IStrategy;
 import org.apache.storm.topology.IRichSpout;
@@ -25,11 +25,11 @@ import org.apache.storm.tuple.Fields;
 
 import java.io.IOException;
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
-import static java.util.Collections.singletonMap;
+import static java.util.Collections.emptyList;
 
 @Slf4j
 public class Topology {
@@ -46,7 +46,7 @@ public class Topology {
     public static final String ARGUMENT_ARG = "bullet-spout-arg";
     public static final String CONFIGURATION_ARG = "bullet-conf";
     public static final String HELP_ARG = "help";
-    public static final Map<String, String> METRICS = singletonMap("CPU", "org.apache.storm.metrics.sigar.CPUMetric");
+    public static final String REGISTER_METHOD = "register";
 
     public static final OptionParser PARSER = new OptionParser() {
         {
@@ -88,21 +88,6 @@ public class Topology {
             allowsUnrecognizedOptions();
         }
     };
-
-    private static IRichSpout getSpout(String className, List<String> args) throws Exception {
-        Class<? extends IRichSpout> spout = (Class<? extends IRichSpout>) Class.forName(className);
-        IRichSpout initialized;
-        try {
-            Constructor constructor = spout.getConstructor(List.class);
-            log.info("Initializing spout using constructor " + constructor.toGenericString() + " with args " + args);
-            initialized = (IRichSpout) constructor.newInstance(args);
-        } catch (Exception e) {
-            log.info("Could not find or initialize a constructor taking a List. Trying default constructor...", e);
-            initialized = spout.newInstance();
-        }
-        log.info("Initialized spout class " + className);
-        return initialized;
-    }
 
     /**
      * This function can be used to wire up the source of the records to Bullet. Your source may be as simple
@@ -197,12 +182,12 @@ public class Topology {
         // Metrics
         Boolean enableMetrics = (Boolean) config.get(BulletConfig.TOPOLOGY_METRICS_ENABLE);
         if (enableMetrics) {
-            stormConfig.registerMetricsConsumer(LoggingMetricsConsumer.class);
-            stormConfig.put(Config.TOPOLOGY_WORKER_METRICS, METRICS);
+            List<String> classNames = (List<String>) config.getOrDefault(BulletConfig.TOPOLOGY_METRICS_CLASSES, emptyList());
+            classNames.stream().forEach(className -> registerMetricsConsumer(className, stormConfig, config));
         }
 
         // Put the rest of the Bullet settings without checking their types
-        stormConfig.putAll(config.getBulletSettingsOnly());
+        stormConfig.putAll(config.getNonTopologySubmissionSettings());
 
         StormSubmitter.submitTopology(name, stormConfig, builder.createTopology());
     }
@@ -213,6 +198,33 @@ public class Topology {
                 return DefaultResourceAwareStrategy.class;
             default:
                 throw new RuntimeException("Only the ResourceAwareScheduler is supported at this time.");
+        }
+    }
+
+    private static IRichSpout getSpout(String className, List<String> args) throws Exception {
+        Class<? extends IRichSpout> spout = (Class<? extends IRichSpout>) Class.forName(className);
+        IRichSpout initialized;
+        try {
+            Constructor constructor = spout.getConstructor(List.class);
+            log.info("Initializing spout using constructor {} with args {}", constructor.toGenericString(), args);
+            initialized = (IRichSpout) constructor.newInstance(args);
+        } catch (Exception e) {
+            log.info("Could not find or initialize a constructor taking a List. Trying default constructor...", e);
+            initialized = spout.newInstance();
+        }
+        log.info("Initialized spout class {}", className);
+        return initialized;
+    }
+
+    private static void registerMetricsConsumer(String className, Config stormConfig, BulletConfig bulletConfig) {
+        try {
+            Class<? extends IMetricsConsumer> consumer = (Class<? extends IMetricsConsumer>) Class.forName(className);
+            Method method = consumer.getMethod(REGISTER_METHOD, Config.class, BulletConfig.class);
+            log.info("Calling the IMetricsConsumer register method for class {} using method {}", className, method.toGenericString());
+            method.invoke(null, stormConfig, bulletConfig);
+            log.info("Registered the IMetricsConsumer class {}", className);
+        } catch (Exception e) {
+            log.info("Could not call the register method for " + className, e);
         }
     }
 
