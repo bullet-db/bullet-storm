@@ -132,7 +132,7 @@ public class RawTest {
     }
 
     @Test
-    public void tesReadingBadSerialization() throws IOException {
+    public void testReadingBadSerialization() throws IOException {
         Raw raw = makeRaw(1);
         raw.combine(new byte[0]);
 
@@ -140,7 +140,7 @@ public class RawTest {
     }
 
     @Test
-    public void tesReadingEmpty() throws IOException {
+    public void testReadingEmpty() throws IOException {
         Raw raw = makeRaw(1);
         raw.combine(SerializerDeserializer.toBytes(new ArrayList<>()));
         Assert.assertNull(raw.getSerializedAggregation());
