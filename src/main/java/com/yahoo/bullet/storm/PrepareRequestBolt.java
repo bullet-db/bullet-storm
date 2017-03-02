@@ -19,10 +19,10 @@ import java.util.Random;
 
 /**
  * This class is copied from org.apache.storm.drpc.PrepareRequest but does not anchor. This exists so that acking
- * can be enabled for the topology but not influence DRPC tuple not being acked within the timeout. Since this
- * will not anchor the DRPC tuple, it will be immediately acked. The downside is that if the tuple is dropped,
- * there will no longer be a fast-fail mechanism but since bullet-storm depends on arbitrarily long DRPC based
- * queries, this is a compromise that has one solution.
+ * can be enabled for the topology but not cause the DRPC tuple to be failed from not being acked within the timeout.
+ * Since this will no longer anchor the DRPC tuple, it will be immediately acked. The downside is that if the tuple is dropped,
+ * there will no longer be a fast-fail mechanism. Since bullet-storm depends on arbitrarily long DRPC based queries, this
+ * is really the only way to go if acking is needed for the topology.
  */
 public class PrepareRequestBolt extends BaseRichBolt {
     public static final String ARGS_STREAM = Utils.DEFAULT_STREAM_ID;
