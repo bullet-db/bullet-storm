@@ -24,6 +24,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -31,8 +32,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.storm.TupleUtils.makeIDTuple;
-import static com.yahoo.bullet.storm.TupleUtils.makeTuple;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.AND;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
@@ -47,8 +46,11 @@ import static com.yahoo.bullet.parsing.RuleUtils.makeGroupFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionFilterRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeProjectionRule;
 import static com.yahoo.bullet.parsing.RuleUtils.makeSimpleAggregationFilterRule;
+import static com.yahoo.bullet.storm.TupleUtils.makeIDTuple;
+import static com.yahoo.bullet.storm.TupleUtils.makeTuple;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
+import static org.mockito.AdditionalAnswers.returnsElementsOf;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -63,11 +65,43 @@ public class FilterBoltTest {
         }
     }
 
+    private class NeverExpiringFilterBolt extends FilterBolt {
+        @Override
+        protected FilterRule getRule(Long id, String ruleString) {
+            FilterRule original = super.getRule(id, ruleString);
+            if (original != null) {
+                original = spy(original);
+                when(original.isExpired()).thenReturn(false);
+            }
+            return original;
+        }
+    }
+
+    // Spies calls to isExpired and expires (returns true) after a fixed number
     private class ExpiringFilterBolt extends FilterBolt {
+        private int expireAfter = 2;
+
+        public ExpiringFilterBolt() {
+            // One record by default and expire on 2nd tick
+            this(1, 2);
+        }
+
+        public ExpiringFilterBolt(int recordsConsumed) {
+            this(recordsConsumed, 2);
+        }
+
+        public ExpiringFilterBolt(int recordsConsumed, int ticksConsumed) {
+            // Last tick will need to expire so subtract 1
+            expireAfter = recordsConsumed + ticksConsumed - 1;
+        }
+
         @Override
         protected FilterRule getRule(Long id, String ruleString) {
             FilterRule spied = spy(getFilterRule(ruleString, configuration));
-            when(spied.isExpired()).thenReturn(false).thenReturn(true);
+            List<Boolean> answers = IntStream.range(0, expireAfter).mapToObj(i -> false)
+                                             .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            answers.add(true);
+            when(spied.isExpired()).thenAnswer(returnsElementsOf(answers));
             return spied;
         }
     }
@@ -122,7 +156,7 @@ public class FilterBoltTest {
     @BeforeMethod
     public void setup() {
         collector = new CustomCollector();
-        bolt = ComponentUtils.prepare(new FilterBolt(), collector);
+        bolt = ComponentUtils.prepare(new NeverExpiringFilterBolt(), collector);
     }
 
     @Test
@@ -469,7 +503,8 @@ public class FilterBoltTest {
 
     @Test
     public void testGroupAllCount() {
-        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(), collector);
+        // 15 Records will be consumed
+        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(15), collector);
 
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
                                  makeGroupFilterRule("timestamp", asList("1", "2"), EQUALS,
@@ -503,7 +538,8 @@ public class FilterBoltTest {
     public void testMicroBatching() {
         Map<String, Object> config = new HashMap<>();
         config.put(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, 3);
-        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(), collector);
+        // 5 Records will be consumed
+        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(5), collector);
 
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
                                  makeSimpleAggregationFilterRule("field", singletonList("b235gf23b"),
@@ -536,7 +572,8 @@ public class FilterBoltTest {
     @Test
     public void testCountDistinct() {
         Map<Object, Object> config = CountDistinctTest.makeConfiguration(8, 512);
-        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(), collector);
+        // 256 Records will be consumed
+        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(256), collector);
 
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
                                  makeAggregationRule(AggregationType.COUNT_DISTINCT, 1, null,
@@ -564,5 +601,33 @@ public class FilterBoltTest {
         BulletRecord actual = distinct.getAggregation().getRecords().get(0);
         BulletRecord expected = RecordBox.get().add(CountDistinct.DEFAULT_NEW_NAME, 256.0).getRecord();
         Assert.assertEquals(actual, expected);
+    }
+
+    @Test
+    public void testNoConsumptionAfterExpiry() {
+        Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
+                                 makeSimpleAggregationFilterRule("field", singletonList("b235gf23b"),
+                                         EQUALS, AggregationType.RAW, 5));
+        bolt.execute(rule);
+
+        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
+        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        bolt.execute(matching);
+        bolt.execute(matching);
+        bolt.execute(matching);
+
+        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, 42L, record);
+        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 3, expected));
+
+        collector = new CustomCollector();
+        // Will expire after 2 consumes (no ticks)
+        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(2, 1), collector);
+        bolt.execute(rule);
+        bolt.execute(matching);
+        bolt.execute(matching);
+        // Now the rule should be expired, so it should not consume
+        bolt.execute(matching);
+
+        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 2, expected));
     }
 }
