@@ -607,7 +607,7 @@ public class FilterBoltTest {
     public void testNoConsumptionAfterExpiry() {
         Tuple rule = makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
                                  makeSimpleAggregationFilterRule("field", singletonList("b235gf23b"),
-                                         EQUALS, AggregationType.RAW, 5));
+                                                                 EQUALS, AggregationType.RAW, 5));
         bolt.execute(rule);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
