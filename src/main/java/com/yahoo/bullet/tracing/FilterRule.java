@@ -36,7 +36,8 @@ public class FilterRule extends AbstractRule<BulletRecord, byte[]> {
 
     @Override
     public boolean consume(BulletRecord record) {
-        if (!specification.isAcceptingData() || !specification.filter(record)) {
+        // If rule is expired, not accepting data or does not match filters, don't consume...
+        if (isExpired() || !specification.isAcceptingData() || !specification.filter(record)) {
             return false;
         }
         specification.aggregate(specification.project(record));
