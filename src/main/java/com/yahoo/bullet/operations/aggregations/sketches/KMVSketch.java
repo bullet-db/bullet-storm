@@ -1,25 +1,9 @@
 package com.yahoo.bullet.operations.aggregations.sketches;
 
-public interface KMVSketch {
-    /**
-     * Serializes the sketch.
-     *
-     * @return A byte[] representing the serialized sketch.
-     */
-    byte[] serialize();
-
-    /**
-     * Union a sketch serialized using {@link #serialize()} into this.
-     *
-     * @param serialized A sketch serialized using the serialize method.
-     */
-    void union(byte[] serialized);
-
-    /**
-     * Collects and gathers the data presented to the sketch.
-     */
-    void collect();
-
+/**
+ * This class provides some common metadata information for KMV Sketches - Theta and Tuple.
+ */
+public interface KMVSketch extends Sketch {
     /**
      * Returns whether this sketch was in estimation mode or not after the last collect. Only applicable after {@link #collect()}.
      *

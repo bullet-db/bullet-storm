@@ -46,9 +46,9 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
     private RotatingMap<Long, AggregationRule> bufferedRules;
 
     // Metrics
-    public static final String ACTIVE_RULES = TopologyConstants.METRIC_PREFIX + "active_rules";
-    public static final String CREATED_RULES = TopologyConstants.METRIC_PREFIX + "created_rules";
-    public static final String IMPROPER_RULES = TopologyConstants.METRIC_PREFIX + "improper_rules";
+    public static final String ACTIVE_RULES = TopologyConstants.METRIC_PREFIX + "active_queries";
+    public static final String CREATED_RULES = TopologyConstants.METRIC_PREFIX + "created_queries";
+    public static final String IMPROPER_RULES = TopologyConstants.METRIC_PREFIX + "improper_queries";
     // Variable
     private transient AbsoluteCountMetric activeRulesCount;
     // Monotonically increasing
@@ -82,7 +82,7 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         int errorTickout = errorTickoutNumber.intValue();
         bufferedErrors = new RotatingMap<>(errorTickout);
 
-        Number ruleTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_RULE_TICK_TIMEOUT,
+        Number ruleTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
                                                                        DEFAULT_RULE_TICKOUT);
         int ruleTickout = ruleTickoutNumber.intValue();
         bufferedRules = new RotatingMap<>(ruleTickout);

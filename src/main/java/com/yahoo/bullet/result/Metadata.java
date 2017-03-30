@@ -27,16 +27,21 @@ public class Metadata {
     public enum Concept {
         CREATION_TIME("Creation Time"),
         TERMINATION_TIME("Termination Time"),
-        RULE_ID("Rule Identifier"),
-        RULE_BODY("Rule Body"),
-        AGGREGATION_METADATA("Aggregation Metadata"),
+        RULE_ID("Query Identifier"),
+        RULE_BODY("Query Body"),
 
+        // Sketching metadata
+        SKETCH_METADATA("Sketch Metadata"),
         ESTIMATED_RESULT("Estimated Result"),
         UNIQUES_ESTIMATE("Uniques Estimate"),
         STANDARD_DEVIATIONS("Standard Deviations"),
-        SKETCH_FAMILY("Sketch Family"),
-        SKETCH_SIZE("Sketch Size"),
-        SKETCH_THETA("Sketch Theta");
+        FAMILY("Family"),
+        SIZE("Size"),
+        THETA("Theta"),
+        MINIMUM_VALUE("Minimum Value"),
+        MAXIMUM_VALUE("Maximum Value"),
+        ITEMS_SEEN("Items Seen"),
+        NORMALIZED_RANK_ERROR("Normalized Rank Error");
 
         private String name;
 
