@@ -21,7 +21,7 @@ import static com.yahoo.bullet.operations.FilterOperations.FilterType.GREATER_TH
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.NOT;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.NOT_EQUALS;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.OR;
-import static com.yahoo.bullet.parsing.RuleUtils.makeClause;
+import static com.yahoo.bullet.parsing.QueryUtils.makeClause;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;

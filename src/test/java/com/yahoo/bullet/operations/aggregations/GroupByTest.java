@@ -31,8 +31,8 @@ import static java.util.Collections.singletonMap;
 
 public class GroupByTest {
     public static List<Map.Entry<Concept, String>> ALL_METADATA =
-            asList(Pair.of(Concept.AGGREGATION_METADATA, "aggregate_stats"),
-                   Pair.of(Concept.SKETCH_THETA, "theta"),
+            asList(Pair.of(Concept.SKETCH_METADATA, "aggregate_stats"),
+                   Pair.of(Concept.THETA, "theta"),
                    Pair.of(Concept.ESTIMATED_RESULT, "isEstimate"),
                    Pair.of(Concept.UNIQUES_ESTIMATE, "uniquesApprox"),
                    Pair.of(Concept.STANDARD_DEVIATIONS, "stddev"));

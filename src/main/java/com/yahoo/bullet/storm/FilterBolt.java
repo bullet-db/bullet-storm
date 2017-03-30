@@ -6,8 +6,8 @@
 package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.parsing.ParsingException;
+import com.yahoo.bullet.querying.FilterQuery;
 import com.yahoo.bullet.record.BulletRecord;
-import com.yahoo.bullet.tracing.FilterRule;
 import lombok.extern.slf4j.Slf4j;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
@@ -18,7 +18,7 @@ import backtype.storm.utils.Utils;
 import java.util.Map;
 
 @Slf4j
-public class FilterBolt extends RuleBolt<FilterRule> {
+public class FilterBolt extends QueryBolt<FilterQuery> {
     public static final String FILTER_STREAM = Utils.DEFAULT_STREAM_ID;
     private String recordComponent;
 
@@ -26,7 +26,7 @@ public class FilterBolt extends RuleBolt<FilterRule> {
      * Default constructor.
      */
     public FilterBolt() {
-        this(TopologyConstants.RECORD_COMPONENT, RuleBolt.DEFAULT_TICK_INTERVAL);
+        this(TopologyConstants.RECORD_COMPONENT, QueryBolt.DEFAULT_TICK_INTERVAL);
     }
 
     /**
@@ -34,7 +34,7 @@ public class FilterBolt extends RuleBolt<FilterRule> {
      * @param recordComponent The source component name for records.
      */
     public FilterBolt(String recordComponent) {
-        this(recordComponent, RuleBolt.DEFAULT_TICK_INTERVAL);
+        this(recordComponent, QueryBolt.DEFAULT_TICK_INTERVAL);
     }
 
     /**
@@ -57,13 +57,13 @@ public class FilterBolt extends RuleBolt<FilterRule> {
         TupleType.Type type = TupleType.classify(tuple).orElse(getCustomType(tuple));
         switch (type) {
             case TICK_TUPLE:
-                emitForRules(retireRules());
+                emitForQueries(retireQueries());
                 break;
-            case RULE_TUPLE:
-                initializeRule(tuple);
+            case QUERY_TUPLE:
+                initializeQuery(tuple);
                 break;
             case RECORD_TUPLE:
-                checkRule(tuple);
+                checkQuery(tuple);
                 break;
             default:
                 // May want to throw an error here instead of not acking
@@ -79,27 +79,27 @@ public class FilterBolt extends RuleBolt<FilterRule> {
     }
 
     @Override
-    protected FilterRule getRule(Long id, String ruleString) {
+    protected FilterQuery getQuery(Long id, String queryString) {
         // No need to handle any errors here. The JoinBolt reports all errors.
         try {
-            return new FilterRule(ruleString, configuration);
+            return new FilterQuery(queryString, configuration);
         } catch (ParsingException | RuntimeException e) {
             return null;
         }
     }
 
-    private void checkRule(Tuple tuple) {
+    private void checkQuery(Tuple tuple) {
         BulletRecord record = (BulletRecord) tuple.getValue(0);
-        // For each rule that is satisfied, we will emit the data but we will not expire the rule.
-        rulesMap.entrySet().stream().filter(e -> e.getValue().consume(record)).forEach(this::emitForRule);
+        // For each query that is satisfied, we will emit the data but we will not expire the query.
+        queriesMap.entrySet().stream().filter(e -> e.getValue().consume(record)).forEach(this::emitForQuery);
     }
 
-    private void emitForRules(Map<Long, FilterRule> entries) {
-        entries.entrySet().stream().forEach(this::emitForRule);
+    private void emitForQueries(Map<Long, FilterQuery> entries) {
+        entries.entrySet().stream().forEach(this::emitForQuery);
     }
 
-    private void emitForRule(Map.Entry<Long, FilterRule> pair) {
-        // The FilterRule will handle giving us the right data - a byte[] to emit
+    private void emitForQuery(Map.Entry<Long, FilterQuery> pair) {
+        // The FilterQuery will handle giving us the right data - a byte[] to emit
         byte[] data = pair.getValue().getData();
         if (data != null) {
             collector.emit(new Values(pair.getKey(), data));

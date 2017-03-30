@@ -20,16 +20,16 @@ bullet.topology.metrics.enable: false
 # to the storm built-in metrics. Currently supported are:
 # Counting metrics: These behave like org.apache.storm.metric.api.CountMetric but do not reset their value when getValueAndReset()
 # is called. This custom metric is defined in com.yahoo.bullet.storm.AbsoluteCountMetric.
-#   1. bullet_active_rules : A metric that counts the number of rules active per JoinBolt. Note that this metric will
-#                            increase and decrease as rules come and go. Make sure to configure the emit period accordingly
-#                            otherwise short running rules may not be even counted.
-#   2. bullet_created_rules : A metric that counts the number of rules created per JoinBolt.
-#   3. bullet_improper_rules : A metric that counts the number of semantically incorrect rules created per JoinBolt.
+#   1. bullet_active_queries : A metric that counts the number of queries active per JoinBolt. Note that this metric will
+#                            increase and decrease as queries come and go. Make sure to configure the emit period accordingly
+#                            otherwise short running queries may not be even counted.
+#   2. bullet_created_queries : A metric that counts the number of queries created per JoinBolt.
+#   3. bullet_improper_queries : A metric that counts the number of semantically incorrect queries created per JoinBolt.
 bullet.topology.metrics.built.in.enable: false
 # The time period mapping from metric name to seconds for emitting the metric. This is passed to Storm when the metrics are registered.
 # A default value for all metrics can also be set by using the "default" key.
 bullet.topology.metrics.built.in.emit.interval.mapping:
-   bullet_active_rules: 10
+   bullet_active_queries: 10
    default: 10
 
 # You can list full package prefixed class path to your custom implementation. The class must extend
@@ -52,29 +52,29 @@ bullet.topology.filter.bolt.cpu.load: 100.0
 bullet.topology.filter.bolt.parallelism: 35
 bullet.topology.join.bolt.parallelism: 20
 
-# Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if rules
+# Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if queries
 # have expired) etc. This setting controls the how frequently a tick happens - number of seconds between ticks.
 bullet.topology.tick.interval.secs: 5
 
-# This is the number of ticks for which an error caused by receiving a bad rule will be buffered if the
+# This is the number of ticks for which an error caused by receiving a bad query will be buffered if the
 # return information has not been received, will be buffered before being thrown away
 bullet.topology.join.bolt.error.tick.timeout: 3
 
-# This is the number of ticks for which a rule will be buffered past its expiry in order to wait for
+# This is the number of ticks for which a query will be buffered past its expiry in order to wait for
 # aggregations to trickle in from the Filter Bolts.
-bullet.topology.join.bolt.rule.tick.timeout: 3
+bullet.topology.join.bolt.query.tick.timeout: 3
 
-# The default duration in milliseconds for a rule if one has not been specified.
-bullet.rule.default.duration: 30000
+# The default duration in milliseconds for a query if one has not been specified.
+bullet.query.default.duration: 30000
 
-# The maximum duration in milliseconds allowed for a rule. Anything greater will be clamped to this value.
-bullet.rule.max.duration: 120000
+# The maximum duration in milliseconds allowed for a query. Anything greater will be clamped to this value.
+bullet.query.max.duration: 120000
 
-# The default number of records that can be aggregated for a rule if one has not been specified.
-bullet.rule.aggregation.default.size: 1
+# The default number of records that can be aggregated for a query if one has not been specified.
+bullet.query.aggregation.default.size: 1
 
-# The maximum number of records that will be aggregated per rule. Anything greater will be clamped to this value.
-bullet.rule.aggregation.max.size: 512
+# The maximum number of records that will be aggregated per query. Anything greater will be clamped to this value.
+bullet.query.aggregation.max.size: 512
 
 # This is the separator that is used when a set of fields has to be considered as a single String.
 # This is relevant when hashing a set of fields (for example, in a GROUP operation) for uniqueness purposes, such
@@ -82,7 +82,7 @@ bullet.rule.aggregation.max.size: 512
 # group, with values ab and cd, simply concatenating them would produce abcd. This is ambiguous if you with another
 # record that had values a and bcd for those two fields. Using this separator distinguishes them for this purpose.
 # If the default separator occurs in your fields, you should change it something else.
-bullet.rule.aggregation.composite.field.separator: "|"
+bullet.query.aggregation.composite.field.separator: "|"
 
 # The maximum number of records that will be collected in the Filter Bolt till it is emitted - i.e. a micro-batch.
 # Leaving this at 1 emits your raw aggregation records as soon as they are received in the Filter Bolt. This makes
@@ -91,102 +91,115 @@ bullet.rule.aggregation.composite.field.separator: "|"
 # satisfy the query. Since the records are emitted immediately, the Join Bolt will terminate your query as soon
 # as the total records are received instead of waiting for the micro-batch size to be reached.
 # If you set this too high (for example, higher than the query size), you will wait the entire duration of the query,
-# and the number of ticks specified in topology.join.bolt.rule.tick.timeout.
-bullet.rule.aggregation.raw.micro.batch.size: 1
+# and the number of ticks specified in topology.join.bolt.query.tick.timeout.
+bullet.query.aggregation.raw.micro.batch.size: 1
 
 # The maximum number of records that will be collected for Raw aggregations. This number should be <= to the
-# rule.aggregation.max.size value. If it is greater, the aggregation size will be used.
-bullet.rule.aggregation.raw.max.size: 30
+# query.aggregation.max.size value. If it is greater, the aggregation size will be used.
+bullet.query.aggregation.raw.max.size: 30
 
 # The maximum number of entries stored by a Sketch created for doing COUNT DISTINCTS. Decreasing this number
 # (rounded to powers of 2) can decrease the accuracy for high cardinality dimensions while decreasing the total
 # memory used by the Sketch. The errors for a Theta Sketch is fixed at a maximum when this number is chosen - in other
 # words, the error will be no worse than this maximum regardless of how many unique entries are inserted into the
 # Sketch. Refer to: https://datasketches.github.io/docs/Theta/ThetaErrorTable.html
-bullet.rule.aggregation.count.distinct.sketch.entries: 16384
+bullet.query.aggregation.count.distinct.sketch.entries: 16384
 
 # Controls how much sampling is done by the Sketch for COUNT DISTINCTS. A value of 1.0 means no sampling is done.
 # A value of 0.5 means, the Sketch will throw out half the data coming into the Sketch.
 # You can leave this at 1 since it really only affects it when we start supporting COUNT DISTINCTS as GROUP operations.
 # https://datasketches.github.io/docs/Theta/ThetaPSampling.html
-bullet.rule.aggregation.count.distinct.sketch.sampling: 1.0
+bullet.query.aggregation.count.distinct.sketch.sampling: 1.0
 
 # This can either be QuickSelect or Alpha (CaSe SeNsiTive). You can leave this at the default.
 # Alpha Sketches are 30% more accurate if their estimates are queried directly but since we union them, their accuracy
 # reverts back to the QuickSelect accuracy. Alpha Sketches are also faster when updating.
 # https://datasketches.github.io/docs/Theta/ThetaUpdateSpeed.html
-bullet.rule.aggregation.count.distinct.sketch.family: "Alpha"
+bullet.query.aggregation.count.distinct.sketch.family: "Alpha"
 
 # A Sketch does not start the maximum size specified tbe sketch.entries setting. It grows toward it and can be at most
 # 2 x the size at the maximum. This factor controls by how much the size grows when the threshold is reached. Valid
 # values are 1 (no resize start at maximum), 2 (double), 4 (quadruple) and 8 (octuple). Any other value defaults to 8.
 # https://datasketches.github.io/docs/Theta/ThetaUpdateSpeed.html
-bullet.rule.aggregation.count.distinct.sketch.resize.factor: 8
+bullet.query.aggregation.count.distinct.sketch.resize.factor: 8
 
 # The maximum number of entries stored by a Sketch created for doing GROUP BY. Sketches are used to do a uniform
 # sample across your unique groups. So, this value should be set to a power of 2 approximately equal to your value for
-# rule.aggregation.max.size. Anything greater will still work but the aggregation max size will limit your result
+# bullet.query.aggregation.max.size. Anything greater will still work but the aggregation max size will limit your result
 # anyway, so it's just a waste of resources to do so. If you have a count or sum as a metric for the group, summing them
 # across the groups and dividing by your Sketch Theta (in the metadata), gives you an approximate estimate of the real
 # sum/count across all your actual groups. The error is defined by the QuickSelect Sketch error. Refer to:
 # https://datasketches.github.io/docs/Theta/ThetaErrorTable.html
-bullet.rule.aggregation.group.sketch.entries: 512
+bullet.query.aggregation.group.sketch.entries: 512
 
 # Controls how much sampling is done by the Sketch for GROUP BY. A value of 1.0 means no sampling is done.
 # A value of 0.5 means, the Sketch will throw out half the data coming into the Sketch.
 # You can leave this at 1 since it really only affects it when we start supporting COUNT DISTINCTS as GROUP operations.
 # https://datasketches.github.io/docs/Theta/ThetaPSampling.html
-bullet.rule.aggregation.group.sketch.sampling: 1.0
+bullet.query.aggregation.group.sketch.sampling: 1.0
 
 # A Sketch does not start the maximum size specified tbe sketch.entries setting. It grows toward it and can be at most
 # 2 x the size at the maximum. This factor controls by how much the size grows when the threshold is reached. Valid
 # values are 1 (no resize start at maximum), 2 (double), 4 (quadruple) and 8 (octuple). Any other value defaults to 8.
 # https://datasketches.github.io/docs/Theta/ThetaUpdateSpeed.html
-bullet.rule.aggregation.group.sketch.resize.factor: 8
+bullet.query.aggregation.group.sketch.resize.factor: 8
 
 # Enable logging meta information in the results. Configured metadata will be add to the meta section of the
 # results: {"meta": {}, "records": []}
 bullet.result.metadata.enable: true
 
 # Each entry in this list indicates which metadata to collect (the name) and what key to add it as (the key) to the meta
-# AbstractRule Identifier adds the original DRPC ID that was generated for the rule.
-# AbstractRule Body adds the received rule definition. This is useful for diagnosing syntax exceptions when errors are received.
-# Creation Time adds the timestamp in milliseconds when the AbstractRule was received by the Join Bolt
-# Termination Time adds the timestamp in milliseconds when the Records were emitted by the Join Bolt
+# Query Identifier adds the original DRPC ID that was generated for the query.
+# Query Body adds the received query definition. This is useful for diagnosing syntax exceptions when errors are received.
+# Query Creation Time adds the timestamp in milliseconds when the query was received by the Join Bolt
+# Query Termination Time adds the timestamp in milliseconds when the result was emitted by the Join Bolt
 # Aggregation Metadata adds additional nested metadata about the aggregation if set. These are listed below.
 
 # Estimated Result adds a boolean denoting whether the result was estimated. (COUNT DISTINCT, GROUP)
 # Standard Deviations adds an object inside the Aggregation Metadata object where the keys are the standard deviations
 #                     and the values are objects containing upper and lower bounds (COUNT DISTINCT, GROUP)
-# Sketch Family adds the family of Sketches uses to produce the result, if one was used. (COUNT DISTINCT)
-# Sketch Size adds the size of final Sketch used to produced the result, if one was used. (COUNT DISTINCT)
-# Sketch Theta adds the theta value of the Sketch for Theta and Tuple Sketches, if one was used. (COUNT DISTINCT, GROUP)
+# Family adds the family of Sketches uses to produce the result, if one was used. (COUNT DISTINCT)
+# Size adds the size of final Sketch used to produced the result, if one was used. (COUNT DISTINCT)
+# Theta adds the theta value of the Sketch for Theta and Tuple Sketches, if one was used. (COUNT DISTINCT, GROUP)
 # Uniques Estimate adds the approximate unique values seen for Tuple Sketches. (GROUP)
+# Minimum Value adds the smallest value seen for Quantile Sketches. (DISTRIBUTION)
+# Maximum Value adds the largest value seen for Quantile Sketches. (DISTRIBUTION)
+# Items Seen adds the number of items inserted into Quantile Sketches. (DISTRIBUTION)
+# Normalized Rank Error adds the error of the Quantile Sketch as a double between 0 and 1.0. If this was 0.002, for e.g, then
+#                       the error bound on a quantile estimate like median would be : 49.8% >= median <= 50.2%. (DISTRIBUTION)
 bullet.result.metadata.metrics:
-    - name: "Rule Identifier"
-      key: "rule_id"
-    - name: "Rule Body"
-      key: "rule_body"
-    - name: "Creation Time"
-      key: "rule_receive_time"
-    - name: "Termination Time"
-      key: "rule_finish_time"
-    - name: "Aggregation Metadata"
-      key: "aggregation"
+    - name: "Query Identifier"
+      key: "query_id"
+    - name: "Query Body"
+      key: "query"
+    - name: "Query Creation Time"
+      key: "query_receive_time"
+    - name: "Query Termination Time"
+      key: "query_finish_time"
+    - name: "Sketch Metadata"
+      key: "sketches"
     - name: "Estimated Result"
-      key: "wasEstimated"
+      key: "was_estimated"
     - name: "Standard Deviations"
-      key: "standardDeviations"
-    - name: "Sketch Family"
-      key: "sketchFamily"
-    - name: "Sketch Size"
-      key: "sketchSize"
-    - name: "Sketch Theta"
-      key: "sketchTheta"
+      key: "standard_deviations"
+    - name: "Family"
+      key: "family"
+    - name: "Size"
+      key: "size"
+    - name: "Theta"
+      key: "theta"
     - name: "Uniques Estimate"
-      key: "uniquesEstimate"
+      key: "uniques_estimate"
+    - name: "Minimum Value"
+      key: "minimum_value"
+    - name: "Maximum Value"
+      key: "maximum_value"
+    - name: "Items Seen"
+      key: "items_seen"
+    - name: "Normalized Rank Error"
+      key: "normalized_rank_error"
 
 # Enables whether each record should have a new key added to it denoting when the Filter Bolt saw it
 bullet.record.inject.timestamp.enable: true
 # This is the key that is used to add the timestamp in milliseconds to the record, if record.inject.timestamp.enable is true
-bullet.record.inject.timestamp.key: "__receive_timestamp"
+bullet.record.inject.timestamp.key: "bullet_receive_timestamp"

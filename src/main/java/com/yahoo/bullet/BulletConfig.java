@@ -30,27 +30,27 @@ public class BulletConfig extends Config {
     public static final String FILTER_BOLT_PARALLELISM = "bullet.topology.filter.bolt.parallelism";
     public static final String JOIN_BOLT_PARALLELISM = "bullet.topology.join.bolt.parallelism";
     public static final String JOIN_BOLT_ERROR_TICK_TIMEOUT = "bullet.topology.join.bolt.error.tick.timeout";
-    public static final String JOIN_BOLT_RULE_TICK_TIMEOUT = "bullet.topology.join.bolt.rule.tick.timeout";
+    public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
     public static final String RETURN_BOLT_PARALLELISM = "bullet.topology.return.bolt.parallelism";
     public static final String TICK_INTERVAL_SECS = "bullet.topology.tick.interval.secs";
 
-    public static final String SPECIFICATION_DEFAULT_DURATION = "bullet.rule.default.duration";
-    public static final String SPECIFICATION_MAX_DURATION = "bullet.rule.max.duration";
-    public static final String AGGREGATION_DEFAULT_SIZE = "bullet.rule.aggregation.default.size";
-    public static final String AGGREGATION_MAX_SIZE = "bullet.rule.aggregation.max.size";
-    public static final String AGGREGATION_COMPOSITE_FIELD_SEPARATOR = "bullet.rule.aggregation.composite.field.separator";
+    public static final String SPECIFICATION_DEFAULT_DURATION = "bullet.query.default.duration";
+    public static final String SPECIFICATION_MAX_DURATION = "bullet.query.max.duration";
+    public static final String AGGREGATION_DEFAULT_SIZE = "bullet.query.aggregation.default.size";
+    public static final String AGGREGATION_MAX_SIZE = "bullet.query.aggregation.max.size";
+    public static final String AGGREGATION_COMPOSITE_FIELD_SEPARATOR = "bullet.query.aggregation.composite.field.separator";
 
-    public static final String RAW_AGGREGATION_MAX_SIZE = "bullet.rule.aggregation.raw.max.size";
-    public static final String RAW_AGGREGATION_MICRO_BATCH_SIZE = "bullet.rule.aggregation.raw.micro.batch.size";
+    public static final String RAW_AGGREGATION_MAX_SIZE = "bullet.query.aggregation.raw.max.size";
+    public static final String RAW_AGGREGATION_MICRO_BATCH_SIZE = "bullet.query.aggregation.raw.micro.batch.size";
 
-    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES = "bullet.rule.aggregation.count.distinct.sketch.entries";
-    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_SAMPLING = "bullet.rule.aggregation.count.distinct.sketch.sampling";
-    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_FAMILY = "bullet.rule.aggregation.count.distinct.sketch.family";
-    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_RESIZE_FACTOR = "bullet.rule.aggregation.count.distinct.sketch.resize.factor";
+    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES = "bullet.query.aggregation.count.distinct.sketch.entries";
+    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_SAMPLING = "bullet.query.aggregation.count.distinct.sketch.sampling";
+    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_FAMILY = "bullet.query.aggregation.count.distinct.sketch.family";
+    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_RESIZE_FACTOR = "bullet.query.aggregation.count.distinct.sketch.resize.factor";
 
-    public static final String GROUP_AGGREGATION_SKETCH_ENTRIES = "bullet.rule.aggregation.group.sketch.entries";
-    public static final String GROUP_AGGREGATION_SKETCH_SAMPLING = "bullet.rule.aggregation.group.sketch.sampling";
-    public static final String GROUP_AGGREGATION_SKETCH_RESIZE_FACTOR = "bullet.rule.aggregation.group.sketch.resize.factor";
+    public static final String GROUP_AGGREGATION_SKETCH_ENTRIES = "bullet.query.aggregation.group.sketch.entries";
+    public static final String GROUP_AGGREGATION_SKETCH_SAMPLING = "bullet.query.aggregation.group.sketch.sampling";
+    public static final String GROUP_AGGREGATION_SKETCH_RESIZE_FACTOR = "bullet.query.aggregation.group.sketch.resize.factor";
 
     public static final String RECORD_INJECT_TIMESTAMP = "bullet.record.inject.timestamp.enable";
     public static final String RECORD_INJECT_TIMESTAMP_KEY = "bullet.record.inject.timestamp.key";

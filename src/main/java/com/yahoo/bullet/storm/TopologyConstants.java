@@ -16,7 +16,7 @@ public class TopologyConstants {
     public static final String JOIN_FIELD = "result";
     public static final String RETURN_FIELD = "return-info";
     public static final int ID_POSITION = 0;
-    public static final int RULE_POSITION = 1;
+    public static final int QUERY_POSITION = 1;
     public static final int RETURN_POSITION = 1;
     public static final int RECORD_POSITION = 1;
 

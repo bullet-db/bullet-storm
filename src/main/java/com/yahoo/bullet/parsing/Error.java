@@ -41,17 +41,17 @@ public class Error implements JSONFormatter {
     }
 
     /**
-     * Creates an Error object with the original rule string and the root cause message from the given cause.
+     * Creates an Error object with the original query string and the root cause message from the given cause.
      *
      * @param cause A cause.
-     * @param ruleString The original rule.
+     * @param queryString The original query.
      *
      * @return An Error representing this cause.
      */
-    public static Error makeError(RuntimeException cause, String ruleString) {
+    public static Error makeError(RuntimeException cause, String queryString) {
         String message = ExceptionUtils.getRootCauseMessage(cause);
         message = message.isEmpty() ? "" : message;
-        return Error.of(GENERIC_JSON_ERROR + ":\n" + ruleString + "\n" + message, singletonList(GENERIC_JSON_RESOLUTION));
+        return Error.of(GENERIC_JSON_ERROR + ":\n" + queryString + "\n" + message, singletonList(GENERIC_JSON_RESOLUTION));
     }
 
     /**

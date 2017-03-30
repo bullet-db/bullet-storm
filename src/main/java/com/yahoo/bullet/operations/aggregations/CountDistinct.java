@@ -83,8 +83,8 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
 
         Sketch result = sketch.getMergedSketch();
 
-        String familyKey = conceptKeys.get(Concept.SKETCH_FAMILY.getName());
-        String sizeKey = conceptKeys.get(Concept.SKETCH_SIZE.getName());
+        String familyKey = conceptKeys.get(Concept.FAMILY.getName());
+        String sizeKey = conceptKeys.get(Concept.SIZE.getName());
 
         addIfKeyNonNull(metadata, familyKey, () -> result.getFamily().getFamilyName());
         addIfKeyNonNull(metadata, sizeKey, () -> result.getCurrentBytes(true));
