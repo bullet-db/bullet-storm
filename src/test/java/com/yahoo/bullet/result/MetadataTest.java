@@ -41,8 +41,8 @@ public class MetadataTest {
     @Test
     public void testConceptFinding() {
         Assert.assertEquals(Concept.from("Creation Time"), Concept.CREATION_TIME);
-        Assert.assertEquals(Concept.from("Rule Identifier"), Concept.RULE_ID);
-        Assert.assertEquals(Concept.from("Aggregation Metadata"), Concept.AGGREGATION_METADATA);
+        Assert.assertEquals(Concept.from("Query Identifier"), Concept.QUERY_ID);
+        Assert.assertEquals(Concept.from("Sketch Metadata"), Concept.SKETCH_METADATA);
         Assert.assertEquals(Concept.from("Standard Deviations"), Concept.STANDARD_DEVIATIONS);
         Assert.assertNull(Concept.from("foo"));
         Assert.assertNull(Concept.from("standard deviations"));
@@ -116,16 +116,16 @@ public class MetadataTest {
         configuration.put(BulletConfig.RESULT_METADATA_ENABLE, true);
         configuration.put(BulletConfig.RESULT_METADATA_METRICS,
                           asMetadataEntries(Pair.of("Estimated Result", "foo"),
-                                            Pair.of("Aggregation Metadata", "bar"),
+                                            Pair.of("Sketch Metadata", "bar"),
                                             Pair.of("Standard Deviations", "baz")));
 
         Set<Concept> concepts = new HashSet<>(asList(Concept.ESTIMATED_RESULT,
-                                                     Concept.AGGREGATION_METADATA,
+                                                     Concept.SKETCH_METADATA,
                                                      Concept.STANDARD_DEVIATIONS));
 
         Map<String, String> expectedMap = new HashMap<>();
         expectedMap.put(Concept.ESTIMATED_RESULT.getName(), "foo");
-        expectedMap.put(Concept.AGGREGATION_METADATA.getName(), "bar");
+        expectedMap.put(Concept.SKETCH_METADATA.getName(), "bar");
         expectedMap.put(Concept.STANDARD_DEVIATIONS.getName(), "baz");
 
         Assert.assertEquals(Metadata.getConceptNames(configuration, concepts), expectedMap);

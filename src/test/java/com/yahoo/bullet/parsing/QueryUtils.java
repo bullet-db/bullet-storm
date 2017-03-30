@@ -9,8 +9,8 @@ import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.FilterOperations.FilterType;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.operations.typesystem.Type;
-import com.yahoo.bullet.tracing.AggregationRule;
-import com.yahoo.bullet.tracing.FilterRule;
+import com.yahoo.bullet.querying.AggregationQuery;
+import com.yahoo.bullet.querying.FilterQuery;
 import org.apache.commons.lang3.tuple.Pair;
 
 import java.util.Arrays;
@@ -23,11 +23,11 @@ import java.util.Map;
  * misconfiguration (new fields added etc.) in the main code and tries to emulate what the parser will get from an
  * external client making an actual call.
  */
-public class RuleUtils {
+public class QueryUtils {
     @SafeVarargs
-    public static String makeGroupFilterRule(String field, List<String> values, FilterType operation,
-                                             AggregationType aggregation, Integer size,
-                                             List<GroupOperation> operations, Pair<String, String>... fields) {
+    public static String makeGroupFilterQuery(String field, List<String> values, FilterType operation,
+                                              AggregationType aggregation, Integer size,
+                                              List<GroupOperation> operations, Pair<String, String>... fields) {
         return "{" +
                 "'filters' : [" + makeFilter(field, values, operation) + "], " +
                 "'aggregation' : " + makeGroupAggregation(size, aggregation, operations, fields) +
@@ -35,9 +35,9 @@ public class RuleUtils {
     }
 
     @SafeVarargs
-    public static String makeGroupFilterRule(List<Clause> clauses, FilterType operation,
-                                             AggregationType aggregation, Integer size,
-                                             List<GroupOperation> operations, Pair<String, String>... fields) {
+    public static String makeGroupFilterQuery(List<Clause> clauses, FilterType operation,
+                                              AggregationType aggregation, Integer size,
+                                              List<GroupOperation> operations, Pair<String, String>... fields) {
         return "{" +
                 "'filters' : [" + makeFilter(clauses, operation) + "], " +
                 "'aggregation' : " + makeGroupAggregation(size, aggregation, operations, fields) +
@@ -45,9 +45,9 @@ public class RuleUtils {
     }
 
     @SafeVarargs
-    public static String makeRawFullRule(String field, List<String> values, FilterType operation,
-                                         AggregationType aggregation, Integer size,
-                                         Pair<String, String>... projections) {
+    public static String makeRawFullQuery(String field, List<String> values, FilterType operation,
+                                          AggregationType aggregation, Integer size,
+                                          Pair<String, String>... projections) {
         return "{" +
                "'filters' : [" + makeFilter(field, values, operation) + "], " +
                "'projection' : " + makeProjections(projections) + ", " +
@@ -56,9 +56,9 @@ public class RuleUtils {
     }
 
     @SafeVarargs
-    public static String makeRawFullRule(List<Clause> clauses, FilterType operation,
-                                         AggregationType aggregation, Integer size,
-                                         Pair<String, String>... projections) {
+    public static String makeRawFullQuery(List<Clause> clauses, FilterType operation,
+                                          AggregationType aggregation, Integer size,
+                                          Pair<String, String>... projections) {
         return "{" +
                "'filters' : [" + makeFilter(clauses, operation) + "], " +
                "'projection' : " + makeProjections(projections) + ", " +
@@ -67,8 +67,8 @@ public class RuleUtils {
     }
 
     @SafeVarargs
-    public static String makeProjectionFilterRule(String field, List<String> values, FilterType operation,
-                                                  Pair<String, String>... projections) {
+    public static String makeProjectionFilterQuery(String field, List<String> values, FilterType operation,
+                                                   Pair<String, String>... projections) {
         return "{" +
                "'filters' : [" + makeFilter(field, values, operation) + "], " +
                "'projection': " + makeProjections(projections) +
@@ -76,58 +76,58 @@ public class RuleUtils {
     }
 
     @SafeVarargs
-    public static String makeProjectionFilterRule(List<Clause> clauses, FilterType operation,
-                                                  Pair<String, String>... projections) {
+    public static String makeProjectionFilterQuery(List<Clause> clauses, FilterType operation,
+                                                   Pair<String, String>... projections) {
         return "{" +
                "'filters' : [" + makeFilter(clauses, operation) + "], " +
                "'projection': " + makeProjections(projections) +
                "}";
     }
 
-    public static String makeSimpleAggregationFilterRule(String field, List<String> values, FilterType operation,
-                                                         AggregationType aggregation, Integer size) {
+    public static String makeSimpleAggregationFilterQuery(String field, List<String> values, FilterType operation,
+                                                          AggregationType aggregation, Integer size) {
         return "{" +
                "'filters' : [" + makeFilter(field, values, operation) + "], " +
                "'aggregation' : " + makeSimpleAggregation(size, aggregation) +
                "}";
     }
 
-    public static String makeSimpleAggregationFilterRule(List<Clause> clauses, FilterType operation,
-                                                   AggregationType aggregation, Integer size) {
+    public static String makeSimpleAggregationFilterQuery(List<Clause> clauses, FilterType operation,
+                                                          AggregationType aggregation, Integer size) {
         return "{" +
                "'filters' : [" + makeFilter(clauses, operation) + "], " +
                "'aggregation' : " + makeSimpleAggregation(size, aggregation) +
                "}";
     }
 
-    public static String makeFilterRule(String field, List<String> values, FilterType operation) {
+    public static String makeFilterQuery(String field, List<String> values, FilterType operation) {
         return "{'filters' : [" + makeFilter(field, values, operation) + "]}";
     }
 
-    public static String makeFilterRule(List<Clause> values, FilterType operation) {
+    public static String makeFilterQuery(List<Clause> values, FilterType operation) {
         return "{'filters' : [" + makeFilter(values, operation) + "]}";
     }
 
-    public static String makeFilterRule(FilterType operation, Clause... values) {
+    public static String makeFilterQuery(FilterType operation, Clause... values) {
         return "{'filters': [" + makeFilter(operation, values) + "]}";
     }
 
-    public static String makeFieldFilterRule(String value) {
-        return makeFilterRule("field", Collections.singletonList(value), FilterType.EQUALS);
+    public static String makeFieldFilterQuery(String value) {
+        return makeFilterQuery("field", Collections.singletonList(value), FilterType.EQUALS);
     }
 
     @SafeVarargs
-    public static String makeProjectionRule(Pair<String, String>... projections) {
+    public static String makeProjectionQuery(Pair<String, String>... projections) {
         return "{'projection' : " + makeProjections(projections) + "}";
     }
 
-    public static String makeAggregationRule(AggregationType operation, Integer size) {
+    public static String makeAggregationQuery(AggregationType operation, Integer size) {
         return "{'aggregation' : " + makeSimpleAggregation(size, operation) + "}";
     }
 
     @SafeVarargs
-    public static String makeAggregationRule(AggregationType operation, Integer size, Map<String, String> attributes,
-                                             Pair<String, String>... fields) {
+    public static String makeAggregationQuery(AggregationType operation, Integer size, Map<String, String> attributes,
+                                              Pair<String, String>... fields) {
         return "{'aggregation' : " + makeStringAttributesAggregation(size, operation, attributes, fields) + "}";
     }
 
@@ -142,7 +142,7 @@ public class RuleUtils {
     public static String makeFilter(List<Clause> values, FilterType operation) {
         return "{" +
                "'operation' : " + makeString(getOperationFor(operation)) + ", " +
-               "'clauses' : [" + values.stream().map(RuleUtils::toString).reduce((a, b) -> a + " , " + b).orElse("") + "]" +
+               "'clauses' : [" + values.stream().map(QueryUtils::toString).reduce((a, b) -> a + " , " + b).orElse("") + "]" +
                "}";
     }
 
@@ -167,7 +167,7 @@ public class RuleUtils {
                  "'fields' : " + makeGroupFields(fields) + ", " +
                  "'attributes' : {" +
                     "'operations' : [" +
-                        operations.stream().map(RuleUtils::makeGroupOperation).reduce((a, b) -> a + " , " + b).orElse("") +
+                        operations.stream().map(QueryUtils::makeGroupOperation).reduce((a, b) -> a + " , " + b).orElse("") +
                     "]" +
                  "}, " +
                  "'size' : " + size +
@@ -301,17 +301,17 @@ public class RuleUtils {
         }
     }
 
-    public static AggregationRule getAggregationRule(String ruleString, Map configuration) {
+    public static AggregationQuery getAggregationQuery(String queryString, Map configuration) {
         try {
-            return new AggregationRule(ruleString, configuration);
+            return new AggregationQuery(queryString, configuration);
         } catch (ParsingException e) {
             throw new RuntimeException(e);
         }
     }
 
-    public static FilterRule getFilterRule(String input, Map configuration) {
+    public static FilterQuery getFilterQuery(String input, Map configuration) {
         try {
-            return new FilterRule(input, configuration);
+            return new FilterQuery(input, configuration);
         } catch (ParsingException e) {
             throw new RuntimeException(e);
         }

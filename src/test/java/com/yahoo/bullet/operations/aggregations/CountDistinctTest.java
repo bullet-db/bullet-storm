@@ -155,10 +155,10 @@ public class CountDistinctTest {
     public void testSingleFieldApproximateCountDistinctWithMetadata() {
         Map<Object, Object> config = makeConfiguration(4, 512);
         CountDistinct countDistinct = makeCountDistinct(config, asList("field"),
-                                                        Pair.of(Concept.AGGREGATION_METADATA, "aggregate_stats"),
-                                                        Pair.of(Concept.SKETCH_FAMILY, "family"),
-                                                        Pair.of(Concept.SKETCH_SIZE, "size"),
-                                                        Pair.of(Concept.SKETCH_THETA, "theta"),
+                                                        Pair.of(Concept.SKETCH_METADATA, "aggregate_stats"),
+                                                        Pair.of(Concept.FAMILY, "family"),
+                                                        Pair.of(Concept.SIZE, "size"),
+                                                        Pair.of(Concept.THETA, "theta"),
                                                         Pair.of(Concept.ESTIMATED_RESULT, "isEstimate"),
                                                         Pair.of(Concept.STANDARD_DEVIATIONS, "stddev"));
         IntStream.range(0, 1000).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
@@ -211,7 +211,7 @@ public class CountDistinctTest {
     public void testNewNamingOfResult() {
         Map<Object, Object> config = makeConfiguration(4, 1024);
         CountDistinct countDistinct = makeCountDistinct(config, "myCount", asList("field"),
-                                                        Pair.of(Concept.AGGREGATION_METADATA, "stats"),
+                                                        Pair.of(Concept.SKETCH_METADATA, "stats"),
                                                         Pair.of(Concept.ESTIMATED_RESULT, "est"));
 
         IntStream.range(0, 1000).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
@@ -252,7 +252,7 @@ public class CountDistinctTest {
 
         // Final one
         countDistinct = makeCountDistinct(config, "myCount", asList("field"),
-                                          Pair.of(Concept.AGGREGATION_METADATA, "stats"),
+                                          Pair.of(Concept.SKETCH_METADATA, "stats"),
                                           Pair.of(Concept.ESTIMATED_RESULT, "est"));
 
         countDistinct.combine(firstAggregate);

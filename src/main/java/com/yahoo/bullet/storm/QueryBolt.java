@@ -6,8 +6,8 @@
 package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.querying.AbstractQuery;
 import com.yahoo.bullet.result.Metadata;
-import com.yahoo.bullet.tracing.AbstractRule;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
 import org.apache.storm.task.OutputCollector;
@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 @Slf4j
-public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
+public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
     public static final Integer DEFAULT_TICK_INTERVAL = 5;
 
     public static final boolean DEFAULT_BUILT_IN_METRICS_ENABLE = false;
@@ -36,20 +36,20 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
     protected Map<String, String> metadataKeys;
 
     // TODO consider a rotating map with multilevels and reinserts upon rotating instead for scalability
-    protected Map<Long, R> rulesMap;
+    protected Map<Long, Q> queriesMap;
 
     /**
      * Constructor that accepts the tick interval.
      * @param tickInterval The tick interval in seconds.
      */
-    public RuleBolt(Integer tickInterval) {
+    public QueryBolt(Integer tickInterval) {
         this.tickInterval = tickInterval == null ? DEFAULT_TICK_INTERVAL : tickInterval;
     }
 
     /**
      * Default constructor.
      */
-    public RuleBolt() {
+    public QueryBolt() {
         this(DEFAULT_TICK_INTERVAL);
     }
 
@@ -59,14 +59,14 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
         // stormConf is not modifyable. Need to make a copy.
         this.configuration = new HashMap<>(stormConf);
         this.collector = collector;
-        rulesMap = new HashMap<>();
+        queriesMap = new HashMap<>();
 
         // Get all known Concepts
         metadataKeys = Metadata.getConceptNames(configuration, new HashSet<>(Metadata.KNOWN_CONCEPTS));
         if (!metadataKeys.isEmpty()) {
             log.info("Metadata collection is enabled");
             log.info("Collecting metadata for these concepts:\n{}", metadataKeys);
-            // Add all metadataKeys back to configuration for reuse so no need refetch them on every new rule
+            // Add all metadataKeys back to configuration for reuse so no need refetch them on every new query
             configuration.put(BulletConfig.RESULT_METADATA_METRICS_MAPPING, metadataKeys);
         }
 
@@ -79,35 +79,35 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
     }
 
     /**
-     * Retires DRPC rules that are active past the tick time.
-     * @return The map of DRPC request ids to Rules that were retired.
+     * Retires queries that are active past the tick time.
+     * @return The map of query ids to queries that were retired.
      */
-    protected Map<Long, R> retireRules() {
-        Map<Long, R> retiredRules = rulesMap.entrySet().stream().filter(e -> e.getValue().isExpired())
+    protected Map<Long, Q> retireQueries() {
+        Map<Long, Q> retiredQueries = queriesMap.entrySet().stream().filter(e -> e.getValue().isExpired())
                                             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        rulesMap.keySet().removeAll(retiredRules.keySet());
-        if (retiredRules.size() > 0) {
-            log.info("Retired {} rule(s). There are {} active rule(s).", retiredRules.size(), rulesMap.size());
+        queriesMap.keySet().removeAll(retiredQueries.keySet());
+        if (retiredQueries.size() > 0) {
+            log.info("Retired queries: {}. Active queries: {}.", retiredQueries.size(), queriesMap.size());
         }
-        return retiredRules;
+        return retiredQueries;
     }
 
     /**
-     * Initializes a rule from a rule tuple.
-     * @param tuple The rule tuple with the rule to initialize.
-     * @return The created rule.
+     * Initializes a query from a query tuple.
+     * @param tuple The query tuple with the query to initialize.
+     * @return The created query.
      */
-    protected R initializeRule(Tuple tuple) {
+    protected Q initializeQuery(Tuple tuple) {
         Long id = tuple.getLong(TopologyConstants.ID_POSITION);
-        String ruleString = tuple.getString(TopologyConstants.RULE_POSITION);
-        R rule = getRule(id, ruleString);
-        if (rule == null) {
-            log.error("Failed to initialize rule for request {} with rule {}", id, ruleString);
+        String queryString = tuple.getString(TopologyConstants.QUERY_POSITION);
+        Q query = getQuery(id, queryString);
+        if (query == null) {
+            log.error("Failed to initialize query for request {} with query {}", id, queryString);
             return null;
         }
-        log.info("Initialized rule {} : {}", id, rule.toString());
-        rulesMap.put(id, rule);
-        return rule;
+        log.info("Initialized query {} : {}", id, query.toString());
+        queriesMap.put(id, query);
+        return query;
     }
 
     /**
@@ -130,12 +130,12 @@ public abstract class RuleBolt<R extends AbstractRule> implements IRichBolt {
     }
 
     /**
-     * Finds the right type of AbstractRule to use for this Bolt. If rule cannot be
+     * Finds the right type of AbstractQuery to use for this Bolt. If query cannot be
      * created, handles the error and returns null.
      *
-     * @param id The DRPC request id.
-     * @param ruleString The String version of the AbstractRule
-     * @return The appropriate type of AbstractRule to use for this Bolt.
+     * @param id The query ID.
+     * @param queryString The String version of the AbstractQuery
+     * @return The appropriate type of AbstractQuery to use for this Bolt.
      */
-    protected abstract R getRule(Long id, String ruleString);
+    protected abstract Q getQuery(Long id, String queryString);
 }

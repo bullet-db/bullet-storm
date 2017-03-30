@@ -44,6 +44,7 @@ public class Raw implements Strategy {
      *
      * @param aggregation The {@link Aggregation} that specifies how and what this will compute.
      */
+    @SuppressWarnings("unchecked")
     public Raw(Aggregation aggregation) {
         Map config = aggregation.getConfiguration();
         int maximumSize = ((Number) config.getOrDefault(BulletConfig.RAW_AGGREGATION_MAX_SIZE,

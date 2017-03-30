@@ -5,7 +5,7 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.tracing.AbstractRule;
+import com.yahoo.bullet.querying.AbstractQuery;
 import lombok.Getter;
 import org.apache.storm.Config;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -16,9 +16,9 @@ import org.testng.annotations.Test;
 import java.util.Collections;
 import java.util.Map;
 
-public class RuleBoltTest {
+public class QueryBoltTest {
 
-    private class TestRuleBolt extends RuleBolt<AbstractRule> {
+    private class TestQueryBolt extends QueryBolt<AbstractQuery> {
         @Getter
         private boolean cleaned = false;
 
@@ -31,7 +31,7 @@ public class RuleBoltTest {
         }
 
         @Override
-        public AbstractRule getRule(Long id, String ruleString) {
+        public AbstractQuery getQuery(Long id, String queryString) {
             return null;
         }
 
@@ -44,15 +44,15 @@ public class RuleBoltTest {
 
     @Test
     public void testCleanup() {
-        TestRuleBolt testRuleBolt = new TestRuleBolt();
-        testRuleBolt.cleanup();
-        Assert.assertTrue(testRuleBolt.isCleaned());
+        TestQueryBolt testQueryBolt = new TestQueryBolt();
+        testQueryBolt.cleanup();
+        Assert.assertTrue(testQueryBolt.isCleaned());
     }
 
     @Test
     public void testDefaultConfiguration() {
         Map<String, Object> expected = Collections.singletonMap(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS,
-                                                                RuleBolt.DEFAULT_TICK_INTERVAL);
+                                                                QueryBolt.DEFAULT_TICK_INTERVAL);
         JoinBolt joinBolt = new JoinBolt();
         Assert.assertEquals(joinBolt.getComponentConfiguration(), expected);
         joinBolt = new JoinBolt(null);

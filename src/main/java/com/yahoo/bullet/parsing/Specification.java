@@ -21,7 +21,7 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * This class is the top level Bullet Rule Specification. It holds the definition of the Rule.
+ * This class is the top level Bullet Query Specification. It holds the definition of the Query.
  */
 @Getter @Setter(AccessLevel.PACKAGE) @Slf4j
 public class Specification implements Configurable, Validatable  {
@@ -37,7 +37,7 @@ public class Specification implements Configurable, Validatable  {
     private Boolean shouldInjectTimestamp;
     private String timestampKey;
 
-    public static final String DEFAULT_RECEIVE_TIMESTAMP_KEY = "__receive_timestamp";
+    public static final String DEFAULT_RECEIVE_TIMESTAMP_KEY = "bullet_receive_timestamp";
     public static final Integer DEFAULT_DURATION_MS = 30 * 1000;
     public static final Integer DEFAULT_MAX_DURATION_MS = 120 * 1000;
     public static final String SUB_KEY_SEPERATOR = "\\.";
@@ -88,7 +88,7 @@ public class Specification implements Configurable, Validatable  {
         try {
             aggregation.getStrategy().consume(record);
         } catch (RuntimeException e) {
-            log.error("Unable to consume {} for rule {}", record, this);
+            log.error("Unable to consume {} for query {}", record, this);
             log.error("Skipping due to", e);
         }
     }
@@ -102,7 +102,7 @@ public class Specification implements Configurable, Validatable  {
         try {
             aggregation.getStrategy().combine(data);
         } catch (RuntimeException e) {
-            log.error("Unable to aggregate {} for rule {}", data, this);
+            log.error("Unable to aggregate {} for query {}", data, this);
             log.error("Skipping due to", e);
         }
     }
@@ -116,7 +116,7 @@ public class Specification implements Configurable, Validatable  {
         try {
             return aggregation.getStrategy().getSerializedAggregation();
         } catch (RuntimeException e) {
-            log.error("Unable to get serialized aggregation for rule {}", this);
+            log.error("Unable to get serialized aggregation for query {}", this);
             log.error("Skipping due to", e);
             return null;
         }
@@ -131,7 +131,7 @@ public class Specification implements Configurable, Validatable  {
         try {
             return aggregation.getStrategy().getAggregation();
         } catch (RuntimeException e) {
-            log.error("Unable to get serialized aggregation for rule {}", this);
+            log.error("Unable to get serialized aggregation for query {}", this);
             log.error("Skipping due to", e);
             return Clip.of(Metadata.of(Error.makeError(e.getMessage(), AGGREGATION_FAILURE_RESOLUTION)));
         }
