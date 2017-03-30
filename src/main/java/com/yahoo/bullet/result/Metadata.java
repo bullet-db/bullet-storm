@@ -27,8 +27,8 @@ public class Metadata {
     public enum Concept {
         CREATION_TIME("Creation Time"),
         TERMINATION_TIME("Termination Time"),
-        RULE_ID("Query Identifier"),
-        RULE_BODY("Query Body"),
+        QUERY_ID("Query Identifier"),
+        QUERY_BODY("Query Body"),
 
         // Sketching metadata
         SKETCH_METADATA("Sketch Metadata"),

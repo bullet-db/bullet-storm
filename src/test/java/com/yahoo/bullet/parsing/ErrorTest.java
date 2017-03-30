@@ -28,10 +28,10 @@ public class ErrorTest {
     public void testJSONError() {
         JsonParseException madeUp = new JsonParseException("Something JSON", null);
 
-        assertJSONEquals(makeError(madeUp, "JSON Rule").asJSON(),
-                         asJSON(Error.of(GENERIC_JSON_ERROR + ":\nJSON Rule\nJsonParseException: Something JSON",
+        assertJSONEquals(makeError(madeUp, "JSON Query").asJSON(),
+                         asJSON(Error.of(GENERIC_JSON_ERROR + ":\nJSON Query\nJsonParseException: Something JSON",
                                 singletonList(GENERIC_JSON_RESOLUTION))));
-        assertJSONEquals(makeError((JsonParseException) null, "JSON Rule").asJSON(),
-                         asJSON(Error.of(GENERIC_JSON_ERROR + ":\nJSON Rule\n", singletonList(GENERIC_JSON_RESOLUTION))));
+        assertJSONEquals(makeError((JsonParseException) null, "JSON Query").asJSON(),
+                         asJSON(Error.of(GENERIC_JSON_ERROR + ":\nJSON Query\n", singletonList(GENERIC_JSON_RESOLUTION))));
     }
 }

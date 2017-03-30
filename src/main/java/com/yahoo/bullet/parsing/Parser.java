@@ -22,15 +22,15 @@ public class Parser {
                                          .create();
 
     /**
-     * Parses a Specification out of the rule string.
+     * Parses a Specification out of the query string.
      *
-     * @param ruleString The String version of the rule.
+     * @param queryString The String version of the query.
      * @param configuration Additional configuration for the specification.
      *
      * @return The parsed, configured Specification.
      */
-    public static Specification parse(String ruleString, Map configuration) {
-        Specification specification = GSON.fromJson(ruleString, Specification.class);
+    public static Specification parse(String queryString, Map configuration) {
+        Specification specification = GSON.fromJson(queryString, Specification.class);
         specification.configure(configuration);
         return specification;
     }

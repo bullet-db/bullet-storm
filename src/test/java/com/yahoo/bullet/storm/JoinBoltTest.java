@@ -23,7 +23,7 @@ import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.bullet.result.RecordBox;
-import com.yahoo.bullet.tracing.AggregationRule;
+import com.yahoo.bullet.querying.AggregationQuery;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.tuple.Fields;
@@ -48,9 +48,9 @@ import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
-import static com.yahoo.bullet.parsing.RuleUtils.getAggregationRule;
-import static com.yahoo.bullet.parsing.RuleUtils.makeAggregationRule;
-import static com.yahoo.bullet.parsing.RuleUtils.makeGroupFilterRule;
+import static com.yahoo.bullet.parsing.QueryUtils.getAggregationQuery;
+import static com.yahoo.bullet.parsing.QueryUtils.makeAggregationQuery;
+import static com.yahoo.bullet.parsing.QueryUtils.makeGroupFilterQuery;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
@@ -65,8 +65,8 @@ public class JoinBoltTest {
 
     private class ExpiringJoinBolt extends JoinBolt {
         @Override
-        protected AggregationRule getRule(Long id, String ruleString) {
-            AggregationRule spied = spy(getAggregationRule(ruleString, emptyMap()));
+        protected AggregationQuery getQuery(Long id, String queryString) {
+            AggregationQuery spied = spy(getAggregationQuery(queryString, emptyMap()));
             when(spied.isExpired()).thenReturn(false).thenReturn(true);
             return spied;
         }
@@ -110,7 +110,8 @@ public class JoinBoltTest {
     }
 
     public static void enableMetadataInConfig(Map<String, Object> config, String metaConcept, String key) {
-        List<Map<String, String>> metadataConfig = (List<Map<String, String>>) config.getOrDefault(BulletConfig.RESULT_METADATA_METRICS, new ArrayList<>());
+        List<Map<String, String>> metadataConfig =
+                (List<Map<String, String>>) config.getOrDefault(BulletConfig.RESULT_METADATA_METRICS, new ArrayList<>());
         Map<String, String> conceptConfig = new HashMap<>();
         conceptConfig.put(BulletConfig.RESULT_METADATA_METRICS_CONCEPT_KEY, metaConcept);
         conceptConfig.put(BulletConfig.RESULT_METADATA_METRICS_NAME_KEY, key);
@@ -142,15 +143,15 @@ public class JoinBoltTest {
 
     @Test
     public void testUnknownTuple() {
-        Tuple rule = TupleUtils.makeTuple(TupleType.Type.RECORD_TUPLE, RecordBox.get().add("a", "b").getRecord());
-        bolt.execute(rule);
-        Assert.assertFalse(collector.wasAcked(rule));
+        Tuple query = TupleUtils.makeTuple(TupleType.Type.RECORD_TUPLE, RecordBox.get().add("a", "b").getRecord());
+        bolt.execute(query);
+        Assert.assertFalse(collector.wasAcked(query));
     }
 
     @Test
     public void testJoining() {
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{}");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "{}");
+        bolt.execute(query);
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -164,11 +165,11 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testRuleExpiry() {
+    public void testQueryExpiry() {
         bolt = ComponentUtils.prepare(new ExpiringJoinBolt(), collector);
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{}");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "{}");
+        bolt.execute(query);
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -180,10 +181,10 @@ public class JoinBoltTest {
 
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(sent).asJSON(), "");
 
-        // Should cause an expiry and starts buffering the rule for the rule tickout
+        // Should cause an expiry and starts buffering the query for the query tickout
         bolt.execute(tick);
-        // We need to tick the default rule tickout to make the rule emit
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+        // We need to tick the default query tickout to make the query emit
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
@@ -194,7 +195,7 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testFailJoiningForNoRule() {
+    public void testFailJoiningForNoQuery() {
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
 
@@ -207,8 +208,8 @@ public class JoinBoltTest {
 
     @Test
     public void testFailJoiningForNoReturn() {
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{}");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "{}");
+        bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, 42L);
 
@@ -218,7 +219,7 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testFailJoiningForNoRuleOrReturn() {
+    public void testFailJoiningForNoQueryOrReturn() {
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, 42L);
 
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(sent).asJSON(), "");
@@ -232,19 +233,19 @@ public class JoinBoltTest {
         config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                            makeAggregationRule(RAW, 3));
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeAggregationQuery(RAW, 3));
+        bolt.execute(query);
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, 42L, 2);
 
-        // If we tick twice, the Rule will be expired due to the ExpiringJoinBolt and put into bufferedRules
+        // If we tick twice, the Query will be expired due to the ExpiringJoinBolt and put into bufferedQuerys
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
@@ -252,19 +253,19 @@ public class JoinBoltTest {
         // We'd have <JSON, returnInfo> as the expected tuple
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(sent).asJSON(), "");
 
-        // We need to tick the default rule tickout to make the rule emit
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+        // We need to tick the default query tickout to make the query emit
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
-            Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-            Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+            Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+            Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
         }
         // This will cause the emission
         bolt.execute(tick);
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
     }
 
     @Test
@@ -273,12 +274,12 @@ public class JoinBoltTest {
         config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                            makeAggregationRule(RAW, 3));
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeAggregationQuery(RAW, 3));
+        bolt.execute(query);
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -286,19 +287,19 @@ public class JoinBoltTest {
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, 42L, 2);
 
 
-        // If we tick twice, the Rule will be expired due to the ExpiringJoinBolt and put into bufferedRules
+        // If we tick twice, the Query will be expired due to the ExpiringJoinBolt and put into bufferedQuerys
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
 
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(sent).asJSON(), "");
 
-        // We now tick a few times to get the rule rotated but not discarded
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+        // We now tick a few times to get the query rotated but not discarded
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
-            Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-            Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+            Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+            Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
         }
         // Now we satisfy the aggregation and see if it causes an emission
         List<BulletRecord> sentLate = sendRawRecordTuplesTo(bolt, 42L, 1);
@@ -309,8 +310,8 @@ public class JoinBoltTest {
 
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
     }
 
     @Test
@@ -319,43 +320,43 @@ public class JoinBoltTest {
         config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                            makeAggregationRule(RAW, 3));
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeAggregationQuery(RAW, 3));
+        bolt.execute(query);
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
         // No return information
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, 42L, 2);
 
-        // If we tick twice, the Rule will be expired due to the ExpiringJoinBolt and put into bufferedRules
+        // If we tick twice, the Query will be expired due to the ExpiringJoinBolt and put into bufferedQuerys
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(sent).asJSON(), "");
 
         // Even if the aggregation has data, rotation does not cause its emission since we have no return information.
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT; ++i) {
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
     }
 
     @Test
     public void testMultiJoining() {
         bolt = ComponentUtils.prepare(new ExpiringJoinBolt(), collector);
 
-        Tuple ruleOne = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{}");
-        bolt.execute(ruleOne);
+        Tuple queryA = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "{}");
+        bolt.execute(queryA);
 
-        Tuple ruleTwo = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 43L, "{}");
-        bolt.execute(ruleTwo);
+        Tuple queryB = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 43L, "{}");
+        bolt.execute(queryB);
 
         Tuple returnInfoOne = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfoOne);
@@ -365,7 +366,7 @@ public class JoinBoltTest {
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
 
-        // This will not satisfy the rule and will be emitted second
+        // This will not satisfy the query and will be emitted second
         List<BulletRecord> sentFirst = sendRawRecordTuplesTo(bolt, 42L, Aggregation.DEFAULT_SIZE - 1);
         List<BulletRecord> sentSecond = sendRawRecordTuplesTo(bolt, 43L);
         bolt.execute(tick);
@@ -375,8 +376,8 @@ public class JoinBoltTest {
         Assert.assertTrue(collector.wasNthEmitted(emittedFirst, 1));
 
         Tuple emittedSecond = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(sentFirst).asJSON(), "");
-        // We need to tick the default rule tickout to make the rule emit
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+        // We need to tick the default query tickout to make the query emit
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(emittedSecond));
         }
@@ -388,10 +389,10 @@ public class JoinBoltTest {
 
     @Test
     public void testErrorImmediate() {
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "garbage");
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "garbage");
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
-        bolt.execute(rule);
+        bolt.execute(query);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 
@@ -406,9 +407,9 @@ public class JoinBoltTest {
 
     @Test
     public void testErrorBuffering() {
-        String ruleString = "{filters : }";
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, ruleString);
-        bolt.execute(rule);
+        String queryString = "{filters : }";
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, queryString);
+        bolt.execute(query);
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         for (int i = 0; i < JoinBolt.DEFAULT_ERROR_TICKOUT - 1; ++i) {
@@ -421,7 +422,7 @@ public class JoinBoltTest {
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 
-        Error expectedError = Error.of(Error.GENERIC_JSON_ERROR + ":\n" + ruleString + "\n" +
+        Error expectedError = Error.of(Error.GENERIC_JSON_ERROR + ":\n" + queryString + "\n" +
                                        "MalformedJsonException: Expected value at line 1 column 12 path $.filters",
                                        singletonList(Error.GENERIC_JSON_RESOLUTION));
         Metadata expectedMetadata = Metadata.of(expectedError);
@@ -432,8 +433,8 @@ public class JoinBoltTest {
 
     @Test
     public void testErrorBufferingTimeout() {
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "garbage");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "garbage");
+        bolt.execute(query);
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         for (int i = 0; i < JoinBolt.DEFAULT_ERROR_TICKOUT; ++i) {
@@ -452,8 +453,8 @@ public class JoinBoltTest {
         config.put(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, 10);
         setup(config, new JoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "garbage");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "garbage");
+        bolt.execute(query);
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         for (int i = 0; i < 9; ++i) {
@@ -481,8 +482,8 @@ public class JoinBoltTest {
         config.put(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, 10);
         setup(config, new JoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "garbage");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "garbage");
+        bolt.execute(query);
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         for (int i = 0; i < 10; ++i) {
@@ -498,11 +499,11 @@ public class JoinBoltTest {
     @Test
     public void testQueryIdentifierMetadata() {
         Map<String, Object> config = new HashMap<>();
-        enableMetadataInConfig(config, Concept.RULE_ID.getName(), "id");
+        enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         setup(config, new JoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{}");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "{}");
+        bolt.execute(query);
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -519,12 +520,12 @@ public class JoinBoltTest {
     @Test
     public void testUnknownConceptMetadata() {
         Map<String, Object> config = new HashMap<>();
-        enableMetadataInConfig(config, Concept.RULE_ID.getName(), "id");
+        enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         enableMetadataInConfig(config, "foo", "bar");
         setup(config, new JoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{}");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "{}");
+        bolt.execute(query);
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -541,16 +542,16 @@ public class JoinBoltTest {
     @Test
     public void testMultipleMetadata() {
         Map<String, Object> config = new HashMap<>();
-        enableMetadataInConfig(config, Concept.RULE_ID.getName(), "id");
-        enableMetadataInConfig(config, Concept.RULE_BODY.getName(), "rule");
+        enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
+        enableMetadataInConfig(config, Concept.QUERY_BODY.getName(), "query");
         enableMetadataInConfig(config, Concept.CREATION_TIME.getName(), "created");
         enableMetadataInConfig(config, Concept.TERMINATION_TIME.getName(), "finished");
         setup(config, new JoinBolt());
 
         long startTime = System.currentTimeMillis();
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{}");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "{}");
+        bolt.execute(query);
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -570,12 +571,12 @@ public class JoinBoltTest {
 
         JsonObject meta = object.get(Clip.META_KEY).getAsJsonObject();
         long actualID = meta.get("id").getAsLong();
-        String ruleBody = meta.get("rule").getAsString();
+        String queryBody = meta.get("query").getAsString();
         long createdTime = meta.get("created").getAsLong();
         long finishedTime = meta.get("finished").getAsLong();
 
         Assert.assertEquals(actualID, 42L);
-        Assert.assertEquals(ruleBody, "{}");
+        Assert.assertEquals(queryBody, "{}");
         Assert.assertTrue(createdTime <= finishedTime);
         Assert.assertTrue(createdTime >= startTime && createdTime <= endTime);
     }
@@ -583,9 +584,9 @@ public class JoinBoltTest {
     @Test
     public void testUnsupportedAggregation() {
         // "TOP" aggregation type not currently supported - error should be emitted
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                            makeAggregationRule(TOP, 5));
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeAggregationQuery(TOP, 5));
+        bolt.execute(query);
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
@@ -595,8 +596,8 @@ public class JoinBoltTest {
     public void testUnknownAggregation() {
         // Lowercase "top" is not valid and will not be parsed since there is no enum for it
         // In this case aggregation type should be set to null and an error should be emitted
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "{\"aggregation\": {\"type\": \"garbage\"}}");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "{\"aggregation\": {\"type\": \"garbage\"}}");
+        bolt.execute(query);
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
 
@@ -611,10 +612,10 @@ public class JoinBoltTest {
 
     @Test
     public void testUnhandledExceptionErrorEmitted() {
-        // An empty rule should throw an null-pointer exception which should be caught in JoinBolt
+        // An empty query should throw an null-pointer exception which should be caught in JoinBolt
         // and an error should be emitted
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "");
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "");
+        bolt.execute(query);
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
 
@@ -633,12 +634,10 @@ public class JoinBoltTest {
     public void testCounting() {
         bolt = ComponentUtils.prepare(new ExpiringJoinBolt(), collector);
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                            makeGroupFilterRule("timestamp", asList("1", "2"), EQUALS,
-                                                                GROUP, 1,
-                                                                singletonList(new GroupOperation(COUNT,
-                                                                                                 null, "cnt"))));
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
+                                                                  singletonList(new GroupOperation(COUNT, null, "cnt"))));
+        bolt.execute(query);
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -654,10 +653,10 @@ public class JoinBoltTest {
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
-        // Should cause an expiry and starts buffering the rule for the rule tickout
+        // Should cause an expiry and starts buffering the query for the query tickout
         bolt.execute(tick);
-        // We need to tick the default rule tickout to make the rule emit
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+        // We need to tick the default query tickout to make the query emit
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
@@ -669,8 +668,8 @@ public class JoinBoltTest {
 
     @Test
     public void testRawMicroBatchSizeGreaterThanOne() {
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, makeAggregationRule(RAW, 5));
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, makeAggregationQuery(RAW, 5));
+        bolt.execute(query);
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -702,9 +701,9 @@ public class JoinBoltTest {
         // Send generated data to JoinBolt
         bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(), collector);
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                            makeAggregationRule(COUNT_DISTINCT, 1, null, Pair.of("field", "field")));
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeAggregationQuery(COUNT_DISTINCT, 1, null, Pair.of("field", "field")));
+        bolt.execute(query);
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
 
@@ -716,7 +715,7 @@ public class JoinBoltTest {
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
@@ -753,11 +752,11 @@ public class JoinBoltTest {
 
         List<GroupOperation> operations = asList(new GroupOperation(COUNT, null, "cnt"),
                                                  new GroupOperation(SUM, "fieldB", "sumB"));
-        String ruleString = makeGroupFilterRule("ts", singletonList("1"), EQUALS, GROUP,
-                                                entries, operations, Pair.of("fieldA", "A"));
+        String queryString = makeGroupFilterQuery("ts", singletonList("1"), EQUALS, GROUP,
+                                                  entries, operations, Pair.of("fieldA", "A"));
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, ruleString);
-        bolt.execute(rule);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, queryString);
+        bolt.execute(query);
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -767,7 +766,7 @@ public class JoinBoltTest {
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertEquals(collector.getAllEmitted().count(), 0);
         }
@@ -777,22 +776,22 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testRuleCountingMetrics() {
+    public void testQueryCountingMetrics() {
         Map<String, Object> config = new HashMap<>();
         config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                            makeGroupFilterRule("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
-                                                                singletonList(new GroupOperation(COUNT, null, "cnt"))));
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
+                                                                  singletonList(new GroupOperation(COUNT, null, "cnt"))));
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_RULES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
 
-        bolt.execute(rule);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+        bolt.execute(query);
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -807,43 +806,43 @@ public class JoinBoltTest {
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
 
-        // Should cause an expiry and starts buffering the rule for the rule tickout
+        // Should cause an expiry and starts buffering the query for the query tickout
         bolt.execute(tick);
-        // We need to tick the default rule tickout to make the rule emit
-        for (int i = 0; i < JoinBolt.DEFAULT_RULE_TICKOUT - 1; ++i) {
+        // We need to tick the default query tickout to make the query emit
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
         }
         Assert.assertFalse(collector.wasTupleEmitted(expected));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         bolt.execute(tick);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
 
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 
-        bolt.execute(rule);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(2));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_RULES), Long.valueOf(0));
+        bolt.execute(query);
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(2));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
     }
 
     @Test
-    public void testImproperRuleCountingMetrics() {
+    public void testImproperQueryCountingMetrics() {
         Map<String, Object> config = new HashMap<>();
         config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new JoinBolt());
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_RULES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
 
-        Tuple badRule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L, "");
-        bolt.execute(badRule);
-        bolt.execute(badRule);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_RULES), Long.valueOf(2));
+        Tuple badQuery = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "");
+        bolt.execute(badQuery);
+        bolt.execute(badQuery);
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(2));
     }
 
     @Test
@@ -852,27 +851,27 @@ public class JoinBoltTest {
         Map<String, Number> mapping = new HashMap<>();
         config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
 
-        mapping.put(JoinBolt.ACTIVE_RULES, 1);
+        mapping.put(JoinBolt.ACTIVE_QUERIES, 1);
         mapping.put(JoinBolt.DEFAULT_METRICS_INTERVAL_KEY, 10);
         config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, mapping);
         setup(config, new ExpiringJoinBolt());
 
-        Tuple rule = TupleUtils.makeIDTuple(TupleType.Type.RULE_TUPLE, 42L,
-                                            makeGroupFilterRule("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
-                                                                singletonList(new GroupOperation(COUNT, null, "cnt"))));
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
+                                                     singletonList(new GroupOperation(COUNT, null, "cnt"))));
 
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.IMPROPER_RULES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
 
-        bolt.execute(rule);
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_RULES), Long.valueOf(1));
+        bolt.execute(query);
+        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        for (int i = 0; i <= JoinBolt.DEFAULT_RULE_TICKOUT; ++i) {
+        for (int i = 0; i <= JoinBolt.DEFAULT_QUERY_TICKOUT; ++i) {
             bolt.execute(tick);
         }
 
@@ -880,8 +879,8 @@ public class JoinBoltTest {
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(result).asJSON(), "");
         Assert.assertFalse(collector.wasTupleEmitted(expected));
 
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_RULES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_RULES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.IMPROPER_RULES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
     }
 }

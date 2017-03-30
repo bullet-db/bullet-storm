@@ -22,7 +22,7 @@ import static com.yahoo.bullet.operations.FilterOperations.FilterType.LESS_EQUAL
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.LESS_THAN;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.NOT_EQUALS;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.REGEX_LIKE;
-import static com.yahoo.bullet.parsing.RuleUtils.makeClause;
+import static com.yahoo.bullet.parsing.QueryUtils.makeClause;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.singletonList;

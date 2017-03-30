@@ -9,10 +9,10 @@ import com.google.gson.JsonParseException;
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.parsing.ParsingException;
+import com.yahoo.bullet.querying.AggregationQuery;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.Metadata.Concept;
-import com.yahoo.bullet.tracing.AggregationRule;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -31,29 +31,29 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 @Slf4j
-public class JoinBolt extends RuleBolt<AggregationRule> {
+public class JoinBolt extends QueryBolt<AggregationQuery> {
     public static final String JOIN_STREAM = Utils.DEFAULT_STREAM_ID;
 
     /** This is the default number of ticks for which we will buffer an individual error message. */
     public static final int DEFAULT_ERROR_TICKOUT = 3;
-    /** This is the default number of ticks for which we will a rule post expiry. */
-    public static final int DEFAULT_RULE_TICKOUT = 3;
+    /** This is the default number of ticks for which we will a query post expiry. */
+    public static final int DEFAULT_QUERY_TICKOUT = 3;
 
     private Map<Long, Tuple> activeReturns;
-    // For doing a LEFT OUTER JOIN between Rules and ReturnInfo if the Rule has validation issues
+    // For doing a LEFT OUTER JOIN between Queries and ReturnInfo if the Query has validation issues
     private RotatingMap<Long, Clip> bufferedErrors;
-    // For doing a LEFT OUTER JOIN between Rules and intermediate aggregation, if the aggregations are lagging.
-    private RotatingMap<Long, AggregationRule> bufferedRules;
+    // For doing a LEFT OUTER JOIN between Queries and intermediate aggregation, if the aggregations are lagging.
+    private RotatingMap<Long, AggregationQuery> bufferedQueries;
 
     // Metrics
-    public static final String ACTIVE_RULES = TopologyConstants.METRIC_PREFIX + "active_queries";
-    public static final String CREATED_RULES = TopologyConstants.METRIC_PREFIX + "created_queries";
-    public static final String IMPROPER_RULES = TopologyConstants.METRIC_PREFIX + "improper_queries";
+    public static final String ACTIVE_QUERIES = TopologyConstants.METRIC_PREFIX + "active_queries";
+    public static final String CREATED_QUERIES = TopologyConstants.METRIC_PREFIX + "created_queries";
+    public static final String IMPROPER_QUERIES = TopologyConstants.METRIC_PREFIX + "improper_queries";
     // Variable
-    private transient AbsoluteCountMetric activeRulesCount;
+    private transient AbsoluteCountMetric activeQueriesCount;
     // Monotonically increasing
-    private transient AbsoluteCountMetric createdRulesCount;
-    private transient AbsoluteCountMetric improperRulesCount;
+    private transient AbsoluteCountMetric createdQueriesCount;
+    private transient AbsoluteCountMetric improperQueriesCount;
 
     /**
      * Default constructor.
@@ -82,15 +82,15 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         int errorTickout = errorTickoutNumber.intValue();
         bufferedErrors = new RotatingMap<>(errorTickout);
 
-        Number ruleTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
-                                                                       DEFAULT_RULE_TICKOUT);
-        int ruleTickout = ruleTickoutNumber.intValue();
-        bufferedRules = new RotatingMap<>(ruleTickout);
+        Number queryTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
+                                                                        DEFAULT_QUERY_TICKOUT);
+        int queryTickout = queryTickoutNumber.intValue();
+        bufferedQueries = new RotatingMap<>(queryTickout);
 
         if (metricsEnabled) {
-            activeRulesCount = registerAbsoluteCountMetric(ACTIVE_RULES, context);
-            createdRulesCount = registerAbsoluteCountMetric(CREATED_RULES, context);
-            improperRulesCount = registerAbsoluteCountMetric(IMPROPER_RULES, context);
+            activeQueriesCount = registerAbsoluteCountMetric(ACTIVE_QUERIES, context);
+            createdQueriesCount = registerAbsoluteCountMetric(CREATED_QUERIES, context);
+            improperQueriesCount = registerAbsoluteCountMetric(IMPROPER_QUERIES, context);
         }
     }
 
@@ -101,8 +101,8 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
             case TICK_TUPLE:
                 handleTick();
                 break;
-            case RULE_TUPLE:
-                handleRule(tuple);
+            case QUERY_TUPLE:
+                handleQuery(tuple);
                 break;
             case RETURN_TUPLE:
                 initializeReturn(tuple);
@@ -124,16 +124,16 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
     }
 
     @Override
-    protected AggregationRule getRule(Long id, String ruleString) {
+    protected AggregationQuery getQuery(Long id, String queryString) {
         try {
-            return new AggregationRule(ruleString, configuration);
+            return new AggregationQuery(queryString, configuration);
         } catch (JsonParseException jpe) {
-            emitError(id, com.yahoo.bullet.parsing.Error.makeError(jpe, ruleString));
+            emitError(id, com.yahoo.bullet.parsing.Error.makeError(jpe, queryString));
         } catch (ParsingException pe) {
             emitError(id, pe.getErrors());
         } catch (RuntimeException re) {
             log.error("Unhandled exception.", re);
-            emitError(id, Error.makeError(re, ruleString));
+            emitError(id, Error.makeError(re, queryString));
         }
         return null;
     }
@@ -150,18 +150,18 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         activeReturns.put(id, tuple);
     }
 
-    private void handleRule(Tuple tuple) {
-        AggregationRule rule = initializeRule(tuple);
-        if (rule != null) {
-            updateCount(createdRulesCount, 1L);
-            updateCount(activeRulesCount, 1L);
+    private void handleQuery(Tuple tuple) {
+        AggregationQuery query = initializeQuery(tuple);
+        if (query != null) {
+            updateCount(createdQueriesCount, 1L);
+            updateCount(activeQueriesCount, 1L);
         }
     }
 
     private void handleTick() {
-        // Buffer whatever we're retiring now and forceEmit all the bufferedRules that are being rotated out.
-        // Whatever we're retiring now MUST not have been satisfied since we emit Rules when FILTER_TUPLES satisfy them.
-        emitRetired(bufferedRules.rotate());
+        // Buffer whatever we're retiring now and forceEmit all the bufferedQueries that are being rotated out.
+        // Whatever we're retiring now MUST not have been satisfied since we emit Queries when FILTER_TUPLES satisfy them.
+        emitRetired(bufferedQueries.rotate());
         // We'll just rotate and lose any buffered errors (if rotated enough times) as designed.
         bufferedErrors.rotate();
     }
@@ -174,7 +174,7 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         Metadata meta = Metadata.of(errors);
         Clip returnValue = Clip.of(meta);
         Tuple returnTuple = activeReturns.remove(id);
-        updateCount(improperRulesCount, 1L);
+        updateCount(improperQueriesCount, 1L);
 
         if (returnTuple != null) {
             emit(returnValue, returnTuple);
@@ -184,29 +184,29 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         bufferedErrors.put(id, returnValue);
     }
 
-    private void emitRetired(Map<Long, AggregationRule> forceEmit) {
-        // Force emit everything that was asked to be emitted if we can. These are rotated out rules from bufferedRules.
+    private void emitRetired(Map<Long, AggregationQuery> forceEmit) {
+        // Force emit everything that was asked to be emitted if we can. These are rotated out queries from bufferedQueries.
         long emitted = 0;
-        for (Map.Entry<Long, AggregationRule> e : forceEmit.entrySet()) {
+        for (Map.Entry<Long, AggregationQuery> e : forceEmit.entrySet()) {
             Long id = e.getKey();
-            AggregationRule rule = e.getValue();
+            AggregationQuery query = e.getValue();
             Tuple returnTuple = activeReturns.remove(id);
-            if (canEmit(id, rule, returnTuple)) {
+            if (canEmit(id, query, returnTuple)) {
                 emitted++;
-                emit(id, rule, returnTuple);
+                emit(id, query, returnTuple);
             }
         }
-        // We already decreased activeRulesCount by emitted. The others that are thrown away should decrease the count too.
-        updateCount(activeRulesCount, -forceEmit.size() + emitted);
+        // We already decreased activeQueriesCount by emitted. The others that are thrown away should decrease the count too.
+        updateCount(activeQueriesCount, -forceEmit.size() + emitted);
 
-        // For the others that were just retired, roll them over into bufferedRules
-        retireRules().forEach(bufferedRules::put);
+        // For the others that were just retired, roll them over into bufferedQueries
+        retireQueries().forEach(bufferedQueries::put);
     }
 
-    private boolean canEmit(Long id, AggregationRule rule, Tuple returnTuple) {
-        // Deliberately only doing joins if both rule and return are here. Can do an OUTER join if needed later...
-        if (rule == null) {
-            log.debug("Received tuples for request {} before rule or too late. Skipping...", id);
+    private boolean canEmit(Long id, AggregationQuery query, Tuple returnTuple) {
+        // Deliberately only doing joins if both query and return are here. Can do an OUTER join if needed later...
+        if (query == null) {
+            log.debug("Received tuples for request {} before query or too late. Skipping...", id);
             return false;
         }
         if (returnTuple == null) {
@@ -220,40 +220,40 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         Long id = tuple.getLong(TopologyConstants.ID_POSITION);
         byte[] data = (byte[]) tuple.getValue(TopologyConstants.RECORD_POSITION);
 
-        // We have two places we could have Rules in
-        AggregationRule rule = rulesMap.get(id);
-        if (rule == null) {
-            rule = bufferedRules.get(id);
+        // We have two places we could have Queries in
+        AggregationQuery query = queriesMap.get(id);
+        if (query == null) {
+            query = bufferedQueries.get(id);
         }
 
-        emit(id, rule, activeReturns.get(id), data);
+        emit(id, query, activeReturns.get(id), data);
     }
 
-    private void emit(Long id, AggregationRule rule, Tuple returnTuple, byte[] data) {
-        if (!canEmit(id, rule, returnTuple)) {
+    private void emit(Long id, AggregationQuery query, Tuple returnTuple, byte[] data) {
+        if (!canEmit(id, query, returnTuple)) {
             return;
         }
-        // If the rule is not satisfied after consumption, we should not emit.
-        if (!rule.consume(data)) {
+        // If the query is not satisfied after consumption, we should not emit.
+        if (!query.consume(data)) {
             return;
         }
-        emit(id, rule, returnTuple);
+        emit(id, query, returnTuple);
     }
 
-    private void emit(Long id, AggregationRule rule, Tuple returnTuple) {
+    private void emit(Long id, AggregationQuery query, Tuple returnTuple) {
         Objects.requireNonNull(id);
-        Objects.requireNonNull(rule);
+        Objects.requireNonNull(query);
         Objects.requireNonNull(returnTuple);
 
-        Clip records = rule.getData();
-        records.add(getMetadata(id, rule));
+        Clip records = query.getData();
+        records.add(getMetadata(id, query));
         emit(records, returnTuple);
         int emitted = records.getRecords().size();
-        log.info("Rule {} has been satisfied with {} records. Cleaning up...", id, emitted);
-        rulesMap.remove(id);
-        bufferedRules.remove(id);
+        log.info("Query {} has been satisfied with {} records. Cleaning up...", id, emitted);
+        queriesMap.remove(id);
+        bufferedQueries.remove(id);
         activeReturns.remove(id);
-        updateCount(activeRulesCount, -1L);
+        updateCount(activeQueriesCount, -1L);
     }
 
     private void emit(Clip clip, Tuple returnTuple) {
@@ -263,15 +263,15 @@ public class JoinBolt extends RuleBolt<AggregationRule> {
         collector.emit(new Values(clip.asJSON(), returnInfo));
     }
 
-    private Metadata getMetadata(Long id, AggregationRule rule) {
+    private Metadata getMetadata(Long id, AggregationQuery query) {
         if (metadataKeys.isEmpty()) {
             return null;
         }
         Metadata meta = new Metadata();
-        consumeRegisteredConcept(Concept.RULE_ID, (k) -> meta.add(k, id));
-        consumeRegisteredConcept(Concept.RULE_BODY, (k) -> meta.add(k, rule.toString()));
-        consumeRegisteredConcept(Concept.CREATION_TIME, (k) -> meta.add(k, rule.getStartTime()));
-        consumeRegisteredConcept(Concept.TERMINATION_TIME, (k) -> meta.add(k, rule.getLastAggregationTime()));
+        consumeRegisteredConcept(Concept.QUERY_ID, (k) -> meta.add(k, id));
+        consumeRegisteredConcept(Concept.QUERY_BODY, (k) -> meta.add(k, query.toString()));
+        consumeRegisteredConcept(Concept.CREATION_TIME, (k) -> meta.add(k, query.getStartTime()));
+        consumeRegisteredConcept(Concept.TERMINATION_TIME, (k) -> meta.add(k, query.getLastAggregationTime()));
         return meta;
     }
 
