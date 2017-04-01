@@ -10,14 +10,13 @@ import com.yahoo.sketches.theta.Union;
 import com.yahoo.sketches.theta.UpdateSketch;
 import lombok.Getter;
 
-public class ThetaSketch implements KMVSketch {
+public class ThetaSketch extends KMVSketch {
     private final UpdateSketch updateSketch;
     private final Union unionSketch;
     @Getter
-    private Sketch mergedSketch;
+    private Sketch result;
 
-    private boolean updated = false;
-    private boolean unioned = false;
+    private String family;
 
     /**
      * Constructor for creating a theta sketch.
@@ -33,6 +32,7 @@ public class ThetaSketch implements KMVSketch {
                                              .build();
         unionSketch = SetOperation.builder().setNominalEntries(nominalEntries).setP(samplingProbability)
                                             .setResizeFactor(resizeFactor).buildUnion();
+        this.family = family.getFamilyName();
     }
 
     /**
@@ -55,7 +55,7 @@ public class ThetaSketch implements KMVSketch {
     @Override
     public byte[] serialize() {
         collect();
-        return mergedSketch.toByteArray();
+        return result.toByteArray();
     }
 
     @Override
@@ -63,26 +63,36 @@ public class ThetaSketch implements KMVSketch {
         if (updated && unioned) {
             unionSketch.update(updateSketch.compact(false, null));
         }
-        mergedSketch = unioned ? unionSketch.getResult(false, null) : updateSketch.compact(false, null);
+        result = unioned ? unionSketch.getResult(false, null) : updateSketch.compact(false, null);
     }
 
     @Override
-    public boolean isEstimationMode() {
-        return mergedSketch.isEstimationMode();
+    public Boolean isEstimationMode() {
+        return result.isEstimationMode();
     }
 
     @Override
-    public double getTheta() {
-        return mergedSketch.getTheta();
+    public String getFamily() {
+        return family;
     }
 
     @Override
-    public double getLowerBound(int standardDeviation) {
-        return mergedSketch.getLowerBound(standardDeviation);
+    public Integer getSize() {
+        return result.getCurrentBytes(true);
     }
 
     @Override
-    public double getUpperBound(int standardDeviation) {
-        return mergedSketch.getUpperBound(standardDeviation);
+    public Double getTheta() {
+        return result.getTheta();
+    }
+
+    @Override
+    public Double getLowerBound(int standardDeviation) {
+        return result.getLowerBound(standardDeviation);
+    }
+
+    @Override
+    public Double getUpperBound(int standardDeviation) {
+        return result.getUpperBound(standardDeviation);
     }
 }

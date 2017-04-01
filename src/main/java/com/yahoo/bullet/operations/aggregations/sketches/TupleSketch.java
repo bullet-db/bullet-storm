@@ -4,6 +4,7 @@ import com.yahoo.bullet.operations.aggregations.grouping.CachingGroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupDataSummary;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupDataSummaryFactory;
 import com.yahoo.memory.NativeMemory;
+import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
 import com.yahoo.sketches.tuple.Sketch;
 import com.yahoo.sketches.tuple.Sketches;
@@ -12,15 +13,12 @@ import com.yahoo.sketches.tuple.UpdatableSketch;
 import com.yahoo.sketches.tuple.UpdatableSketchBuilder;
 import lombok.Getter;
 
-public class TupleSketch implements KMVSketch {
+public class TupleSketch extends KMVSketch {
     private final UpdatableSketch<CachingGroupData, GroupDataSummary> updateSketch;
     private final Union<GroupDataSummary> unionSketch;
 
     @Getter
-    private Sketch<GroupDataSummary> mergedSketch;
-
-    private boolean updated = false;
-    private boolean unioned = false;
+    private Sketch<GroupDataSummary> result;
 
     /**
      * Initialize a tuple sketch for summarizing group data.
@@ -60,7 +58,7 @@ public class TupleSketch implements KMVSketch {
     @Override
     public byte[] serialize() {
         collect();
-        return mergedSketch.toByteArray();
+        return result.toByteArray();
     }
 
     @Override
@@ -68,26 +66,47 @@ public class TupleSketch implements KMVSketch {
         if (updated && unioned) {
             unionSketch.update(updateSketch.compact());
         }
-        mergedSketch = unioned ? unionSketch.getResult() : updateSketch.compact();
+        result = unioned ? unionSketch.getResult() : updateSketch.compact();
     }
 
     @Override
-    public boolean isEstimationMode() {
-        return mergedSketch.isEstimationMode();
+    public Boolean isEstimationMode() {
+        return result.isEstimationMode();
     }
 
     @Override
-    public double getTheta() {
-        return mergedSketch.getTheta();
+    public String getFamily() {
+        return Family.TUPLE.getFamilyName();
     }
 
     @Override
-    public double getLowerBound(int standardDeviation) {
-        return mergedSketch.getLowerBound(standardDeviation);
+    public Integer getSize() {
+        // Size need not be calculated since Summaries are arbitrarily large
+        return null;
     }
 
     @Override
-    public double getUpperBound(int standardDeviation) {
-        return mergedSketch.getUpperBound(standardDeviation);
+    public Double getTheta() {
+        return result.getTheta();
+    }
+
+    @Override
+    public Double getLowerBound(int standardDeviation) {
+        return result.getLowerBound(standardDeviation);
+    }
+
+    @Override
+    public Double getUpperBound(int standardDeviation) {
+        return result.getUpperBound(standardDeviation);
+    }
+
+    /**
+     * Returns the estimate of the uniques in the Sketch. Only applicable after {@link #collect()}.
+     *
+     * @return A Double representing the number of unique values in the Sketch.
+     */
+    public Double getUniquesEstimate() {
+        return result.getEstimate();
+
     }
 }

@@ -22,8 +22,8 @@ public class AggregationOperations {
         COUNT_DISTINCT,
         @SerializedName("TOP")
         TOP,
-        @SerializedName("PERCENTILE")
-        PERCENTILE,
+        @SerializedName("DISTRIBUTION")
+        DISTRIBUTION,
         // The alternate value of LIMIT for RAW is allowed to preserve backward compatibility.
         @SerializedName(value = "RAW", alternate = { "LIMIT" })
         RAW

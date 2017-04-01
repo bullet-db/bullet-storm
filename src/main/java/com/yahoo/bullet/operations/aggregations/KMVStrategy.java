@@ -50,16 +50,11 @@ public abstract class KMVStrategy<S extends KMVSketch> extends SketchingStrategy
 
     @Override
     protected Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys) {
-        Map<String, Object> metadata = new HashMap<>();
-
-        String standardDeviationsKey = conceptKeys.get(Concept.STANDARD_DEVIATIONS.getName());
-        String isEstimatedKey = conceptKeys.get(Concept.ESTIMATED_RESULT.getName());
-        String thetaKey = conceptKeys.get(Concept.THETA.getName());
-
-        addIfKeyNonNull(metadata, standardDeviationsKey, () -> getStandardDeviations(sketch));
-        addIfKeyNonNull(metadata, isEstimatedKey, sketch::isEstimationMode);
-        addIfKeyNonNull(metadata, thetaKey, sketch::getTheta);
-
+        Map<String, Object> metadata = super.getSketchMetadata(conceptKeys);
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.STANDARD_DEVIATIONS.getName()),
+                        () -> getStandardDeviations(sketch));
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.ESTIMATED_RESULT.getName()), sketch::isEstimationMode);
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.THETA.getName()), sketch::getTheta);
         return metadata;
     }
 

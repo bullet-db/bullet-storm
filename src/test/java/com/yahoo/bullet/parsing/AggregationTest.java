@@ -25,7 +25,7 @@ import java.util.Set;
 
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.PERCENTILE;
+import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
@@ -114,10 +114,10 @@ public class AggregationTest {
     @Test
     public void testFailValidateOnUnknownType() {
         Aggregation aggregation = new Aggregation();
-        aggregation.setType(PERCENTILE);
+        aggregation.setType(DISTRIBUTION);
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + ": PERCENTILE");
+        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + ": DISTRIBUTION");
     }
 
     @Test
@@ -264,7 +264,7 @@ public class AggregationTest {
     public void testUnimplementedStrategies() {
         Aggregation aggregation = new Aggregation();
 
-        aggregation.setType(AggregationOperations.AggregationType.PERCENTILE);
+        aggregation.setType(AggregationOperations.AggregationType.DISTRIBUTION);
         aggregation.configure(Collections.emptyMap());
         Assert.assertNull(aggregation.getStrategy());
 

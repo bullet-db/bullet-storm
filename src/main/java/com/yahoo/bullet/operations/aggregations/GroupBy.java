@@ -73,7 +73,7 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
     @Override
     public Clip getAggregation() {
         sketch.collect();
-        Sketch<GroupDataSummary> result = sketch.getMergedSketch();
+        Sketch<GroupDataSummary> result = sketch.getResult();
         Clip clip = new Clip();
 
         SketchIterator<GroupDataSummary> iterator = result.iterator();
@@ -88,12 +88,7 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
     @Override
     protected Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys) {
         Map<String, Object> metadata = super.getSketchMetadata(conceptKeys);
-
-        Sketch<GroupDataSummary> result = sketch.getMergedSketch();
-
-        String uniquesEstimate = conceptKeys.get(Concept.UNIQUES_ESTIMATE.getName());
-        addIfKeyNonNull(metadata, uniquesEstimate, result::getEstimate);
-
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.UNIQUES_ESTIMATE.getName()), sketch::getUniquesEstimate);
         return metadata;
     }
 

@@ -175,7 +175,7 @@ public class CountDistinctTest {
         Assert.assertEquals(stats.size(), 5);
 
         Assert.assertTrue((Boolean) stats.get("isEstimate"));
-        Assert.assertEquals(stats.get("family").toString(), Family.COMPACT.getFamilyName());
+        Assert.assertEquals(stats.get("family").toString(), Family.ALPHA.getFamilyName());
 
         int size = (Integer) stats.get("size");
         // We inserted more than 512 unique entries

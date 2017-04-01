@@ -6,7 +6,6 @@ import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
 import com.yahoo.sketches.theta.Sketch;
@@ -61,7 +60,7 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
     @Override
     public Clip getAggregation() {
         sketch.collect();
-        Sketch result = sketch.getMergedSketch();
+        Sketch result = sketch.getResult();
 
         double count = result.getEstimate();
         BulletRecord record = new BulletRecord();
@@ -77,23 +76,8 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
                               .collect(Collectors.joining(separator));
     }
 
-    @Override
-    protected Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys) {
-        Map<String, Object> metadata = super.getSketchMetadata(conceptKeys);
-
-        Sketch result = sketch.getMergedSketch();
-
-        String familyKey = conceptKeys.get(Concept.FAMILY.getName());
-        String sizeKey = conceptKeys.get(Concept.SIZE.getName());
-
-        addIfKeyNonNull(metadata, familyKey, () -> result.getFamily().getFamilyName());
-        addIfKeyNonNull(metadata, sizeKey, () -> result.getCurrentBytes(true));
-
-        return metadata;
-    }
-
     /**
-     * Convert a String family into a {@link Family}. For testing.
+     * Convert a String family into a {@link Family}. This is used to recognize a user input family choice.
      *
      * @param family The string version of the {@link Family}. Currently, QuickSelect and Alpha are supported.
      * @return The Sketch family represented by the string or {@link #DEFAULT_UPDATE_SKETCH_FAMILY} otherwise.

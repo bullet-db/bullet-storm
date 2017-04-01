@@ -5,8 +5,10 @@ import com.yahoo.bullet.operations.aggregations.sketches.Sketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
+import com.yahoo.sketches.Family;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -80,10 +82,20 @@ public abstract class SketchingStrategy<S extends Sketch> implements Strategy {
     }
 
     /**
-     * Gets the common metadata for this Sketch strategy.
+     * Gets the common metadata for this Sketching strategy.
      *
      * @param conceptKeys The {@link Map} of {@link Metadata.Concept} names to their keys.
      * @return The created {@link Map} of sketch metadata.
      */
-    protected abstract Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys);
+    protected Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys) {
+        Map<String, Object> metadata = new HashMap<>();
+
+        String familyKey = conceptKeys.get(Metadata.Concept.FAMILY.getName());
+        String sizeKey = conceptKeys.get(Metadata.Concept.SIZE.getName());
+
+        addIfKeyNonNull(metadata, familyKey, sketch::getFamily);
+        addIfKeyNonNull(metadata, sizeKey, sketch::getSize);
+
+        return metadata;
+    }
 }
