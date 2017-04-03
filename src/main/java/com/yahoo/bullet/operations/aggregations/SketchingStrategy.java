@@ -47,14 +47,7 @@ public abstract class SketchingStrategy<S extends Sketch> implements Strategy {
 
     @Override
     public Clip getAggregation() {
-        return sketch.getResult(getSketchMetaKey(), metadataKeys);
-    }
-    /**
-     * Get the key to add the sketch metadata for this {@link Strategy} that was configured.
-     *
-     * @return The key name to add the metadata for, or null if one was not configured.
-     */
-    public String getSketchMetaKey() {
-        return metadataKeys.getOrDefault(Metadata.Concept.SKETCH_METADATA.getName(), null);
+        String metakey = metadataKeys.getOrDefault(Metadata.Concept.SKETCH_METADATA.getName(), null);
+        return sketch.getResult(metakey, metadataKeys);
     }
 }

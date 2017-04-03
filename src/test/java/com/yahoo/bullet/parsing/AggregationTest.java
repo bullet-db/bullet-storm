@@ -26,6 +26,7 @@ import java.util.Set;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
+import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
@@ -114,10 +115,10 @@ public class AggregationTest {
     @Test
     public void testFailValidateOnUnknownType() {
         Aggregation aggregation = new Aggregation();
-        aggregation.setType(DISTRIBUTION);
+        aggregation.setType(TOP);
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + ": DISTRIBUTION");
+        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + ": TOP");
     }
 
     @Test
@@ -157,7 +158,7 @@ public class AggregationTest {
     public void testAttributeOperationMissing() {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
-        aggregation.setAttributes(singletonMap(Aggregation.OPERATIONS, null));
+        aggregation.setAttributes(singletonMap(GroupOperation.OPERATIONS, null));
 
         // Missing attribute operations should be silently ignored
         Assert.assertNull(aggregation.getGroupOperations());
@@ -170,7 +171,7 @@ public class AggregationTest {
     public void testAttributeOperationBadFormat() {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
-        aggregation.setAttributes(singletonMap(Aggregation.OPERATIONS, asList("foo")));
+        aggregation.setAttributes(singletonMap(GroupOperation.OPERATIONS, asList("foo")));
 
         Assert.assertNull(aggregation.getGroupOperations());
         aggregation.configure(emptyMap());
@@ -264,10 +265,6 @@ public class AggregationTest {
     public void testUnimplementedStrategies() {
         Aggregation aggregation = new Aggregation();
 
-        aggregation.setType(AggregationOperations.AggregationType.DISTRIBUTION);
-        aggregation.configure(Collections.emptyMap());
-        Assert.assertNull(aggregation.getStrategy());
-
         aggregation.setType(AggregationOperations.AggregationType.TOP);
         aggregation.configure(Collections.emptyMap());
         Assert.assertNull(aggregation.getStrategy());
@@ -285,8 +282,8 @@ public class AggregationTest {
     public void testGroupAllStrategy() {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(AggregationOperations.AggregationType.GROUP);
-        aggregation.setAttributes(singletonMap(Aggregation.OPERATIONS,
-                                               asList(singletonMap(Aggregation.OPERATION_TYPE,
+        aggregation.setAttributes(singletonMap(GroupOperation.OPERATIONS,
+                                               asList(singletonMap(GroupOperation.OPERATION_TYPE,
                                                                    GroupOperationType.COUNT.getName()))));
         aggregation.configure(Collections.emptyMap());
 
@@ -318,8 +315,8 @@ public class AggregationTest {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(AggregationOperations.AggregationType.GROUP);
         aggregation.setFields(singletonMap("field", "foo"));
-        aggregation.setAttributes(singletonMap(Aggregation.OPERATIONS,
-                                                asList(singletonMap(Aggregation.OPERATION_TYPE,
+        aggregation.setAttributes(singletonMap(GroupOperation.OPERATIONS,
+                                                asList(singletonMap(GroupOperation.OPERATION_TYPE,
                                                                     GroupOperationType.COUNT.getName()))));
         aggregation.configure(Collections.emptyMap());
 
