@@ -5,10 +5,8 @@ import com.yahoo.bullet.operations.aggregations.sketches.ThetaSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
-import com.yahoo.bullet.result.Clip;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
-import com.yahoo.sketches.theta.Sketch;
 
 import java.util.List;
 import java.util.Map;
@@ -16,8 +14,6 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class CountDistinct extends KMVStrategy<ThetaSketch> {
-    private final String newName;
-
     public static final String NEW_NAME_KEY = "newName";
     public static final String DEFAULT_NEW_NAME = "COUNT DISTINCT";
 
@@ -38,8 +34,6 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
         super(aggregation);
         Map<String, Object> attributes = aggregation.getAttributes();
 
-        newName = attributes == null ? DEFAULT_NEW_NAME : attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
-
         ResizeFactor resizeFactor = getResizeFactor(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_RESIZE_FACTOR);
         float samplingProbability = ((Number) config.getOrDefault(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_SAMPLING,
                                                                   DEFAULT_SAMPLING_PROBABILITY)).floatValue();
@@ -47,26 +41,16 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
                                                       DEFAULT_UPDATE_SKETCH_FAMILY).toString());
         int nominalEntries = ((Number) config.getOrDefault(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES,
                                                            DEFAULT_NOMINAL_ENTRIES)).intValue();
+        String newName = attributes == null ? DEFAULT_NEW_NAME :
+                                              attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
 
-        sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries);
+        sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries, newName);
     }
 
     @Override
     public void consume(BulletRecord data) {
         String field = getFieldsAsString(fields, data, separator);
         sketch.update(field);
-    }
-
-    @Override
-    public Clip getAggregation() {
-        sketch.collect();
-        Sketch result = sketch.getResult();
-
-        double count = result.getEstimate();
-        BulletRecord record = new BulletRecord();
-        record.setDouble(newName, count);
-
-        return addMetadata(Clip.of(record));
     }
 
     private static String getFieldsAsString(List<String> fields, BulletRecord record, String separator) {

@@ -1,5 +1,7 @@
 package com.yahoo.bullet.operations.aggregations.sketches;
 
+import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import com.yahoo.memory.NativeMemory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
@@ -8,15 +10,16 @@ import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
 import com.yahoo.sketches.theta.UpdateSketch;
-import lombok.Getter;
+
+import java.util.Map;
 
 public class ThetaSketch extends KMVSketch {
     private final UpdateSketch updateSketch;
     private final Union unionSketch;
-    @Getter
-    private Sketch result;
+    private Sketch merged;
 
     private String family;
+    private String newName;
 
     /**
      * Constructor for creating a theta sketch.
@@ -25,14 +28,17 @@ public class ThetaSketch extends KMVSketch {
      * @param family The {@link Family} to use.
      * @param samplingProbability The sampling probability to use.
      * @param nominalEntries The nominal entries for the sketch.
+     * @param newName The String name to add the result as.
      */
-    public ThetaSketch(ResizeFactor resizeFactor, Family family, float samplingProbability, int nominalEntries) {
+    public ThetaSketch(ResizeFactor resizeFactor, Family family,
+                       float samplingProbability, int nominalEntries, String newName) {
         updateSketch = UpdateSketch.builder().setFamily(family).setNominalEntries(nominalEntries)
                                              .setP(samplingProbability).setResizeFactor(resizeFactor)
                                              .build();
         unionSketch = SetOperation.builder().setNominalEntries(nominalEntries).setP(samplingProbability)
                                             .setResizeFactor(resizeFactor).buildUnion();
         this.family = family.getFamilyName();
+        this.newName = newName;
     }
 
     /**
@@ -55,44 +61,55 @@ public class ThetaSketch extends KMVSketch {
     @Override
     public byte[] serialize() {
         collect();
-        return result.toByteArray();
+        return merged.toByteArray();
     }
 
     @Override
-    public void collect() {
+    public Clip getResult(String metaKey, Map<String, String> conceptKeys) {
+        Clip data = super.getResult(metaKey, conceptKeys);
+        double count = merged.getEstimate();
+        BulletRecord record = new BulletRecord();
+        record.setDouble(newName, count);
+        return data.add(record);
+    }
+
+    @Override
+    protected void collect() {
         if (updated && unioned) {
             unionSketch.update(updateSketch.compact(false, null));
         }
-        result = unioned ? unionSketch.getResult(false, null) : updateSketch.compact(false, null);
+        merged = unioned ? unionSketch.getResult(false, null) : updateSketch.compact(false, null);
+    }
+
+    // Metadata
+
+    @Override
+    protected Boolean isEstimationMode() {
+        return merged.isEstimationMode();
     }
 
     @Override
-    public Boolean isEstimationMode() {
-        return result.isEstimationMode();
-    }
-
-    @Override
-    public String getFamily() {
+    protected String getFamily() {
         return family;
     }
 
     @Override
-    public Integer getSize() {
-        return result.getCurrentBytes(true);
+    protected Integer getSize() {
+        return merged.getCurrentBytes(true);
     }
 
     @Override
-    public Double getTheta() {
-        return result.getTheta();
+    protected Double getTheta() {
+        return merged.getTheta();
     }
 
     @Override
-    public Double getLowerBound(int standardDeviation) {
-        return result.getLowerBound(standardDeviation);
+    protected Double getLowerBound(int standardDeviation) {
+        return merged.getLowerBound(standardDeviation);
     }
 
     @Override
-    public Double getUpperBound(int standardDeviation) {
-        return result.getUpperBound(standardDeviation);
+    protected Double getUpperBound(int standardDeviation) {
+        return merged.getUpperBound(standardDeviation);
     }
 }

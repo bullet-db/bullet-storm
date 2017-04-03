@@ -4,7 +4,6 @@ import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
-import com.yahoo.bullet.result.Clip;
 
 import java.util.Map;
 
@@ -23,35 +22,16 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
     @SuppressWarnings("unchecked")
     public Distribution(Aggregation aggregation) {
         super(aggregation);
-        Map<String, Object> attributes = aggregation.getAttributes();
-
         int entries = ((Number) config.getOrDefault(BulletConfig.DISTRIBUTION_AGGREGATION_SKETCH_ENTRIES,
                                                     DEFAULT_ENTRIES)).intValue();
+
+        Map<String, Object> attributes = aggregation.getAttributes();
+
+        Map<String, String> fieldsToNames = aggregation.getFields();
         sketch = new QuantileSketch(entries);
     }
 
     @Override
     public void consume(BulletRecord data) {
     }
-
-    @Override
-    public void combine(byte[] serializedAggregation) {
-
-    }
-
-    @Override
-    public byte[] getSerializedAggregation() {
-        return new byte[0];
-    }
-
-    @Override
-    public Clip getAggregation() {
-        return null;
-    }
-
-    @Override
-    protected Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys) {
-        return null;
-    }
-
 }

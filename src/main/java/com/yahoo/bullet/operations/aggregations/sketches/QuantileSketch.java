@@ -1,5 +1,7 @@
 package com.yahoo.bullet.operations.aggregations.sketches;
 
+import com.yahoo.bullet.result.Clip;
+import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.memory.NativeMemory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.DoublesSketch;
@@ -7,7 +9,8 @@ import com.yahoo.sketches.quantiles.DoublesSketchBuilder;
 import com.yahoo.sketches.quantiles.DoublesUnion;
 import com.yahoo.sketches.quantiles.DoublesUnionBuilder;
 import com.yahoo.sketches.quantiles.UpdateDoublesSketch;
-import lombok.Getter;
+
+import java.util.Map;
 
 /**
  * Wraps operations for working with a {@link DoublesSketch} - Quantile Sketch.
@@ -15,9 +18,7 @@ import lombok.Getter;
 public class QuantileSketch extends Sketch {
     private final UpdateDoublesSketch updateSketch;
     private final DoublesUnion unionSketch;
-
-    @Getter
-    private DoublesSketch result;
+    private DoublesSketch merged;
 
     /**
      * Creates a quantile sketch with the given number of entries.
@@ -49,69 +50,63 @@ public class QuantileSketch extends Sketch {
     @Override
     public byte[] serialize() {
         collect();
-        return result.toByteArray();
+        return merged.toByteArray();
     }
 
     @Override
-    public void collect() {
+    public Clip getResult(String metaKey, Map<String, String> conceptKeys) {
+        Clip data = super.getResult(metaKey, conceptKeys);
+        return data;
+    }
+
+    @Override
+    protected void collect() {
         if (updated && unioned) {
             unionSketch.update(updateSketch);
         }
-        result = unioned ? unionSketch.getResult() : updateSketch.compact();
+        merged = unioned ? unionSketch.getResult() : updateSketch.compact();
     }
 
     @Override
-    public Boolean isEstimationMode() {
-        return result.isEstimationMode();
+    protected Map<String, Object> getMetadata(Map<String, String> conceptKeys) {
+        Map<String, Object> metadata = super.getMetadata(conceptKeys);
+
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.MINIMUM_VALUE.getName()), this::getMinimum);
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.MAXIMUM_VALUE.getName()), this::getMaximum);
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.ITEMS_SEEN.getName()), this::getNumberOfEntries);
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.NORMALIZED_RANK_ERROR.getName()), this::getNormalizedRankError);
+
+        return metadata;
     }
 
     @Override
-    public String getFamily() {
+    protected Boolean isEstimationMode() {
+        return merged.isEstimationMode();
+    }
+
+    @Override
+    protected String getFamily() {
         return Family.QUANTILES.getFamilyName();
     }
 
     @Override
-    public Integer getSize() {
-        return result.getStorageBytes();
+    protected Integer getSize() {
+        return merged.getStorageBytes();
     }
 
-    /**
-     * Gets the smallest entry seen in the stream. Only applicable after {@link #collect()}.
-     *
-     * @return A Double representing the minimum value seen.
-     * @throws NullPointerException if collect had not been called.
-     */
-    public Double getMinimum() {
-        return result.getMinValue();
+    private Double getMinimum() {
+        return merged.getMinValue();
     }
 
-    /**
-     * Gets the largest entry seen in the stream. Only applicable after {@link #collect()}.
-     *
-     * @return A Double representing the maximum value seen.
-     * @throws NullPointerException if collect had not been called.
-     */
-    public Double getMaximum() {
-        return result.getMaxValue();
+    private Double getMaximum() {
+        return merged.getMaxValue();
     }
 
-    /**
-     * Gets the number of entries seen in the stream. Only applicable after {@link #collect()}.
-     *
-     * @return A Long representing the number of values seen.
-     * @throws NullPointerException if collect had not been called.
-     */
-    public Long getNumberOfEntries() {
-        return result.getN();
+    private Long getNumberOfEntries() {
+        return merged.getN();
     }
 
-    /**
-     * Return the NRE of the sketch.
-     *
-     * @return A Double representing the Normalized Rank Error. Only applicable after {@link #collect()}.
-     * @throws NullPointerException if collect had not been called.
-     */
-    public Double getNormalizedRankError() {
-        return result.getNormalizedRankError();
+    private Double getNormalizedRankError() {
+        return merged.getNormalizedRankError();
     }
 }

@@ -1,5 +1,13 @@
 package com.yahoo.bullet.operations.aggregations.sketches;
 
+import com.yahoo.bullet.result.Clip;
+import com.yahoo.bullet.result.Metadata;
+import com.yahoo.bullet.result.Metadata.Concept;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Supplier;
+
 /**
  * This class encapsulates a type of Sketch. Since one type of Sketch is used for updating and another for unioning,
  * this will encapsulate both of them and provide methods to serialize, union and collect results.
@@ -23,16 +31,46 @@ public abstract class Sketch {
     public abstract void union(byte[] serialized);
 
     /**
-     * Collects and gathers the data presented to the sketch.
+     * Collects the data presented to the sketch and returns it as a {@link Clip}. Also adds {@link Metadata} if
+     * asked for.
+     *
+     * @param metaKey If set to a non-null value, Sketch metadata will be added to the result.
+     * @param conceptKeys If provided, these {@link Concept} will be added to the metadata.
+     *
+     * @return A {@link Clip} of the results.
      */
-    public abstract void collect();
+    public Clip getResult(String metaKey, Map<String, String> conceptKeys) {
+        collect();
+        return metaKey == null ? new Clip() : Clip.of(new Metadata().add(metaKey, getMetadata(conceptKeys)));
+    }
+
+    /**
+     * Gets the common metadata for this Sketch.
+     *
+     * @param conceptKeys The {@link Map} of {@link Concept} names to their keys.
+     * @return The created {@link Map} of sketch metadata.
+     */
+    protected Map<String, Object> getMetadata(Map<String, String> conceptKeys) {
+        Map<String, Object> metadata = new HashMap<>();
+
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.FAMILY.getName()), this::getFamily);
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.SIZE.getName()), this::getSize);
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.ESTIMATED_RESULT.getName()), this::isEstimationMode);
+
+        return metadata;
+    }
+
+    /**
+     * Collects the data presented to the Sketch so far.
+     */
+    protected abstract void collect();
 
     /**
      * Returns a String representing the family of this sketch.
      *
      * @return The String family of this sketch.
      */
-    public abstract String getFamily();
+    protected abstract String getFamily();
 
     /**
      * Returns whether this sketch was in estimation mode or not after the last collect. Only applicable after {@link #collect()}.
@@ -40,7 +78,7 @@ public abstract class Sketch {
      * @return A Boolean denoting whether this sketch was estimating.
      * @throws NullPointerException if collect had not been called.
      */
-    public abstract Boolean isEstimationMode();
+    protected abstract Boolean isEstimationMode();
 
     /**
      * Returns the size of the Sketch in bytes. Only applicable after {@link #collect()}.
@@ -48,6 +86,19 @@ public abstract class Sketch {
      * @return An Integer representing the size of the sketch.
      * @throws NullPointerException if collect had not been called.
      */
-    public abstract Integer getSize();
+    protected abstract Integer getSize();
+
+    /**
+     * Utility function to add a key to the metadata if the key is not null.
+     *
+     * @param metadata The non-null {@link Map} representing the metadata.
+     * @param key The key to add if not null.
+     * @param supplier A {@link Supplier} that can produce a value to add to the metadata for the key.
+     */
+    public static void addIfKeyNonNull(Map<String, Object> metadata, String key, Supplier<Object> supplier) {
+        if (key != null) {
+            metadata.put(key, supplier.get());
+        }
+    }
 
 }

@@ -2,6 +2,7 @@ package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.AggregationOperations;
+import com.yahoo.bullet.operations.aggregations.sketches.KMVSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
@@ -317,12 +318,12 @@ public class GroupByTest {
         Map<String, Map<String, Double>> standardDeviations = (Map<String, Map<String, Double>>) stats.get("stddev");
         Assert.assertEquals(standardDeviations.size(), 3);
 
-        double upperOneSigma = standardDeviations.get(CountDistinct.META_STD_DEV_1).get(CountDistinct.META_STD_DEV_UB);
-        double lowerOneSigma = standardDeviations.get(CountDistinct.META_STD_DEV_1).get(CountDistinct.META_STD_DEV_LB);
-        double upperTwoSigma = standardDeviations.get(CountDistinct.META_STD_DEV_2).get(CountDistinct.META_STD_DEV_UB);
-        double lowerTwoSigma = standardDeviations.get(CountDistinct.META_STD_DEV_2).get(CountDistinct.META_STD_DEV_LB);
-        double upperThreeSigma = standardDeviations.get(CountDistinct.META_STD_DEV_3).get(CountDistinct.META_STD_DEV_UB);
-        double lowerThreeSigma = standardDeviations.get(CountDistinct.META_STD_DEV_3).get(CountDistinct.META_STD_DEV_LB);
+        double upperOneSigma = standardDeviations.get(KMVSketch.META_STD_DEV_1).get(KMVSketch.META_STD_DEV_UB);
+        double lowerOneSigma = standardDeviations.get(KMVSketch.META_STD_DEV_1).get(KMVSketch.META_STD_DEV_LB);
+        double upperTwoSigma = standardDeviations.get(KMVSketch.META_STD_DEV_2).get(KMVSketch.META_STD_DEV_UB);
+        double lowerTwoSigma = standardDeviations.get(KMVSketch.META_STD_DEV_2).get(KMVSketch.META_STD_DEV_LB);
+        double upperThreeSigma = standardDeviations.get(KMVSketch.META_STD_DEV_3).get(KMVSketch.META_STD_DEV_UB);
+        double lowerThreeSigma = standardDeviations.get(KMVSketch.META_STD_DEV_3).get(KMVSketch.META_STD_DEV_LB);
 
         Assert.assertTrue(groupEstimate >= lowerOneSigma);
         Assert.assertTrue(groupEstimate <= upperOneSigma);
