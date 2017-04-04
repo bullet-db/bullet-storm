@@ -33,6 +33,10 @@ public class AggregationUtils {
         return makeGroupFields(asList(fields));
     }
 
+    public static Map<String, String> makeGroupOperation(GroupOperation operation) {
+        return makeGroupOperation(operation.getType(), operation.getField(), operation.getNewName());
+    }
+
     public static Map<String, String> makeGroupOperation(AggregationOperations.GroupOperationType type, String field, String newName) {
         Map<String, String> map = new HashMap<>();
         if (type != null) {

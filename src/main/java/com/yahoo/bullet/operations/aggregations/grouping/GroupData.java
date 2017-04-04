@@ -22,7 +22,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.AVG;
-import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
 
 /**

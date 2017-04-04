@@ -20,14 +20,35 @@ public class QuantileSketch extends Sketch {
     private final DoublesUnion unionSketch;
     private DoublesSketch merged;
 
-    /**
-     * Creates a quantile sketch with the given number of entries.
-     *
-     * @param k A number representative of the size of the sketch.
-     */
-    public QuantileSketch(int k) {
+    private double[] points;
+    private int numberOfPoints;
+
+    private QuantileSketch(int k) {
         updateSketch = new DoublesSketchBuilder().build(k);
         unionSketch = new DoublesUnionBuilder().setMaxK(k).build();
+    }
+
+    /**
+     * Creates a quantile sketch with the given number of entries getting results with the given points.
+     *
+     * @param k A number representative of the size of the sketch.
+     * @param points An array of points to get the quantiles, PMF and/or CDF for.
+     */
+    public QuantileSketch(int k, double[] points) {
+        this(k);
+        this.points = points;
+    }
+
+    /**
+     * Creates a quantile sketch with the given number of entries generating results with the number of
+     * points (evenly-spaced).
+     *
+     * @param k A number representative of the size of the sketch.
+     * @param numberOfPoints A number of evenly generated points to get the data for.
+     */
+    public QuantileSketch(int k, int numberOfPoints) {
+        this(k);
+        this.numberOfPoints = numberOfPoints;
     }
 
     /**

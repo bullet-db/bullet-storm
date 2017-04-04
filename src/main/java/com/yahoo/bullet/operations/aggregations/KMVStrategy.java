@@ -1,12 +1,15 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.sketches.KMVSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.sketches.ResizeFactor;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  * The parent class for {@link SketchingStrategy} that use the KMV type of Sketch - Theta and Tuple.
@@ -35,7 +38,8 @@ public abstract class KMVStrategy<S extends KMVSketch> extends SketchingStrategy
         separator = config.getOrDefault(BulletConfig.AGGREGATION_COMPOSITE_FIELD_SEPARATOR,
                                         Aggregation.DEFAULT_FIELD_SEPARATOR).toString();
 
-        fields = new ArrayList<>(aggregation.getFields().keySet());
+        Map<String, String> fieldMapping = aggregation.getFields();
+        fields = Utilities.isEmpty(fieldMapping) ? Collections.emptyList() : new ArrayList<>(fieldMapping.keySet());
     }
 
     /**

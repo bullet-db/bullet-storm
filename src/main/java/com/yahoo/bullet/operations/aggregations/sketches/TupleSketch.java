@@ -5,7 +5,6 @@ import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupDataSummary;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupDataSummaryFactory;
 import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.memory.NativeMemory;
 import com.yahoo.sketches.Family;

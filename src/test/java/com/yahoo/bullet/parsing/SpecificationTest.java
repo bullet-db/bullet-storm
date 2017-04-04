@@ -66,6 +66,11 @@ public class SpecificationTest {
             aggregationFailure++;
             throw new RuntimeException("Getting aggregation test failure");
         }
+
+        @Override
+        public List<Error> validate() {
+            return null;
+        }
     }
 
     public static Stream<BulletRecord> makeStream(int count) {

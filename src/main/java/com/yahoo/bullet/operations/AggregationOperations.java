@@ -56,6 +56,29 @@ public class AggregationOperations {
         }
     }
 
+    @Getter
+    public enum DistributionType {
+        QUANTILE("QUANTILE"),
+        PMF("PMF"),
+        CDF("CDF");
+
+        private String name;
+
+        DistributionType(String name) {
+            this.name = name;
+        }
+
+        /**
+         * Checks to see if this String represents this enum.
+         *
+         * @param name The String version of the enum.
+         * @return true if the name represents this enum.
+         */
+        public boolean isMe(String name) {
+            return this.name.equals(name);
+        }
+    }
+
     public interface AggregationOperator extends BiFunction<Number, Number, Number> {
     }
 

@@ -6,11 +6,15 @@
 package com.yahoo.bullet.operations.aggregations.grouping;
 
 import com.yahoo.bullet.Utilities;
+import com.yahoo.bullet.operations.AggregationOperations;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
+import com.yahoo.bullet.parsing.Error;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
@@ -20,6 +24,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.yahoo.bullet.parsing.Error.makeError;
 import static java.util.Arrays.asList;
 
 /**
@@ -35,6 +40,12 @@ public class GroupOperation implements Serializable {
                                                                                                   GroupOperationType.MAX,
                                                                                                   GroupOperationType.MIN,
                                                                                                   GroupOperationType.SUM));
+
+    public static final String OPERATION_REQUIRES_FIELD_RESOLUTION = "Please add a field for this operation.";
+    public static final String GROUP_OPERATION_REQUIRES_FIELD = "Group operation requires a field: ";
+    public static final Error REQUIRES_FIELD_OR_OPERATION_ERROR =
+            makeError("This aggregation type requires at least one field or operation", "Please add a field or an operation");
+
 
     public static final String OPERATIONS = "operations";
     public static final String OPERATION_TYPE = "type";
@@ -69,31 +80,53 @@ public class GroupOperation implements Serializable {
     }
 
     /**
-     * Parses a {@link Set} of group operation from an Object that is expected to be a {@link List} of {@link Map}
+     * Returns true if the attributes contains a {@link GroupOperation#OPERATIONS} field defined.
+     *
+     * @param attributes The attributes that contains the operations.
+     * @return A boolean denoting whether there were operations.
+     */
+    public static boolean hasOperations(Map<String, Object> attributes) {
+        return !Utilities.isEmpty(attributes) && attributes.get(OPERATIONS) != null;
+    }
+
+    /**
+     * Parses a {@link Set} of group operation from an Object that is expected to be a {@link List} of {@link Map}.
      *
      * @param attributes An Map that contains an object that is the representation of List of group operations.
      * @return A {@link Set} of GroupOperation or {@link Collections#emptySet()}.
      */
-    @SuppressWarnings("unchecked")
     public static Set<GroupOperation> getOperations(Map<String, Object> attributes) {
-        if (Utilities.isEmpty(attributes)) {
+        if (!hasOperations(attributes)) {
             return Collections.emptySet();
         }
-
-        Object object = attributes.get(OPERATIONS);
-        if (object == null) {
-            return Collections.emptySet();
-        }
-
         try {
-            // Unchecked cast needed.
-            List<Map<String, String>> operations = (List<Map<String, String>>) object;
+            List<Map<String, String>> operations = Utilities.getCasted(attributes, OPERATIONS);
+            if (operations == null) {
+                return Collections.emptySet();
+            }
             // Return a list of distinct, non-null, GroupOperations
             return operations.stream().map(GroupOperation::makeGroupOperation)
-                    .filter(Objects::nonNull).collect(Collectors.toSet());
+                                      .filter(Objects::nonNull).collect(Collectors.toSet());
         } catch (ClassCastException cce) {
             return Collections.emptySet();
         }
+    }
+
+    /**
+     * Validates whether the provided {@link Collection} of {@link GroupOperation} are valid.
+     *
+     * @param operations The operations to validate.
+     * @return An {@link List} of {@link Error} if any operations were invalid or an empty list if valid.
+     */
+    public static List<Error> checkOperations(Collection<GroupOperation> operations) {
+        List<Error> errors = new ArrayList<>();
+        for (GroupOperation operation : operations) {
+            if (operation.getField() == null && operation.getType() != AggregationOperations.GroupOperationType.COUNT) {
+                errors.add(makeError(GROUP_OPERATION_REQUIRES_FIELD + operation.getType(),
+                        OPERATION_REQUIRES_FIELD_RESOLUTION));
+            }
+        }
+        return errors;
     }
 
     private static GroupOperation makeGroupOperation(Map<String, String> data) {

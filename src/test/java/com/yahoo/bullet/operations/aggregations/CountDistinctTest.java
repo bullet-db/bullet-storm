@@ -2,7 +2,6 @@ package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.aggregations.sketches.KMVSketch;
-import com.yahoo.bullet.operations.aggregations.sketches.ThetaSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;

@@ -1,8 +1,10 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.sketches.ThetaSketch;
 import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.sketches.Family;
@@ -12,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static java.util.Collections.singletonList;
 
 public class CountDistinct extends KMVStrategy<ThetaSketch> {
     public static final String NEW_NAME_KEY = "newName";
@@ -68,5 +72,10 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
      */
     static Family getFamily(String family) {
         return Family.QUICKSELECT.getFamilyName().equals(family) ? Family.QUICKSELECT : Family.ALPHA;
+    }
+
+    @Override
+    public List<Error> validate() {
+        return Utilities.isEmpty(fields) ? singletonList(REQUIRES_FIELD_ERROR) : null;
     }
 }

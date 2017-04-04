@@ -9,15 +9,16 @@ import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.parsing.AggregationUtils;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.parsing.AggregationUtils.makeAttributes;
@@ -40,7 +41,10 @@ public class GroupAllTest {
 
     public static GroupAll makeGroupAll(List<GroupOperation> groupOperations) {
         Aggregation aggregation = mock(Aggregation.class);
-        when(aggregation.getGroupOperations()).thenReturn(new HashSet<>(groupOperations));
+        List<Map<String, String>> operations =  groupOperations.stream().map(AggregationUtils::makeGroupOperation)
+                                                               .collect(Collectors.toList());
+
+        when(aggregation.getAttributes()).thenReturn(makeAttributes(operations));
         return new GroupAll(aggregation);
     }
 

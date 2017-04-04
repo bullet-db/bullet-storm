@@ -1,11 +1,13 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.grouping.CachingGroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.operations.aggregations.sketches.TupleSketch;
 import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.sketches.ResizeFactor;
@@ -14,7 +16,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
+
+import static java.util.Collections.singletonList;
 
 /**
  * This {@link Strategy} implements a Tuple Sketch based approach to doing a group by. In particular, it
@@ -29,6 +34,8 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
     // 13.27% error rate at 99.73% confidence (3 SD). Irrelevant since we are using this to cap the number of groups.
     public static final int DEFAULT_NOMINAL_ENTRIES = 512;
 
+    private Set<GroupOperation> operations;
+
     /**
      * Constructor that requires an {@link Aggregation}.
      *
@@ -37,7 +44,9 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
     public GroupBy(Aggregation aggregation) {
         super(aggregation);
 
-        Map<GroupOperation, Number> metrics = GroupData.makeInitialMetrics(aggregation.getGroupOperations());
+        Map<String, Object> attributes = aggregation.getAttributes();
+        operations = GroupOperation.getOperations(attributes);
+        Map<GroupOperation, Number> metrics = GroupData.makeInitialMetrics(operations);
         container = new CachingGroupData(null, metrics);
 
         ResizeFactor resizeFactor = getResizeFactor(BulletConfig.GROUP_AGGREGATION_SKETCH_RESIZE_FACTOR);
@@ -76,4 +85,13 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
         return groupMapping;
     }
 
+    @Override
+    public List<Error> validate() {
+        boolean noOperations = Utilities.isEmpty(operations);
+        boolean noFields = Utilities.isEmpty(fields);
+        if (noFields && noOperations) {
+            return singletonList(GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
+        }
+        return GroupOperation.checkOperations(operations);
+    }
 }

@@ -6,13 +6,13 @@
 package com.yahoo.bullet.parsing;
 
 import com.yahoo.bullet.BulletConfig;
-import com.yahoo.bullet.TestHelpers;
 import com.yahoo.bullet.operations.AggregationOperations;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import com.yahoo.bullet.operations.aggregations.CountDistinct;
 import com.yahoo.bullet.operations.aggregations.GroupAll;
 import com.yahoo.bullet.operations.aggregations.GroupBy;
 import com.yahoo.bullet.operations.aggregations.Raw;
+import com.yahoo.bullet.operations.aggregations.Strategy;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -21,11 +21,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.Optional;
 
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
@@ -140,7 +139,7 @@ public class AggregationTest {
 
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0).getError(), Aggregation.GROUP_OPERATION_REQUIRES_FIELD + SUM);
+        Assert.assertEquals(errors.get(0).getError(), GroupOperation.GROUP_OPERATION_REQUIRES_FIELD + SUM);
     }
 
     @Test
@@ -150,8 +149,9 @@ public class AggregationTest {
         aggregation.setAttributes(makeAttributes(makeGroupOperation(COUNT_FIELD, "someField", "myCountField")));
         aggregation.configure(emptyMap());
 
-        Set<GroupOperation> operations = aggregation.getGroupOperations();
-        Assert.assertEquals(operations.size(), 0);
+        List<Error> errors = aggregation.validate().get();
+        Assert.assertEquals(errors.size(), 1);
+        Assert.assertEquals(errors.get(0), GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
     }
 
     @Test
@@ -159,12 +159,12 @@ public class AggregationTest {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
         aggregation.setAttributes(singletonMap(GroupOperation.OPERATIONS, null));
-
-        // Missing attribute operations should be silently ignored
-        Assert.assertNull(aggregation.getGroupOperations());
         aggregation.configure(emptyMap());
-        Assert.assertNotNull(aggregation.getGroupOperations());
-        Assert.assertTrue(aggregation.getGroupOperations().isEmpty());
+
+        // Missing attribute operations should be silently validated
+        List<Error> errors = aggregation.validate().get();
+        Assert.assertEquals(errors.size(), 1);
+        Assert.assertEquals(errors.get(0), GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
     }
 
     @Test
@@ -172,11 +172,12 @@ public class AggregationTest {
         Aggregation aggregation = new Aggregation();
         aggregation.setType(GROUP);
         aggregation.setAttributes(singletonMap(GroupOperation.OPERATIONS, asList("foo")));
-
-        Assert.assertNull(aggregation.getGroupOperations());
         aggregation.configure(emptyMap());
-        Assert.assertNotNull(aggregation.getGroupOperations());
-        Assert.assertTrue(aggregation.getGroupOperations().isEmpty());
+
+        // Bad attribute operations should be silently validated
+        List<Error> errors = aggregation.validate().get();
+        Assert.assertEquals(errors.size(), 1);
+        Assert.assertEquals(errors.get(0), GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
     }
 
     @Test
@@ -185,16 +186,10 @@ public class AggregationTest {
         aggregation.setType(GROUP);
         aggregation.setAttributes(makeAttributes(makeGroupOperation(COUNT, null, "bar"),
                                                  makeGroupOperation(COUNT_FIELD, "foo", "foo_avg")));
-
-        Assert.assertNull(aggregation.getGroupOperations());
         aggregation.configure(emptyMap());
 
-        Set<GroupOperation> operations = aggregation.getGroupOperations();
-        Assert.assertEquals(operations.size(), 1);
-        GroupOperation operation = operations.stream().findFirst().get();
-        Assert.assertEquals(operation.getType(), COUNT);
-        Assert.assertNull(operation.getField());
-        Assert.assertEquals(operation.getNewName(), "bar");
+        // The bad operation should have been thrown out.
+        Assert.assertEquals(aggregation.validate(), Optional.<List<Error>>empty());
     }
 
     @Test
@@ -208,16 +203,9 @@ public class AggregationTest {
                                                  makeGroupOperation(COUNT, "bar", null),
                                                  makeGroupOperation(COUNT, "foo", null),
                                                  makeGroupOperation(COUNT, "bar", null)));
-
-
-        Assert.assertNull(aggregation.getGroupOperations());
         aggregation.configure(emptyMap());
-        Set<GroupOperation> operations = aggregation.getGroupOperations();
-
-        Assert.assertEquals(operations.size(), 3);
-        TestHelpers.assertContains(operations, new GroupOperation(COUNT, null, null));
-        TestHelpers.assertContains(operations, new GroupOperation(COUNT, "foo", null));
-        TestHelpers.assertContains(operations, new GroupOperation(COUNT, "bar", null));
+        // The bad ones should be removed.
+        Assert.assertEquals(aggregation.validate(), Optional.<List<Error>>empty());
     }
 
     @Test
@@ -228,7 +216,7 @@ public class AggregationTest {
 
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0), Aggregation.REQUIRES_FIELD_ERROR);
+        Assert.assertEquals(errors.get(0), Strategy.REQUIRES_FIELD_ERROR);
     }
 
     @Test
@@ -239,7 +227,7 @@ public class AggregationTest {
 
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0), Aggregation.REQUIRES_FIELD_OR_OPERATION_ERROR);
+        Assert.assertEquals(errors.get(0), GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
     }
 
     @Test
