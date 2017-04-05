@@ -52,6 +52,11 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
     }
 
     @Override
+    public List<Error> initialize() {
+        return Utilities.isEmpty(fields) ? singletonList(REQUIRES_FIELD_ERROR) : null;
+    }
+
+    @Override
     public void consume(BulletRecord data) {
         String field = getFieldsAsString(fields, data, separator);
         sketch.update(field);
@@ -72,10 +77,5 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
      */
     static Family getFamily(String family) {
         return Family.QUICKSELECT.getFamilyName().equals(family) ? Family.QUICKSELECT : Family.ALPHA;
-    }
-
-    @Override
-    public List<Error> validate() {
-        return Utilities.isEmpty(fields) ? singletonList(REQUIRES_FIELD_ERROR) : null;
     }
 }

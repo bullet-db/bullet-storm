@@ -68,7 +68,7 @@ public class SpecificationTest {
         }
 
         @Override
-        public List<Error> validate() {
+        public List<Error> initialize() {
             return null;
         }
     }

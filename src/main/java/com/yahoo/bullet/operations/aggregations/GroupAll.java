@@ -38,6 +38,14 @@ public class GroupAll implements Strategy {
     }
 
     @Override
+    public List<Error> initialize() {
+        if (Utilities.isEmpty(operations)) {
+            return singletonList(GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
+        }
+        return GroupOperation.checkOperations(operations);
+    }
+
+    @Override
     public void consume(BulletRecord data) {
         this.data.consume(data);
     }
@@ -55,14 +63,5 @@ public class GroupAll implements Strategy {
     @Override
     public Clip getAggregation() {
         return Clip.of(data.getAsBulletRecord());
-    }
-
-    @Override
-    public List<Error> validate() {
-        boolean noOperations = Utilities.isEmpty(operations);
-        if (noOperations) {
-            return singletonList(GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
-        }
-        return GroupOperation.checkOperations(operations);
     }
 }

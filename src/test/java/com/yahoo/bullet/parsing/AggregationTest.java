@@ -108,7 +108,7 @@ public class AggregationTest {
         aggregation.setType(null);
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX);
+        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + null);
     }
 
     @Test
@@ -117,7 +117,7 @@ public class AggregationTest {
         aggregation.setType(TOP);
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + ": TOP");
+        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + "TOP");
     }
 
     @Test

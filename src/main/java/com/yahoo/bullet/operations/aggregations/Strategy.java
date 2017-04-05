@@ -69,10 +69,10 @@ public interface Strategy {
     Clip getAggregation();
 
     /**
-     * Checks to see if this Strategy is valid.
+     * Checks to see if this Strategy is valid. Any other methods may behave unexpectedly unless initialize passes.
      *
-     * @return An {@link List} of {@link Error} that contains errors if validation failed or null otherwise
+     * @return An {@link List} of {@link Error} that contains errors if validation failed or null if succeeded.
      */
-    List<Error> validate();
+    List<Error> initialize();
 }
 

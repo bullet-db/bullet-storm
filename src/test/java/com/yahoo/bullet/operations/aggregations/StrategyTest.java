@@ -34,7 +34,7 @@ public class StrategyTest {
         }
 
         @Override
-        public List<Error> validate() {
+        public List<Error> initialize() {
             return null;
         }
     }

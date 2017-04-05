@@ -49,9 +49,9 @@ public class Aggregation implements Configurable, Validatable {
     public static final Set<AggregationType> SUPPORTED_AGGREGATION_TYPES =
             new HashSet<>(asList(AggregationType.GROUP, AggregationType.COUNT_DISTINCT, AggregationType.RAW,
                                  AggregationType.DISTRIBUTION));
-    public static final String TYPE_NOT_SUPPORTED_ERROR_PREFIX = "Aggregation type not supported";
-    public static final String TYPE_NOT_SUPPORTED_RESOLUTION = "Current supported aggregation types are: RAW, GROUP, " +
-                                                               "COUNT DISTINCT, DISTRIBUTION";
+    public static final String TYPE_NOT_SUPPORTED_ERROR_PREFIX = "Aggregation type not supported: ";
+    public static final String TYPE_NOT_SUPPORTED_RESOLUTION = "Current supported aggregation types are: RAW (or LIMIT), " +
+                                                               "GROUP (or DISTINCT), COUNT DISTINCT, DISTRIBUTION";
 
     public static final Integer DEFAULT_SIZE = 1;
     public static final Integer DEFAULT_MAX_SIZE = 512;
@@ -84,13 +84,11 @@ public class Aggregation implements Configurable, Validatable {
 
     @Override
     public Optional<List<Error>> validate() {
-        // Supported aggregation types should be documented in TYPE_NOT_SUPPORTED_RESOLUTION
-        if (!SUPPORTED_AGGREGATION_TYPES.contains(type)) {
-            String typeSuffix = type == null ? "" : ": " + type;
-            return Optional.of(singletonList(makeError(TYPE_NOT_SUPPORTED_ERROR_PREFIX + typeSuffix,
+        if (strategy == null) {
+            return Optional.of(singletonList(makeError(TYPE_NOT_SUPPORTED_ERROR_PREFIX + type,
                                                        TYPE_NOT_SUPPORTED_RESOLUTION)));
         }
-        List<Error> errors = strategy.validate();
+        List<Error> errors = strategy.initialize();
         return Utilities.isEmpty(errors) ? Optional.empty() : Optional.of(errors);
     }
 

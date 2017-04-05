@@ -40,6 +40,7 @@ public abstract class Sketch {
      * @return A {@link Clip} of the results.
      */
     public Clip getResult(String metaKey, Map<String, String> conceptKeys) {
+        // Subclasses are charge of adding data
         collect();
         return metaKey == null ? new Clip() : Clip.of(new Metadata().add(metaKey, getMetadata(conceptKeys)));
     }
@@ -100,5 +101,4 @@ public abstract class Sketch {
             metadata.put(key, supplier.get());
         }
     }
-
 }

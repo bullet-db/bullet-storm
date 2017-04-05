@@ -602,7 +602,7 @@ public class JoinBoltTest {
         bolt.execute(returnInfo);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Error expectedError = Error.of(Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX,
+        Error expectedError = Error.of(Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + null,
                                        singletonList(Aggregation.TYPE_NOT_SUPPORTED_RESOLUTION));
         Metadata expectedMetadata = Metadata.of(expectedError);
         List<Object> expected = TupleUtils.makeTuple(Clip.of(expectedMetadata).asJSON(), "").getValues();

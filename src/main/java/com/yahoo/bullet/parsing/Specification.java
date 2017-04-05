@@ -7,6 +7,8 @@ package com.yahoo.bullet.parsing;
 
 import com.google.gson.annotations.Expose;
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.operations.typesystem.Type;
+import com.yahoo.bullet.operations.typesystem.TypedObject;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
@@ -156,6 +158,7 @@ public class Specification implements Configurable, Validatable  {
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void configure(Map configuration) {
         if (filters != null) {
             filters.forEach(f -> f.configure(configuration));
@@ -209,7 +212,7 @@ public class Specification implements Configurable, Validatable  {
      * Extracts the field from the given {@link BulletRecord}.
      *
      * @param field The field to get. It can be "." separated to look inside maps.
-     * @param record The record containing data.
+     * @param record The record containing the field.
      * @return The extracted field or null if error or not found.
      */
     public static Object extractField(String field, BulletRecord record) {
@@ -222,6 +225,26 @@ public class Specification implements Configurable, Validatable  {
         } catch (ClassCastException cce) {
             return null;
         }
+    }
+
+    /**
+     * Extracts the field from the given (@link BulletRecord} as a {@link Number}, if possible.
+     *
+     * @param field The field containing a numeric value to get. It can be "." separated to look inside maps.
+     * @param record The record containing the field.
+     * @return The value of the field as a {@link Number} or null if it cannot be forced to one.
+     */
+    public static Number getFieldAsNumber(String field, BulletRecord record) {
+        Object value = extractField(field, record);
+        // Also checks for null
+        if (value instanceof Number) {
+            return (Number) value;
+        }
+        TypedObject asNumber = TypedObject.makeNumber(value);
+        if (asNumber.getType() == Type.UNKNOWN) {
+            return null;
+        }
+        return (Number) asNumber.getValue();
     }
 
     /**

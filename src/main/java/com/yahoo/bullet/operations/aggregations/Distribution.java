@@ -6,14 +6,15 @@ import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
 import com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
+import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.stream.Collectors;
 
 import static com.yahoo.bullet.parsing.Error.makeError;
 import static java.util.Arrays.asList;
@@ -28,7 +29,8 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
 
     public static final int DEFAULT_MAX_POINTS = 100;
 
-    // Distribution
+    // Distribution fields
+    public static final String TYPE = "type";
     public static final String POINTS = "points";
     public static final String RANGE_START = "start";
     public static final String RANGE_END = "end";
@@ -37,19 +39,32 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
 
     private final int entries;
     private final int maxPoints;
+
+    private String field;
+
     // Copy of the aggregation
     private Aggregation aggregation;
 
-    public static final Set<DistributionType> SUPPORTED_DISTRIBUTION_TYPES =
-            new HashSet<>(asList(DistributionType.QUANTILE, DistributionType.CDF, DistributionType.PMF));
-
+    // Validation
+    public static final Map<String, DistributionType> SUPPORTED_DISTRIBUTION_TYPES = new HashMap<>();
+    static {
+        SUPPORTED_DISTRIBUTION_TYPES.put(DistributionType.QUANTILE.getName(), DistributionType.QUANTILE);
+        SUPPORTED_DISTRIBUTION_TYPES.put(DistributionType.PMF.getName(), DistributionType.PMF);
+        SUPPORTED_DISTRIBUTION_TYPES.put(DistributionType.CDF.getName(), DistributionType.CDF);
+    }
+    public static final Error REQUIRES_TYPE_ERROR =
+            makeError("The DISTRIBUTION type requires specifying a type", "Please set type to one of: " +
+                      SUPPORTED_DISTRIBUTION_TYPES.keySet().stream().collect(Collectors.joining(", ")));
     public static final Error REQUIRES_POINTS_ERROR =
             makeError("The DISTRIBUTION type requires at least one point",
-                      "Please add a list of numeric points, or specify a number of equidistant points to generate" +
-                      "or specify a start, end and increment to generate points");
-
+                      "Please add a list of numeric points, OR specify a number of equidistant points to generate" +
+                      "OR specify a start, end and increment (start < end, increment > 0) to generate points");
+    public static final Error REQUIRES_POINTS_PROPER_RANGE =
+            makeError(DistributionType.QUANTILE.getName() + " requires points in the proper range",
+                    "Please add or generate points: 0 <= point <= 1");
     public static final Error REQUIRES_ONE_FIELD_ERROR =
             makeError("The aggregation type requires exactly one field", "Please add exactly one field to fields");
+
     /**
      * Constructor that requires an {@link Aggregation}.
      *
@@ -64,21 +79,54 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
                                                   DEFAULT_MAX_POINTS)).intValue();
         this.aggregation = aggregation;
 
-        // The sketch is initialized in validate!
+        // The sketch is initialized in initialize!
+    }
+
+    @Override
+    public List<Error> initialize() {
+        Map<String, String> fields = aggregation.getFields();
+        if (Utilities.isEmpty(fields) || fields.size() != 1) {
+            return singletonList(REQUIRES_ONE_FIELD_ERROR);
+        }
+
+        Map<String, Object> attributes = aggregation.getAttributes();
+        if (Utilities.isEmpty(attributes)) {
+            return singletonList(REQUIRES_TYPE_ERROR);
+        }
+        DistributionType type = getType(attributes);
+        if (type == null) {
+            return singletonList(REQUIRES_TYPE_ERROR);
+        }
+
+        // Initialize field since we have exactly 1
+        field = fields.keySet().stream().findFirst().get();
+
+        // Try to initialize sketch now
+        sketch = getSketch(entries, maxPoints, type, attributes);
+
+        if (sketch == null) {
+            return type == DistributionType.QUANTILE ? asList(REQUIRES_POINTS_ERROR, REQUIRES_POINTS_PROPER_RANGE) :
+                                                       singletonList(REQUIRES_POINTS_ERROR);
+        }
+        return null;
     }
 
     @Override
     public void consume(BulletRecord data) {
+        Number value = Specification.getFieldAsNumber(field, data);
+        if (value != null) {
+            sketch.update(value.doubleValue());
+        }
     }
 
-    private static QuantileSketch getSketch(int entries, Integer maxPoints, Map<String, Object> attributes) {
+    private static QuantileSketch getSketch(int entries, int maxPoints, DistributionType type, Map<String, Object> attributes) {
         int equidistantPoints = getNumberOfEquidistantPoints(attributes);
         if (equidistantPoints > 0) {
-            return new QuantileSketch(entries, Math.min(equidistantPoints, maxPoints));
+            return new QuantileSketch(entries, type, Math.min(equidistantPoints, maxPoints));
         }
         List<Double> points = getProvidedPoints(attributes);
         if (Utilities.isEmpty(points)) {
-            points = generatePoints(attributes);
+            points = generatePoints(maxPoints, attributes);
         }
 
         // If still not good, return null
@@ -88,7 +136,27 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         // Sort and get first maxPoints distinct values
         double[] cleanedPoints = points.stream().distinct().sorted().limit(maxPoints)
                                        .mapToDouble(d -> d).toArray();
-        return new QuantileSketch(entries, cleanedPoints);
+
+        if (invalidBounds(type, cleanedPoints)) {
+            return null;
+        }
+
+        return new QuantileSketch(entries, type, cleanedPoints);
+    }
+
+    private static DistributionType getType(Map<String, Object> attributes) {
+        String type = null;
+        try {
+            type = Utilities.getCasted(attributes, POINTS);
+        } catch (ClassCastException ignored) {
+        }
+        return SUPPORTED_DISTRIBUTION_TYPES.get(type);
+    }
+
+    private static boolean invalidBounds(DistributionType type, double[] points) {
+        // We have at least one point and if type is QUANTILE, the range is valid
+        return points.length < 1 || (type == DistributionType.QUANTILE && (points[0] < 0.0 ||
+                                                                           points[points.length - 1] > 1.0));
     }
 
     // Point generation methods
@@ -104,7 +172,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         return Collections.emptyList();
     }
 
-    private static List<Double> generatePoints(Map<String, Object> attributes) {
+    private static List<Double> generatePoints(int maxPoints, Map<String, Object> attributes) {
         Number start = Utilities.getCasted(attributes, RANGE_START);
         Number end = Utilities.getCasted(attributes, RANGE_END);
         Number increment = Utilities.getCasted(attributes, RANGE_INCREMENT);
@@ -116,7 +184,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         Double to = end.doubleValue();
         Double by = increment.doubleValue();
         List<Double> points = new ArrayList<>();
-        while (from <= to) {
+        for (int i = 0; i < maxPoints && from <= to; ++i) {
             points.add(from);
             from += by;
         }
@@ -124,31 +192,20 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
     }
 
     private static int getNumberOfEquidistantPoints(Map<String, Object> attributes) {
-        Number equidistantPoints = Utilities.getCasted(attributes, NUMBER_OF_POINTS);
-        if (equidistantPoints == null) {
-            return 0;
+        try {
+            Number equidistantPoints = Utilities.getCasted(attributes, NUMBER_OF_POINTS);
+            if (equidistantPoints == null || equidistantPoints.intValue() < 0) {
+                return 0;
+            }
+        } catch (ClassCastException ignored){
         }
-        return equidistantPoints.intValue();
+        return 0;
     }
 
     private static boolean areNumbersValid(Number start, Number end, Number increment) {
         if (start == null || end == null || increment == null) {
             return false;
         }
-        return !(start.doubleValue() >= end.doubleValue() || increment.doubleValue() <= 0);
+        return start.doubleValue() < end.doubleValue() && increment.doubleValue() > 0;
     }
-
-    @Override
-    public List<Error> validate() {
-        Map<String, String> fields = aggregation.getFields();
-        if (Utilities.isEmpty(fields) || fields.size() != 1) {
-            return singletonList(REQUIRES_ONE_FIELD_ERROR);
-        }
-
-        Map<String, Object> attributes = aggregation.getAttributes();
-        // Try to initialize sketch now
-        sketch = getSketch(entries, maxPoints, attributes);
-        return sketch == null ? singletonList(REQUIRES_POINTS_ERROR) : null;
-    }
-
 }

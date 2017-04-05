@@ -61,6 +61,16 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
     }
 
     @Override
+    public List<Error> initialize() {
+        boolean noOperations = Utilities.isEmpty(operations);
+        boolean noFields = Utilities.isEmpty(fields);
+        if (noFields && noOperations) {
+            return singletonList(GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
+        }
+        return GroupOperation.checkOperations(operations);
+    }
+
+    @Override
     public void consume(BulletRecord data) {
         Map<String, String> fieldToValues = getGroups(data);
         String key = getFieldsAsString(fields, fieldToValues, separator);
@@ -83,15 +93,5 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
             groupMapping.put(key, value);
         }
         return groupMapping;
-    }
-
-    @Override
-    public List<Error> validate() {
-        boolean noOperations = Utilities.isEmpty(operations);
-        boolean noFields = Utilities.isEmpty(fields);
-        if (noFields && noOperations) {
-            return singletonList(GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
-        }
-        return GroupOperation.checkOperations(operations);
     }
 }

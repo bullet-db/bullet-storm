@@ -136,7 +136,7 @@ public class Raw implements Strategy {
     }
 
     @Override
-    public List<Error> validate() {
+    public List<Error> initialize() {
         return null;
     }
 }
