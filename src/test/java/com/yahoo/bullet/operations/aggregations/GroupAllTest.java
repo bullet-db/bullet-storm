@@ -10,6 +10,7 @@ import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.AggregationUtils;
+import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
 import org.testng.Assert;
@@ -36,7 +37,9 @@ public class GroupAllTest {
         aggregation.setSize(1);
         aggregation.setAttributes(makeAttributes(groupOperations));
         aggregation.configure(Collections.emptyMap());
-        return new GroupAll(aggregation);
+        GroupAll all = new GroupAll(aggregation);
+        all.initialize();
+        return all;
     }
 
     public static GroupAll makeGroupAll(List<GroupOperation> groupOperations) {
@@ -45,11 +48,33 @@ public class GroupAllTest {
                                                                .collect(Collectors.toList());
 
         when(aggregation.getAttributes()).thenReturn(makeAttributes(operations));
-        return new GroupAll(aggregation);
+        GroupAll all = new GroupAll(aggregation);
+        all.initialize();
+        return all;
     }
 
     public static GroupAll makeGroupAll(GroupOperation... groupOperations) {
         return makeGroupAll(asList(groupOperations));
+    }
+
+    @Test
+    public void testInitialize() {
+        GroupAll groupAll = makeGroupAll(Collections.emptyMap());
+        List<Error> errors = groupAll.initialize();
+        Assert.assertEquals(errors.size(), 1);
+        Assert.assertEquals(errors.get(0), GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
+
+        groupAll = makeGroupAll(makeGroupOperation(GroupOperationType.AVG, null, null));
+        errors = groupAll.initialize();
+        Assert.assertEquals(errors.size(), 1);
+        Assert.assertEquals(errors.get(0), Error.makeError(GroupOperation.GROUP_OPERATION_REQUIRES_FIELD +
+                                                              GroupOperationType.AVG,
+                                                           GroupOperation.OPERATION_REQUIRES_FIELD_RESOLUTION));
+
+        groupAll = makeGroupAll(new GroupOperation(GroupOperationType.COUNT, null, null),
+                                new GroupOperation(GroupOperationType.AVG, "foo", null));
+
+        Assert.assertNull(groupAll.initialize());
     }
 
     @Test

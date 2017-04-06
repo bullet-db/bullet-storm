@@ -6,8 +6,21 @@
 package com.yahoo.bullet.operations.aggregations.grouping;
 
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
+import com.yahoo.bullet.parsing.Error;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static com.yahoo.bullet.parsing.AggregationUtils.makeAttributes;
+import static com.yahoo.bullet.parsing.AggregationUtils.makeGroupOperation;
+
 public class GroupOperationTest {
 
     @Test
@@ -71,5 +84,93 @@ public class GroupOperationTest {
         Assert.assertNotEquals(a, c);
         Assert.assertNotEquals(b, c);
         Assert.assertEquals(a, d);
+    }
+
+    @Test
+    public void testHavingGroupOperations() {
+        Assert.assertFalse(GroupOperation.hasOperations(null));
+        Assert.assertFalse(GroupOperation.hasOperations(Collections.emptyMap()));
+
+        Map<String, Object> attributes = new HashMap<>();
+
+        attributes.put(GroupOperation.OPERATIONS, null);
+        Assert.assertFalse(GroupOperation.hasOperations(attributes));
+
+        attributes.put(GroupOperation.OPERATIONS, new HashMap<>());
+        Assert.assertTrue(GroupOperation.hasOperations(attributes));
+    }
+
+    @Test
+    public void testCheckingGroupOperations() {
+        List<GroupOperation> list = new ArrayList<>();
+
+        Assert.assertNull(GroupOperation.checkOperations(list));
+
+        list.add(new GroupOperation(GroupOperationType.AVG, "foo", "avg1"));
+        list.add(new GroupOperation(GroupOperationType.MIN, "foo", null));
+        list.add(new GroupOperation(GroupOperationType.COUNT, null, null));
+
+        Assert.assertNull(GroupOperation.checkOperations(list));
+
+        list.add(new GroupOperation(GroupOperationType.SUM, null, null));
+        list.add(new GroupOperation(GroupOperationType.AVG, null, "foo"));
+
+        List<Error> errors = GroupOperation.checkOperations(list);
+        Assert.assertEquals(errors.size(), 2);
+        Assert.assertEquals(errors.get(0),
+                            Error.makeError(GroupOperation.GROUP_OPERATION_REQUIRES_FIELD + GroupOperationType.SUM,
+                                            GroupOperation.OPERATION_REQUIRES_FIELD_RESOLUTION));
+        Assert.assertEquals(errors.get(1),
+                            Error.makeError(GroupOperation.GROUP_OPERATION_REQUIRES_FIELD + GroupOperationType.AVG,
+                                            GroupOperation.OPERATION_REQUIRES_FIELD_RESOLUTION));
+    }
+
+    @Test
+    public void testGettingGroupOperations() {
+        Assert.assertEquals(GroupOperation.getOperations(null).size(), 0);
+        Assert.assertEquals(GroupOperation.getOperations(Collections.emptyMap()).size(), 0);
+        Assert.assertEquals(GroupOperation.getOperations(null).size(), 0);
+
+        Map<String, Object> attributes = Collections.singletonMap(GroupOperation.OPERATIONS, null);
+
+        Assert.assertEquals(GroupOperation.getOperations(attributes).size(), 0);
+
+        attributes = makeAttributes(makeGroupOperation(GroupOperationType.SUM, "foo", null),
+                                    makeGroupOperation(GroupOperationType.AVG, "bar", "baz"),
+                                    makeGroupOperation(GroupOperationType.COUNT, null, null),
+                                    makeGroupOperation(GroupOperationType.MIN, "qux", null),
+                                    makeGroupOperation(GroupOperationType.MAX, "norf", "quux"));
+
+
+        Set<GroupOperation> actual = GroupOperation.getOperations(attributes);
+
+        List<GroupOperation> expected = Arrays.asList(new GroupOperation(GroupOperationType.SUM, "foo", null),
+                                                      new GroupOperation(GroupOperationType.AVG, "bar", "baz"),
+                                                      new GroupOperation(GroupOperationType.COUNT, null, null),
+                                                      new GroupOperation(GroupOperationType.MIN, "qux", null),
+                                                      new GroupOperation(GroupOperationType.MAX, "norf", "quux"));
+
+        Assert.assertEquals(actual.size(), expected.size());
+        Assert.assertTrue(actual.containsAll(expected));
+    }
+
+    @Test
+    public void testFailGettingGroupOperationsBadTypes() {
+        Map<String, Object> attributes = new HashMap<>();
+
+        attributes.put(GroupOperation.OPERATIONS, 1L);
+        Assert.assertEquals(GroupOperation.getOperations(attributes).size(), 0);
+
+        attributes.put(GroupOperation.OPERATIONS, new HashMap<>());
+        Assert.assertEquals(GroupOperation.getOperations(attributes).size(), 0);
+
+        attributes.put(GroupOperation.OPERATIONS, Collections.singletonList(null));
+        Assert.assertEquals(GroupOperation.getOperations(attributes).size(), 0);
+
+        List<Object> badOperations = new ArrayList<>();
+        badOperations.add(1L);
+        badOperations.add(2L);
+        attributes.put(GroupOperation.OPERATIONS, badOperations);
+        Assert.assertEquals(GroupOperation.getOperations(attributes).size(), 0);
     }
 }

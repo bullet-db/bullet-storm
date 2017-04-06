@@ -86,16 +86,13 @@ public class ThetaSketchTest {
         Assert.assertEquals(stats.size(), 5);
 
         Assert.assertTrue((Boolean) stats.get("isEst"));
-
         Assert.assertTrue((Double) stats.get("theta") < 1.0);
-
         // We inserted 2048 unique integers. Size is at least 512 bytes.
         Assert.assertTrue((Integer) stats.get("size") > 512);
-
         // The family is the family of the Union
         Assert.assertEquals((String) stats.get("family"), Family.QUICKSELECT.getFamilyName());
 
-        Map <String, Map <String, Double>> standardDeviations = (Map<String, Map<String, Double>>) stats.get("stddev");
+        Map<String, Map<String, Double>> standardDeviations = (Map<String, Map<String, Double>>) stats.get("stddev");
         double upperOneSigma = standardDeviations.get(KMVSketch.META_STD_DEV_1).get(KMVSketch.META_STD_DEV_UB);
         double lowerOneSigma = standardDeviations.get(KMVSketch.META_STD_DEV_1).get(KMVSketch.META_STD_DEV_LB);
         double upperTwoSigma = standardDeviations.get(KMVSketch.META_STD_DEV_2).get(KMVSketch.META_STD_DEV_UB);

@@ -154,6 +154,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
 
     // Point generation methods
 
+    @SuppressWarnings("unchecked")
     private static List<Double> getProvidedPoints(Map<String, Object> attributes) {
         List<Double> points = Utilities.getCasted(attributes, POINTS, List.class);
         if (!Utilities.isEmpty(points)) {

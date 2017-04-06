@@ -44,7 +44,9 @@ public class RawTest {
         config.put(BulletConfig.RAW_AGGREGATION_MAX_SIZE, maxSize);
         config.put(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, microBatchSize);
         aggregation.setConfiguration(config);
-        return new Raw(aggregation);
+        Raw raw = new Raw(aggregation);
+        raw.initialize();
+        return raw;
     }
 
     public static Raw makeRaw(int size, int microBatchSize) {
@@ -53,6 +55,11 @@ public class RawTest {
 
     public static Raw makeRaw(int size) {
         return makeRaw(size, 1);
+    }
+
+    @Test
+    public void testInitialize() {
+        Assert.assertNull(makeRaw(20, 2, 15).initialize());
     }
 
     @Test

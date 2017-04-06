@@ -37,7 +37,9 @@ public class CountDistinctTest {
 
         aggregation.setConfiguration(addParsedMetadata(configuration, metadata));
 
-        return new CountDistinct(aggregation);
+        CountDistinct countDistinct = new CountDistinct(aggregation);
+        countDistinct.initialize();
+        return countDistinct;
     }
 
     @SafeVarargs

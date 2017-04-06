@@ -1,7 +1,6 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
-import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.grouping.CachingGroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
@@ -18,8 +17,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
-
-import static java.util.Collections.singletonList;
 
 /**
  * This {@link Strategy} implements a Tuple Sketch based approach to doing a group by. In particular, it
@@ -41,6 +38,7 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
      *
      * @param aggregation An {@link Aggregation} with valid fields and attributes for this aggregation type.
      */
+    @SuppressWarnings("unchecked")
     public GroupBy(Aggregation aggregation) {
         super(aggregation);
 
@@ -62,9 +60,6 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
 
     @Override
     public List<Error> initialize() {
-        if (Utilities.isEmpty(operations) && Utilities.isEmpty(fields)) {
-            return singletonList(GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
-        }
         return GroupOperation.checkOperations(operations);
     }
 

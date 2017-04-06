@@ -49,7 +49,9 @@ public class GroupByTest {
             aggregation.setAttributes(makeAttributes(operations));
         }
         aggregation.configure(addParsedMetadata(configuration, metadata));
-        return new GroupBy(aggregation);
+        GroupBy by = new GroupBy(aggregation);
+        by.initialize();
+        return by;
     }
 
     @SafeVarargs

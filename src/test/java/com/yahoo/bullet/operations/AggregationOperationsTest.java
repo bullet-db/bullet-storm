@@ -6,17 +6,20 @@
 package com.yahoo.bullet.operations;
 
 import com.yahoo.bullet.operations.AggregationOperations.AggregationOperator;
+import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
+import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class AggregationOperationsTest {
     @Test
     public void testGroupOperationTypeIdentifying() {
-        AggregationOperations.GroupOperationType count = AggregationOperations.GroupOperationType.COUNT;
+        GroupOperationType count = GroupOperationType.COUNT;
         Assert.assertFalse(count.isMe("count"));
         Assert.assertFalse(count.isMe(null));
         Assert.assertFalse(count.isMe(""));
-        Assert.assertTrue(count.isMe(AggregationOperations.GroupOperationType.COUNT.getName()));
+        Assert.assertFalse(count.isMe(GroupOperationType.SUM.getName()));
+        Assert.assertTrue(count.isMe(GroupOperationType.COUNT.getName()));
     }
 
     @Test
@@ -73,5 +76,15 @@ public class AggregationOperationsTest {
         Assert.assertEquals(AggregationOperations.COUNT.apply(1, 2).intValue(), 3);
         Assert.assertEquals(AggregationOperations.COUNT.apply(2.1, 1.2).doubleValue(), 3.0);
         Assert.assertEquals(AggregationOperations.COUNT.apply(1.0, 41).longValue(), 42L);
+    }
+
+    @Test
+    public void testDistributionTypeIdentifying() {
+        Assert.assertFalse(DistributionType.QUANTILE.isMe("quantile"));
+        Assert.assertFalse(DistributionType.QUANTILE.isMe("foo"));
+        Assert.assertFalse(DistributionType.QUANTILE.isMe(null));
+        Assert.assertFalse(DistributionType.QUANTILE.isMe(""));
+        Assert.assertFalse(DistributionType.QUANTILE.isMe(DistributionType.PMF.getName()));
+        Assert.assertTrue(DistributionType.QUANTILE.isMe(DistributionType.QUANTILE.getName()));
     }
 }

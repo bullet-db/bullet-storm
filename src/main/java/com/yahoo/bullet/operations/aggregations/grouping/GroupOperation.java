@@ -44,7 +44,7 @@ public class GroupOperation implements Serializable {
     public static final String OPERATION_REQUIRES_FIELD_RESOLUTION = "Please add a field for this operation.";
     public static final String GROUP_OPERATION_REQUIRES_FIELD = "Group operation requires a field: ";
     public static final Error REQUIRES_FIELD_OR_OPERATION_ERROR =
-            makeError("This aggregation type requires at least one field or operation", "Please add a field or an operation");
+            makeError("This aggregation needs at least one field or operation", "Please add a field or valid operation.");
 
     public static final String OPERATIONS = "operations";
     public static final String OPERATION_TYPE = "type";
@@ -89,54 +89,55 @@ public class GroupOperation implements Serializable {
     }
 
     /**
+     * Validates whether the provided {@link Collection} of {@link GroupOperation} are valid.
+     *
+     * @param operations The non-null operations to validate.
+     * @return An {@link List} of {@link Error} if any operations were invalid or null if valid.
+     */
+    public static List<Error> checkOperations(Collection<GroupOperation> operations) {
+        List<Error> errors = new ArrayList<>();
+        for (GroupOperation o : operations) {
+            if (o.getField() == null && o.getType() != AggregationOperations.GroupOperationType.COUNT) {
+                errors.add(makeError(GROUP_OPERATION_REQUIRES_FIELD + o.getType(), OPERATION_REQUIRES_FIELD_RESOLUTION));
+            }
+        }
+        return errors.size() > 0 ? errors : null;
+    }
+
+    /**
      * Parses a {@link Set} of group operation from an Object that is expected to be a {@link List} of {@link Map}.
      *
      * @param attributes An Map that contains an object that is the representation of List of group operations.
      * @return A {@link Set} of GroupOperation or {@link Collections#emptySet()}.
      */
+    @SuppressWarnings("unchecked")
     public static Set<GroupOperation> getOperations(Map<String, Object> attributes) {
         if (!hasOperations(attributes)) {
             return Collections.emptySet();
         }
-        List<Map<String, String>> operations = Utilities.getCasted(attributes, OPERATIONS, List.class);
+        List<Object> operations = Utilities.getCasted(attributes, OPERATIONS, List.class);
         if (operations == null) {
             return Collections.emptySet();
         }
+        // Return a list of distinct, non-null, GroupOperations
+        return operations.stream().map(GroupOperation::makeOperation).filter(Objects::nonNull).collect(Collectors.toSet());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static GroupOperation makeOperation(Object object) {
         try {
-            // Return a list of distinct, non-null, GroupOperations
-            return operations.stream().map(GroupOperation::makeGroupOperation)
-                                      .filter(Objects::nonNull).collect(Collectors.toSet());
-        }
-        catch (ClassCastException cce) {
-            return Collections.emptySet();
-        }
-    }
+            Map<String, String> data = (Map<String, String>) object;
 
-    /**
-     * Validates whether the provided {@link Collection} of {@link GroupOperation} are valid.
-     *
-     * @param operations The operations to validate.
-     * @return An {@link List} of {@link Error} if any operations were invalid or an empty list if valid.
-     */
-    public static List<Error> checkOperations(Collection<GroupOperation> operations) {
-        List<Error> errors = new ArrayList<>();
-        for (GroupOperation operation : operations) {
-            if (operation.getField() == null && operation.getType() != AggregationOperations.GroupOperationType.COUNT) {
-                errors.add(makeError(GROUP_OPERATION_REQUIRES_FIELD + operation.getType(),
-                        OPERATION_REQUIRES_FIELD_RESOLUTION));
-            }
+            String type = data.get(OPERATION_TYPE);
+            Optional<GroupOperationType> operation = SUPPORTED_GROUP_OPERATIONS.stream().filter(t -> t.isMe(type)).findFirst();
+            // May or may not be present
+            String field = data.get(OPERATION_FIELD);
+            // May or may not be present
+            String newName = data.get(OPERATION_NEW_NAME);
+            // Unknown GroupOperations are ignored.
+            return operation.isPresent() ? new GroupOperation(operation.get(), field, newName) : null;
+        } catch (ClassCastException | NullPointerException e) {
+            return null;
         }
-        return errors;
-    }
-
-    private static GroupOperation makeGroupOperation(Map<String, String> data) {
-        String type = data.get(OPERATION_TYPE);
-        Optional<GroupOperationType> operation = SUPPORTED_GROUP_OPERATIONS.stream().filter(t -> t.isMe(type)).findFirst();
-        // May or may not be present
-        String field = data.get(OPERATION_FIELD);
-        // May or may not be present
-        String newName = data.get(OPERATION_NEW_NAME);
-        // Unknown GroupOperations are ignored.
-        return operation.isPresent() ? new GroupOperation(operation.get(), field, newName) : null;
     }
 }

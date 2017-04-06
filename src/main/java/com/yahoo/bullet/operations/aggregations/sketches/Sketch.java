@@ -62,7 +62,8 @@ public abstract class Sketch {
     }
 
     /**
-     * Resets the Sketch to the original state. The old results are lost.
+     * Resets the Sketch to the original state. The old results are lost. You should call this after you call
+     * {@link #serialize()} or {@link #getResult(String, Map)} if you want to add more data to the sketch.
      */
     public abstract void reset();
 
@@ -100,10 +101,15 @@ public abstract class Sketch {
      *
      * @param metadata The non-null {@link Map} representing the metadata.
      * @param key The key to add if not null.
-     * @param supplier A {@link Supplier} that can produce a value to add to the metadata for the key.
+     * @param supplier A {@link Supplier} that can produce a value to add to the metadata for the key. If the supplier
+     *                 produces null, it is not added.
      */
-    public static void addIfKeyNonNull(Map<String, Object> metadata, String key, Supplier<Object> supplier) {
+    static void addIfKeyNonNull(Map<String, Object> metadata, String key, Supplier<Object> supplier) {
+        Object data = null;
         if (key != null) {
+            data = supplier.get();
+        }
+        if (data != null) {
             metadata.put(key, supplier.get());
         }
     }
