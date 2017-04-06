@@ -62,9 +62,15 @@ public abstract class Sketch {
     }
 
     /**
+     * Resets the Sketch to the original state. The old results are lost.
+     */
+    public abstract void reset();
+
+    /**
      * Collects the data presented to the Sketch so far.
      */
     protected abstract void collect();
+
 
     /**
      * Returns a String representing the family of this sketch.

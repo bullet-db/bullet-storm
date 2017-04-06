@@ -62,9 +62,7 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
 
     @Override
     public List<Error> initialize() {
-        boolean noOperations = Utilities.isEmpty(operations);
-        boolean noFields = Utilities.isEmpty(fields);
-        if (noFields && noOperations) {
+        if (Utilities.isEmpty(operations) && Utilities.isEmpty(fields)) {
             return singletonList(GroupOperation.REQUIRES_FIELD_OR_OPERATION_ERROR);
         }
         return GroupOperation.checkOperations(operations);

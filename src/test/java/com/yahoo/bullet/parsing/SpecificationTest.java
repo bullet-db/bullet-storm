@@ -118,6 +118,20 @@ public class SpecificationTest {
     }
 
     @Test
+    public void testNumericExtraction() {
+        BulletRecord record = RecordBox.get().add("foo", "1.20").add("bar", 42L)
+                                             .addMap("map_field", Pair.of("foo", 21.0))
+                                             .getRecord();
+
+        Assert.assertNull(Specification.extractFieldAsNumber(null, record));
+        Assert.assertNull(Specification.extractFieldAsNumber("", record));
+        Assert.assertNull(Specification.extractFieldAsNumber("id", record));
+        Assert.assertEquals(Specification.extractFieldAsNumber("foo", record), ((Number) 1.20).doubleValue());
+        Assert.assertEquals(Specification.extractFieldAsNumber("bar", record), ((Number) 42).longValue());
+        Assert.assertEquals(Specification.extractFieldAsNumber("map_field.foo", record), ((Number) 21).doubleValue());
+    }
+
+    @Test
     public void testAggregationForced() {
         Specification specification = new Specification();
         specification.setAggregation(null);

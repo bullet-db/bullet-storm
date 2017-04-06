@@ -46,7 +46,6 @@ public class GroupOperation implements Serializable {
     public static final Error REQUIRES_FIELD_OR_OPERATION_ERROR =
             makeError("This aggregation type requires at least one field or operation", "Please add a field or an operation");
 
-
     public static final String OPERATIONS = "operations";
     public static final String OPERATION_TYPE = "type";
     public static final String OPERATION_FIELD = "field";
@@ -99,15 +98,16 @@ public class GroupOperation implements Serializable {
         if (!hasOperations(attributes)) {
             return Collections.emptySet();
         }
+        List<Map<String, String>> operations = Utilities.getCasted(attributes, OPERATIONS, List.class);
+        if (operations == null) {
+            return Collections.emptySet();
+        }
         try {
-            List<Map<String, String>> operations = Utilities.getCasted(attributes, OPERATIONS);
-            if (operations == null) {
-                return Collections.emptySet();
-            }
             // Return a list of distinct, non-null, GroupOperations
             return operations.stream().map(GroupOperation::makeGroupOperation)
                                       .filter(Objects::nonNull).collect(Collectors.toSet());
-        } catch (ClassCastException cce) {
+        }
+        catch (ClassCastException cce) {
             return Collections.emptySet();
         }
     }

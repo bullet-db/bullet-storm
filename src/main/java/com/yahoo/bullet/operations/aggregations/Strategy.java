@@ -14,10 +14,10 @@ import java.util.List;
 import static com.yahoo.bullet.parsing.Error.makeError;
 
 public interface Strategy {
-    String OPERATION_REQUIRES_FIELD_RESOLUTION = "Please add a field for this operation.";
+    String REQUIRES_FEED_RESOLUTION = "Please add a field for this aggregation.";
 
     Error REQUIRES_FIELD_ERROR =
-            makeError("This aggregation type requires at least one field", OPERATION_REQUIRES_FIELD_RESOLUTION);
+            makeError("This aggregation type requires at least one field", REQUIRES_FEED_RESOLUTION);
 
     /**
      * Returns true if more data will be consumed or combined. This method can be used to avoid passing more

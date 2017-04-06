@@ -20,8 +20,8 @@ import java.util.Map;
  * Wraps operations for working with a {@link DoublesSketch} - Quantile Sketch.
  */
 public class QuantileSketch extends Sketch {
-    private final UpdateDoublesSketch updateSketch;
-    private final DoublesUnion unionSketch;
+    private UpdateDoublesSketch updateSketch;
+    private DoublesUnion unionSketch;
     private DoublesSketch merged;
 
     private double[] points;
@@ -114,6 +114,14 @@ public class QuantileSketch extends Sketch {
             unionSketch.update(updateSketch);
         }
         merged = unioned ? unionSketch.getResult() : updateSketch.compact();
+    }
+
+    @Override
+    public void reset() {
+        unioned = false;
+        updated = false;
+        updateSketch.reset();
+        unionSketch.reset();
     }
 
     @Override
@@ -223,7 +231,7 @@ public class QuantileSketch extends Sketch {
         return records;
     }
 
-    private static List< BulletRecord> zipRanges(double[] domain, double[] range, long scale) {
+    private static List<BulletRecord> zipRanges(double[] domain, double[] range, long scale) {
         List<BulletRecord> records = new ArrayList<>();
         String[] bins = makeBins(domain);
         for (int i = 0; i < bins.length; ++i) {

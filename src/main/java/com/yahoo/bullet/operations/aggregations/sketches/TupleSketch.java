@@ -19,12 +19,15 @@ import com.yahoo.sketches.tuple.UpdatableSketchBuilder;
 import java.util.Map;
 
 public class TupleSketch extends KMVSketch {
-    private final UpdatableSketch<CachingGroupData, GroupDataSummary> updateSketch;
-    private final Union<GroupDataSummary> unionSketch;
+    private UpdatableSketch<CachingGroupData, GroupDataSummary> updateSketch;
+    private Union<GroupDataSummary> unionSketch;
     private Sketch<GroupDataSummary> merged;
 
-    private int maxSize;
-    private Map<String, String> fieldNames;
+    private final int maxSize;
+    private final Map<String, String> fieldNames;
+    // Need to store this to reinitialize updateSketch
+    private final UpdatableSketchBuilder<CachingGroupData, GroupDataSummary> builder;
+
     /**
      * Initialize a tuple sketch for summarizing group data.
      *
@@ -38,7 +41,7 @@ public class TupleSketch extends KMVSketch {
     public TupleSketch(ResizeFactor resizeFactor, float samplingProbability, int nominalEntries,
                        int maxSize, Map<String, String> fieldNames) {
         GroupDataSummaryFactory factory = new GroupDataSummaryFactory();
-        UpdatableSketchBuilder<CachingGroupData, GroupDataSummary> builder = new UpdatableSketchBuilder(factory);
+        builder = new UpdatableSketchBuilder(factory);
 
         updateSketch = builder.setResizeFactor(resizeFactor).setNominalEntries(nominalEntries)
                               .setSamplingProbability(samplingProbability).build();
@@ -91,6 +94,14 @@ public class TupleSketch extends KMVSketch {
             unionSketch.update(updateSketch.compact());
         }
         merged = unioned ? unionSketch.getResult() : updateSketch.compact();
+    }
+
+    @Override
+    public void reset() {
+        unioned = false;
+        updated = false;
+        unionSketch.reset();
+        updateSketch = builder.build();
     }
 
     // Metadata

@@ -93,7 +93,9 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         if (Utilities.isEmpty(attributes)) {
             return singletonList(REQUIRES_TYPE_ERROR);
         }
-        DistributionType type = getType(attributes);
+
+        String typeString = Utilities.getCasted(attributes, TYPE, String.class);
+        DistributionType type = SUPPORTED_DISTRIBUTION_TYPES.get(typeString);
         if (type == null) {
             return singletonList(REQUIRES_TYPE_ERROR);
         }
@@ -113,7 +115,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
 
     @Override
     public void consume(BulletRecord data) {
-        Number value = Specification.getFieldAsNumber(field, data);
+        Number value = Specification.extractFieldAsNumber(field, data);
         if (value != null) {
             sketch.update(value.doubleValue());
         }
@@ -144,15 +146,6 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         return new QuantileSketch(entries, type, cleanedPoints);
     }
 
-    private static DistributionType getType(Map<String, Object> attributes) {
-        String type = null;
-        try {
-            type = Utilities.getCasted(attributes, POINTS);
-        } catch (ClassCastException ignored) {
-        }
-        return SUPPORTED_DISTRIBUTION_TYPES.get(type);
-    }
-
     private static boolean invalidBounds(DistributionType type, double[] points) {
         // We have at least one point and if type is QUANTILE, the range is valid
         return points.length < 1 || (type == DistributionType.QUANTILE && (points[0] < 0.0 ||
@@ -162,20 +155,17 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
     // Point generation methods
 
     private static List<Double> getProvidedPoints(Map<String, Object> attributes) {
-        try {
-            List<Double> points = Utilities.getCasted(attributes, POINTS);
-            if (!Utilities.isEmpty(points)) {
-                return points;
-            }
-        } catch (ClassCastException ignored) {
+        List<Double> points = Utilities.getCasted(attributes, POINTS, List.class);
+        if (!Utilities.isEmpty(points)) {
+            return points;
         }
         return Collections.emptyList();
     }
 
     private static List<Double> generatePoints(int maxPoints, Map<String, Object> attributes) {
-        Number start = Utilities.getCasted(attributes, RANGE_START);
-        Number end = Utilities.getCasted(attributes, RANGE_END);
-        Number increment = Utilities.getCasted(attributes, RANGE_INCREMENT);
+        Number start = Utilities.getCasted(attributes, RANGE_START, Number.class);
+        Number end = Utilities.getCasted(attributes, RANGE_END, Number.class);
+        Number increment = Utilities.getCasted(attributes, RANGE_INCREMENT, Number.class);
 
         if (!areNumbersValid(start, end, increment)) {
             return Collections.emptyList();
@@ -192,14 +182,11 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
     }
 
     private static int getNumberOfEquidistantPoints(Map<String, Object> attributes) {
-        try {
-            Number equidistantPoints = Utilities.getCasted(attributes, NUMBER_OF_POINTS);
-            if (equidistantPoints == null || equidistantPoints.intValue() < 0) {
-                return 0;
-            }
-        } catch (ClassCastException ignored){
+        Number equidistantPoints = Utilities.getCasted(attributes, NUMBER_OF_POINTS, Number.class);
+        if (equidistantPoints == null || equidistantPoints.intValue() < 0) {
+            return 0;
         }
-        return 0;
+        return equidistantPoints.intValue();
     }
 
     private static boolean areNumbersValid(Number start, Number end, Number increment) {

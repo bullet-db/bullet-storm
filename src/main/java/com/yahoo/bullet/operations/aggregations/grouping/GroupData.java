@@ -5,6 +5,7 @@
  */
 package com.yahoo.bullet.operations.aggregations.grouping;
 
+import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.AggregationOperations;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationOperator;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
@@ -148,7 +149,7 @@ public class GroupData implements Serializable {
         for (Map.Entry<String, String> e : groupFields.entrySet()) {
             String field = e.getKey();
             String mapped = mapping.get(field);
-            record.setString(mapped == null || mapped.isEmpty() ? field : mapped, e.getValue());
+            record.setString(Utilities.isEmpty(mapped) ? field : mapped, e.getValue());
         }
         return record;
     }
@@ -165,10 +166,10 @@ public class GroupData implements Serializable {
             case MAX:
             case SUM:
             case AVG:
-                casted = Specification.getFieldAsNumber(operation.getField(), data);
+                casted = Specification.extractFieldAsNumber(operation.getField(), data);
                 break;
             case COUNT_FIELD:
-                casted = Specification.getFieldAsNumber(operation.getField(), data) ;
+                casted = Specification.extractFieldAsNumber(operation.getField(), data) ;
                 casted = casted != null ? 1L : null;
                 break;
         }

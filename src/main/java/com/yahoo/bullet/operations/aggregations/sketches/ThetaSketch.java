@@ -14,8 +14,8 @@ import com.yahoo.sketches.theta.UpdateSketch;
 import java.util.Map;
 
 public class ThetaSketch extends KMVSketch {
-    private final UpdateSketch updateSketch;
-    private final Union unionSketch;
+    private UpdateSketch updateSketch;
+    private Union unionSketch;
     private Sketch merged;
 
     private String family;
@@ -79,6 +79,14 @@ public class ThetaSketch extends KMVSketch {
             unionSketch.update(updateSketch.compact(false, null));
         }
         merged = unioned ? unionSketch.getResult(false, null) : updateSketch.compact(false, null);
+    }
+
+    @Override
+    public void reset() {
+        updated = false;
+        unioned = false;
+        unionSketch.reset();
+        updateSketch.reset();
     }
 
     // Metadata

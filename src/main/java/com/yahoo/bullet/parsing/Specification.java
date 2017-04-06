@@ -234,7 +234,7 @@ public class Specification implements Configurable, Validatable  {
      * @param record The record containing the field.
      * @return The value of the field as a {@link Number} or null if it cannot be forced to one.
      */
-    public static Number getFieldAsNumber(String field, BulletRecord record) {
+    public static Number extractFieldAsNumber(String field, BulletRecord record) {
         Object value = extractField(field, record);
         // Also checks for null
         if (value instanceof Number) {
