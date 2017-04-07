@@ -16,6 +16,15 @@ import java.util.Map;
 import java.util.stream.IntStream;
 
 public class ThetaSketchTest {
+    private static final Map<String, String> ALL_METADATA = new HashMap<>();
+    static {
+        ALL_METADATA.put(Concept.ESTIMATED_RESULT.getName(), "isEst");
+        ALL_METADATA.put(Concept.STANDARD_DEVIATIONS.getName(), "stddev");
+        ALL_METADATA.put(Concept.FAMILY.getName(), "family");
+        ALL_METADATA.put(Concept.SIZE.getName(), "size");
+        ALL_METADATA.put(Concept.THETA.getName(), "theta");
+    }
+
     @Test(expectedExceptions = SketchesArgumentException.class)
     public void testBadCreation() {
         new ThetaSketch(null, null, 1.0f, -2, "foo");
@@ -71,14 +80,7 @@ public class ThetaSketchTest {
         unionSketch.union(sketch.serialize());
         unionSketch.union(anotherSketch.serialize());
 
-        Map<String, String> metaKeys = new HashMap<>();
-        metaKeys.put(Concept.ESTIMATED_RESULT.getName(), "isEst");
-        metaKeys.put(Concept.STANDARD_DEVIATIONS.getName(), "stddev");
-        metaKeys.put(Concept.FAMILY.getName(), "family");
-        metaKeys.put(Concept.SIZE.getName(), "size");
-        metaKeys.put(Concept.THETA.getName(), "theta");
-
-        Clip result = unionSketch.getResult("meta", metaKeys);
+        Clip result = unionSketch.getResult("meta", ALL_METADATA);
         Map<String, Object> actualMeta = result.getMeta().asMap();
         Assert.assertTrue(actualMeta.containsKey("meta"));
         Map<String, Object> stats = (Map<String, Object>) actualMeta.get("meta");

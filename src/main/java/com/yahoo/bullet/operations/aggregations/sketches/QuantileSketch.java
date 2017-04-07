@@ -33,10 +33,15 @@ public class QuantileSketch extends Sketch {
 
     public static final String QUANTILE_FIELD = "Quantile";
     public static final String VALUE_FIELD = "Value";
+
     public static final String RANGE_FIELD = "Range";
-    public static final String RANGE_INITIAL_PREFIX = "< ";
-    public static final String RANGE_FINAL_PREFIX = "> ";
-    public static final String RANGE_SEPARATOR = " - ";
+    public static final String START_INCLUSIVE = "[";
+    public static final String START_EXCLUSIVE = "(";
+    public static final String END_EXCLUSIVE = ")";
+    public static final String SEPARATOR = " to ";
+    public static final String INFINITY = "\u221e";
+    public static final String NEGATIVE_INFINITY_START = START_EXCLUSIVE + "-" + INFINITY;
+    public static final String POSITIVE_INFINITY_END = "+" + INFINITY + END_EXCLUSIVE;
 
     private QuantileSketch(int k, DistributionType type) {
         updateSketch = new DoublesSketchBuilder().build(k);
@@ -113,7 +118,7 @@ public class QuantileSketch extends Sketch {
         if (updated && unioned) {
             unionSketch.update(updateSketch);
         }
-        merged = unioned ? unionSketch.getResult() : updateSketch.compact();
+        merged = unioned ? unionSketch.getResult() : updateSketch;
     }
 
     @Override
@@ -196,7 +201,19 @@ public class QuantileSketch extends Sketch {
      * @return The records that correspond to the data.
      */
     List<BulletRecord> zip(double[] domain, double[] range, long n) {
-        return type == DistributionType.QUANTILE ? zipQuantiles(domain, range) : zipRanges(domain, range, n);
+        List<BulletRecord> records = null;
+        switch(type) {
+            case QUANTILE:
+                records = zipQuantiles(domain, range);
+                break;
+            case PMF:
+                records = zipRanges(domain, range, n, false);
+                break;
+            case CDF:
+                records = zipRanges(domain, range, n, true);
+                break;
+        }
+        return records;
     }
 
     // Static helpers
@@ -231,9 +248,9 @@ public class QuantileSketch extends Sketch {
         return records;
     }
 
-    private static List<BulletRecord> zipRanges(double[] domain, double[] range, long scale) {
+    private static List<BulletRecord> zipRanges(double[] domain, double[] range, long scale, boolean cumulative) {
         List<BulletRecord> records = new ArrayList<>();
-        String[] bins = makeBins(domain);
+        String[] bins = makeBins(domain, cumulative);
         for (int i = 0; i < bins.length; ++i) {
             records.add(new BulletRecord().setString(RANGE_FIELD, bins[i])
                                           .setDouble(VALUE_FIELD, range[i] * scale));
@@ -241,23 +258,32 @@ public class QuantileSketch extends Sketch {
         return records;
     }
 
-    private static String[] makeBins(double[] splits) {
-        // The bins are created from -infinity to splits[0], split[1] - split[2], ..., split[N] to infinity
+    private static String[] makeBins(double[] splits, boolean cumulative) {
         String[] bins = new String[splits.length + 1];
-        if (splits.length == 1) {
-            double item = splits[0];
-            bins[0] = RANGE_INITIAL_PREFIX + item;
-            bins[1] = RANGE_FINAL_PREFIX + item;
-            return bins;
-        }
-        String prefix = RANGE_INITIAL_PREFIX;
+        return cumulative ? makeCDFBins(bins, splits) : makePMFBins(bins, splits);
+    }
+
+    private static String[] makePMFBins(String[] bins, double[] splits) {
+        // The bins are created from (-infinity to splits[0]), [split[1] to split[2]), ..., [split[N] to infinity)
+        String prefix = NEGATIVE_INFINITY_START + SEPARATOR;
         int lastIndex = splits.length - 1;
         for (int i = 0; i <= lastIndex; ++i) {
             double binEnd = splits[i];
-            bins[i] = prefix + binEnd;
-            prefix = binEnd + RANGE_SEPARATOR;
+            bins[i] = prefix + binEnd + END_EXCLUSIVE;
+            prefix = START_INCLUSIVE + binEnd + SEPARATOR;
         }
-        bins[lastIndex + 1] = RANGE_FINAL_PREFIX + splits[lastIndex];
+        bins[lastIndex + 1] = START_INCLUSIVE + splits[lastIndex] + SEPARATOR + POSITIVE_INFINITY_END;
+        return bins;
+    }
+
+    private static String[] makeCDFBins(String[] bins, double[] splits) {
+        // The bins are created from (-infinity to splits[0]), (-infinity to split[1]), ..., (-infinity to +infinity)
+        int lastIndex = splits.length - 1;
+        for (int i = 0; i <= lastIndex; ++i) {
+            double binEnd = splits[i];
+            bins[i] = NEGATIVE_INFINITY_START + SEPARATOR + binEnd + END_EXCLUSIVE;
+        }
+        bins[lastIndex + 1] = NEGATIVE_INFINITY_START + SEPARATOR + POSITIVE_INFINITY_END;
         return bins;
     }
 }

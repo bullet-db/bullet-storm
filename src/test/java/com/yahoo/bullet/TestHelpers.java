@@ -17,6 +17,8 @@ import java.util.Collections;
 import java.util.Objects;
 
 public class TestHelpers {
+    public static final double EPSILON = 1E-6;
+
     public static <E> void assertContains(Collection<E> collection, E item) {
         Objects.requireNonNull(collection);
         assertContains(collection, item, 1);
@@ -33,6 +35,14 @@ public class TestHelpers {
         JsonElement first = parser.parse(actual);
         JsonElement second = parser.parse(expected);
         Assert.assertEquals(first, second);
+    }
+
+    public static void assertApproxEquals(double actual, double expected) {
+        assertApproxEquals(actual, expected, EPSILON);
+    }
+
+    public static void assertApproxEquals(double actual, double expected, double epsilon) {
+        Assert.assertTrue(Math.abs(actual - expected) <= epsilon);
     }
 
     public static byte[] getListBytes(BulletRecord... records) {

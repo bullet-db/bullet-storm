@@ -40,6 +40,16 @@ public class TupleSketchTest {
                                         new GroupOperation(SUM, "fieldB", "sumB"),
                                         new GroupOperation(AVG, "fieldA", "avgA")));
 
+    private static final Map<String, String> ALL_METADATA = new HashMap<>();
+    static {
+        ALL_METADATA.put(Concept.ESTIMATED_RESULT.getName(), "isEst");
+        ALL_METADATA.put(Concept.STANDARD_DEVIATIONS.getName(), "stddev");
+        ALL_METADATA.put(Concept.FAMILY.getName(), "family");
+        ALL_METADATA.put(Concept.SIZE.getName(), "size");
+        ALL_METADATA.put(Concept.UNIQUES_ESTIMATE.getName(), "est");
+        ALL_METADATA.put(Concept.THETA.getName(), "theta");
+    }
+
     private CachingGroupData data;
 
     private BulletRecord get(String fieldA, double fieldB) {
@@ -120,15 +130,7 @@ public class TupleSketchTest {
         // Insert 2 duplicates of 0 - 63
         IntStream.range(0, 128).forEach(i -> sketch.update(addToData(String.valueOf(i % 64), 1, data), data));
 
-        Map<String, String> metaKeys = new HashMap<>();
-        metaKeys.put(Concept.ESTIMATED_RESULT.getName(), "isEst");
-        metaKeys.put(Concept.STANDARD_DEVIATIONS.getName(), "stddev");
-        metaKeys.put(Concept.FAMILY.getName(), "family");
-        metaKeys.put(Concept.SIZE.getName(), "size");
-        metaKeys.put(Concept.UNIQUES_ESTIMATE.getName(), "est");
-        metaKeys.put(Concept.THETA.getName(), "theta");
-
-        Clip result = sketch.getResult("meta", metaKeys);
+        Clip result = sketch.getResult("meta", ALL_METADATA);
         Map<String, Object> actualMeta = result.getMeta().asMap();
         Assert.assertTrue(actualMeta.containsKey("meta"));
         Map<String, Object> stats = (Map<String, Object>) actualMeta.get("meta");
