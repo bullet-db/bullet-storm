@@ -34,7 +34,7 @@ public class TestHelpers {
         JsonParser parser = new JsonParser();
         JsonElement first = parser.parse(actual);
         JsonElement second = parser.parse(expected);
-        Assert.assertEquals(first, second);
+        Assert.assertEquals(first, second, "Actual: " + first + " Expected: " + second);
     }
 
     public static void assertApproxEquals(double actual, double expected) {
@@ -42,7 +42,8 @@ public class TestHelpers {
     }
 
     public static void assertApproxEquals(double actual, double expected, double epsilon) {
-        Assert.assertTrue(Math.abs(actual - expected) <= epsilon);
+        Assert.assertTrue(Math.abs(actual - expected) <= epsilon,
+                          "Actual: " + actual + " Expected: " + expected + " Epsilon: " + epsilon);
     }
 
     public static byte[] getListBytes(BulletRecord... records) {

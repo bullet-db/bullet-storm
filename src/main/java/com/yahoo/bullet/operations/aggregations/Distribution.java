@@ -75,8 +75,9 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         super(aggregation);
         entries = ((Number) config.getOrDefault(BulletConfig.DISTRIBUTION_AGGREGATION_SKETCH_ENTRIES,
                                                 DEFAULT_ENTRIES)).intValue();
-        maxPoints = ((Number) config.getOrDefault(BulletConfig.DISTRIBUTION_AGGREGATION_MAX_POINTS,
-                                                  DEFAULT_MAX_POINTS)).intValue();
+        int pointLimit = ((Number) config.getOrDefault(BulletConfig.DISTRIBUTION_AGGREGATION_MAX_POINTS,
+                                                       DEFAULT_MAX_POINTS)).intValue();
+        maxPoints = Math.min(pointLimit, aggregation.getSize());
         this.aggregation = aggregation;
 
         // The sketch is initialized in initialize!
@@ -147,7 +148,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
     }
 
     private static boolean invalidBounds(DistributionType type, double[] points) {
-        // We have at least one point and if type is QUANTILE, the range is valid
+        // No points or if type is QUANTILE, invalid range if the start < 0 or end > 1
         return points.length < 1 || (type == DistributionType.QUANTILE && (points[0] < 0.0 ||
                                                                            points[points.length - 1] > 1.0));
     }

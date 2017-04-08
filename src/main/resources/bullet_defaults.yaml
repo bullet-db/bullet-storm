@@ -173,7 +173,8 @@ bullet.query.aggregation.group.sketch.resize.factor: 8
 bullet.query.aggregation.distribution.sketch.entries: 1024
 
 # The maximum number of points that can be provided or generated for the DISTRIBUTION aggregation. Any more will be
-# clamped to this value. These points are used to pick at the quantiles, or the PMF or the CDF.
+# clamped to this value. These points are used to pick at the quantiles, or the PMF or the CDF. The number here must
+# smaller than bullet.query.aggregation.max.size. If not, the smaller of the two will be used.
 bullet.query.aggregation.distribution.max.points: 100
 
 # Enable logging meta information in the results. Configured metadata will be add to the meta section of the

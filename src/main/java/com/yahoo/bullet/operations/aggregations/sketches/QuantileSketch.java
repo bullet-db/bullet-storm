@@ -33,15 +33,19 @@ public class QuantileSketch extends Sketch {
 
     public static final String QUANTILE_FIELD = "Quantile";
     public static final String VALUE_FIELD = "Value";
-
+    public static final String PROBABILITY_FIELD = "Probability";
+    public static final String COUNT_FIELD = "Count";
     public static final String RANGE_FIELD = "Range";
+
     public static final String START_INCLUSIVE = "[";
     public static final String START_EXCLUSIVE = "(";
     public static final String END_EXCLUSIVE = ")";
     public static final String SEPARATOR = " to ";
     public static final String INFINITY = "\u221e";
-    public static final String NEGATIVE_INFINITY_START = START_EXCLUSIVE + "-" + INFINITY;
-    public static final String POSITIVE_INFINITY_END = "+" + INFINITY + END_EXCLUSIVE;
+    public static final String POSITIVE_INFINITY = "+"  + INFINITY;
+    public static final String NEGATIVE_INFINITY = "-"  + INFINITY;
+    public static final String NEGATIVE_INFINITY_START = START_EXCLUSIVE + NEGATIVE_INFINITY;
+    public static final String POSITIVE_INFINITY_END = POSITIVE_INFINITY + END_EXCLUSIVE;
 
     private QuantileSketch(int k, DistributionType type) {
         updateSketch = new DoublesSketchBuilder().build(k);
@@ -109,7 +113,7 @@ public class QuantileSketch extends Sketch {
         } else {
             range = merged.getCDF(domain);
         }
-        data.add(zip(domain, range, getNumberOfEntries()));
+        data.add(zip(domain, range, type, getNumberOfEntries()));
         return data;
     }
 
@@ -172,15 +176,7 @@ public class QuantileSketch extends Sketch {
         return merged.getNormalizedRankError();
     }
 
-    /**
-     * For Testing.
-     *
-     * Generate numberOfPoints evenly spaced between start and end - both inclusive if numberOfPoints > 1. Otherwise,
-     * returns points. Monotonically increasing.
-     *
-     * @return An array of evenly spaced points.
-     */
-    double[] getDomain() {
+    private double[] getDomain() {
         if (numberOfPoints != null) {
             return type == DistributionType.QUANTILE ? getPoints(QUANTILE_MIN, QUANTILE_MAX, numberOfPoints) :
                                                        getPoints(getMinimum(), getMaximum(), numberOfPoints);
@@ -189,7 +185,7 @@ public class QuantileSketch extends Sketch {
     }
 
     /**
-     * For Testing.
+     * Exposed for testing only.
      *
      * Creates a {@link List} of {@link BulletRecord} for each corresponding entry in domain and range. The domain
      * is first converted into range names depending on the type.
@@ -197,12 +193,13 @@ public class QuantileSketch extends Sketch {
      * @param domain An array of split points of size N > 0.
      * @param range  An array of values for each range in domain: of size N + 1
      *               if type is not {@link DistributionType#QUANTILE} else N.
+     * @param type The {@link DistributionType} to zip for.
      * @param n A long to scale the value of each range entry by if type is not {@link DistributionType#QUANTILE}.
      * @return The records that correspond to the data.
      */
-    List<BulletRecord> zip(double[] domain, double[] range, long n) {
+    static List<BulletRecord> zip(double[] domain, double[] range, DistributionType type, long n) {
         List<BulletRecord> records = null;
-        switch(type) {
+        switch (type) {
             case QUANTILE:
                 records = zipQuantiles(domain, range);
                 break;
@@ -221,7 +218,8 @@ public class QuantileSketch extends Sketch {
     private static double[] getPoints(double start, double end, int numberOfPoints) {
         double[] points = new double[numberOfPoints];
 
-        if  (numberOfPoints == 1) {
+        // We should have points < 1 but just in case...
+        if  (numberOfPoints <= 1) {
             points[0] = start;
             return points;
         }
@@ -248,25 +246,26 @@ public class QuantileSketch extends Sketch {
         return records;
     }
 
-    private static List<BulletRecord> zipRanges(double[] domain, double[] range, long scale, boolean cumulative) {
+    private static List<BulletRecord> zipRanges(double[] domain, double[] range, long n, boolean cumulative) {
         List<BulletRecord> records = new ArrayList<>();
         String[] bins = makeBins(domain, cumulative);
         for (int i = 0; i < bins.length; ++i) {
             records.add(new BulletRecord().setString(RANGE_FIELD, bins[i])
-                                          .setDouble(VALUE_FIELD, range[i] * scale));
+                                          .setDouble(PROBABILITY_FIELD, range[i])
+                                          .setDouble(COUNT_FIELD, range[i] * n));
         }
         return records;
     }
 
     private static String[] makeBins(double[] splits, boolean cumulative) {
         String[] bins = new String[splits.length + 1];
-        return cumulative ? makeCDFBins(bins, splits) : makePMFBins(bins, splits);
+        int lastIndex = splits.length - 1;
+        return cumulative ? makeCDFBins(bins, splits, lastIndex) : makePMFBins(bins, splits, lastIndex);
     }
 
-    private static String[] makePMFBins(String[] bins, double[] splits) {
+    private static String[] makePMFBins(String[] bins, double[] splits, int lastIndex) {
         // The bins are created from (-infinity to splits[0]), [split[1] to split[2]), ..., [split[N] to infinity)
         String prefix = NEGATIVE_INFINITY_START + SEPARATOR;
-        int lastIndex = splits.length - 1;
         for (int i = 0; i <= lastIndex; ++i) {
             double binEnd = splits[i];
             bins[i] = prefix + binEnd + END_EXCLUSIVE;
@@ -276,9 +275,8 @@ public class QuantileSketch extends Sketch {
         return bins;
     }
 
-    private static String[] makeCDFBins(String[] bins, double[] splits) {
+    private static String[] makeCDFBins(String[] bins, double[] splits, int lastIndex) {
         // The bins are created from (-infinity to splits[0]), (-infinity to split[1]), ..., (-infinity to +infinity)
-        int lastIndex = splits.length - 1;
         for (int i = 0; i <= lastIndex; ++i) {
             double binEnd = splits[i];
             bins[i] = NEGATIVE_INFINITY_START + SEPARATOR + binEnd + END_EXCLUSIVE;

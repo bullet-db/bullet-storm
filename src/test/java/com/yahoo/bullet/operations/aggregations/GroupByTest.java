@@ -2,8 +2,11 @@ package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.AggregationOperations;
+import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
+import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.operations.aggregations.sketches.KMVSketch;
 import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata.Concept;
@@ -20,6 +23,7 @@ import java.util.Set;
 import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.TestHelpers.assertContains;
+import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.AVG;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
 import static com.yahoo.bullet.parsing.AggregationUtils.addParsedMetadata;
@@ -90,6 +94,21 @@ public class GroupByTest {
     public static Map<Object, Object> makeConfiguration(int k) {
         return makeConfiguration(GroupBy.DEFAULT_RESIZE_FACTOR, GroupBy.DEFAULT_SAMPLING_PROBABILITY,
                                  Aggregation.DEFAULT_FIELD_SEPARATOR, k);
+    }
+
+    @Test
+    public void testInitialize() {
+        List<String> fields = asList("fieldA", "fieldB");
+        GroupBy groupBy = makeGroupBy(fields, 3, makeGroupOperation(AVG, null, null),
+                                      makeGroupOperation(SUM, null, "sum"));
+        List<Error> errors = groupBy.initialize();
+        Assert.assertEquals(errors.size(), 2);
+        Assert.assertEquals(errors.get(0), Error.makeError(GroupOperation.GROUP_OPERATION_REQUIRES_FIELD +
+                                                               GroupOperationType.AVG,
+                                                           GroupOperation.OPERATION_REQUIRES_FIELD_RESOLUTION));
+        Assert.assertEquals(errors.get(1), Error.makeError(GroupOperation.GROUP_OPERATION_REQUIRES_FIELD +
+                                                               GroupOperationType.SUM,
+                                                           GroupOperation.OPERATION_REQUIRES_FIELD_RESOLUTION));
     }
 
     @Test

@@ -125,7 +125,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.16</version>
                 <configuration>
-                    <!-- Enables asserts for tests so the Memory Sketches modules can run assertions in testing -->
+                    <!-- Enables asserts for tests so that Sketches can run assertions in testing -->
                     <enableAssertions>true</enableAssertions>
                 </configuration>
             </plugin>
