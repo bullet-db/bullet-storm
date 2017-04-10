@@ -317,8 +317,7 @@ public class QuantileSketchTest {
 
             // We input 100 values: 0.0, 0.1, ... 9.9, and our NRE is ~6.3%. This means, for e.g., that the 50th
             // percentile value is approximate and is between the true 43th and 57th percentile, or between 4.3 and 5.7
-            // in our case. The NRE * 10 is exactly the epsilon we should use our comparison. 0.1th quantile's true
-            // value is 1.0
+            // in our case. The NRE * 10 is the epsilon we should use our comparison with high probability.
             assertApproxEquals(value, quantile * 10, error * 10);
         }
     }
