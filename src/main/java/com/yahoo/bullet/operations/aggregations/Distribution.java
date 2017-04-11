@@ -61,7 +61,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
                       "OR specify a start, end and increment (start < end, increment > 0) to generate points");
     public static final Error REQUIRES_POINTS_PROPER_RANGE =
             makeError(DistributionType.QUANTILE.getName() + " requires points in the proper range",
-                    "Please add or generate points: 0 <= point <= 1");
+                      "Please add or generate points: 0 <= point <= 1");
     public static final Error REQUIRES_ONE_FIELD_ERROR =
             makeError("The aggregation type requires exactly one field", "Please add exactly one field to fields");
 
