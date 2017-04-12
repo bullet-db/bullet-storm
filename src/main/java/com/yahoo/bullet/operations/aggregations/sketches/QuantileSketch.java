@@ -122,7 +122,7 @@ public class QuantileSketch extends Sketch {
         if (updated && unioned) {
             unionSketch.update(updateSketch);
         }
-        merged = unioned ? unionSketch.getResult() : updateSketch;
+        merged = unioned ? unionSketch.getResult() : updateSketch.compact();
     }
 
     @Override

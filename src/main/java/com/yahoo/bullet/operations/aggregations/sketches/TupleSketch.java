@@ -25,8 +25,6 @@ public class TupleSketch extends KMVSketch {
 
     private final int maxSize;
     private final Map<String, String> fieldNames;
-    // Need to store this to reinitialize updateSketch
-    private final UpdatableSketchBuilder<CachingGroupData, GroupDataSummary> builder;
 
     /**
      * Initialize a tuple sketch for summarizing group data.
@@ -41,7 +39,7 @@ public class TupleSketch extends KMVSketch {
     public TupleSketch(ResizeFactor resizeFactor, float samplingProbability, int nominalEntries,
                        int maxSize, Map<String, String> fieldNames) {
         GroupDataSummaryFactory factory = new GroupDataSummaryFactory();
-        builder = new UpdatableSketchBuilder(factory);
+        UpdatableSketchBuilder<CachingGroupData, GroupDataSummary> builder = new UpdatableSketchBuilder(factory);
 
         updateSketch = builder.setResizeFactor(resizeFactor).setNominalEntries(nominalEntries)
                               .setSamplingProbability(samplingProbability).build();
@@ -101,7 +99,7 @@ public class TupleSketch extends KMVSketch {
         unioned = false;
         updated = false;
         unionSketch.reset();
-        updateSketch = builder.build();
+        updateSketch.reset();
     }
 
     // Metadata

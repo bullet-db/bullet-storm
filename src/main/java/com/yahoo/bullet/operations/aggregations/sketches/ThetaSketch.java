@@ -83,8 +83,8 @@ public class ThetaSketch extends KMVSketch {
 
     @Override
     public void reset() {
-        updated = false;
         unioned = false;
+        updated = false;
         unionSketch.reset();
         updateSketch.reset();
     }
