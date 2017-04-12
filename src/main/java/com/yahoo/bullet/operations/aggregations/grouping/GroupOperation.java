@@ -89,7 +89,7 @@ public class GroupOperation implements Serializable {
     }
 
     /**
-     * Validates whether the provided {@link Collection} of {@link GroupOperation} are valid.
+     * Validates whether the provided {@link Collection} of {@link GroupOperation} is valid.
      *
      * @param operations The non-null operations to validate.
      * @return An {@link List} of {@link Error} if any operations were invalid or null if valid.

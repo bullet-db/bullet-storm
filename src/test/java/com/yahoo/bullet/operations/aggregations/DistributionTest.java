@@ -6,6 +6,7 @@ import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
+import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.bullet.result.RecordBox;
 import com.yahoo.sketches.Family;
@@ -117,6 +118,7 @@ public class DistributionTest {
         aggregation.setAttributes(makeAttributes(DistributionType.QUANTILE, -1, 1, 0.5));
         errors = distribution.initialize();
         Assert.assertEquals(errors.size(), 2);
+        System.out.println(Clip.of(new Metadata().addErrors(errors)).asJSON());
         Assert.assertEquals(errors.get(0), Distribution.REQUIRES_POINTS_ERROR);
         Assert.assertEquals(errors.get(1), Distribution.REQUIRES_POINTS_PROPER_RANGE);
 

@@ -56,9 +56,10 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
             makeError("The DISTRIBUTION type requires specifying a type", "Please set type to one of: " +
                       SUPPORTED_DISTRIBUTION_TYPES.keySet().stream().collect(Collectors.joining(", ")));
     public static final Error REQUIRES_POINTS_ERROR =
-            makeError("The DISTRIBUTION type requires at least one point",
-                      "Please add a list of numeric points, OR specify a number of equidistant points to generate" +
-                      "OR specify a start, end and increment (start < end, increment > 0) to generate points");
+            makeError("The DISTRIBUTION type requires at least one point specified in attributes",
+                      "Please add a list of numeric points with points, OR " +
+                      "specify a number of equidistant points to generate with numberOfPoints OR " +
+                      "specify a range to generate points for with start, end and increment (start < end, increment > 0)");
     public static final Error REQUIRES_POINTS_PROPER_RANGE =
             makeError(DistributionType.QUANTILE.getName() + " requires points in the proper range",
                       "Please add or generate points: 0 <= point <= 1");
