@@ -6,7 +6,6 @@ import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.bullet.result.RecordBox;
 import com.yahoo.sketches.Family;
