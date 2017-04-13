@@ -4,7 +4,7 @@
 
     <groupId>com.yahoo.bullet</groupId>
     <artifactId>bullet-storm-0.10</artifactId>
-    <version>0.3.2-SNAPSHOT</version>
+    <version>0.4.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>bullet-storm-0.10</name>
 
@@ -38,7 +38,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <storm.version>0.10.2</storm.version>
         <bullet.record.version>0.1.0</bullet.record.version>
-        <sketches.version>0.9.0</sketches.version>
+        <sketches.version>0.9.1</sketches.version>
     </properties>
 
     <dependencies>
@@ -119,7 +119,7 @@
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>2.16</version>
                 <configuration>
-                    <!-- Enables asserts for tests so the Memory Sketches modules can run assertions in testing -->
+                    <!-- Enables asserts for tests so that Sketches can run assertions in testing -->
                     <enableAssertions>true</enableAssertions>
                 </configuration>
             </plugin>

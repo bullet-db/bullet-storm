@@ -68,4 +68,16 @@ public class ClipTest {
         assertJSONEquals(Clip.of(list).asJSON(),
                          makeJSON("[{'field':'another'}, {'list_field':[{},{'foo':1}],'field':'sample','map_field':{'foo':'bar'}}]"));
     }
+
+    @Test
+    public void testSpecialValues() {
+        BulletRecord record = new RecordBox().addNull("field").add("plus_inf", Double.POSITIVE_INFINITY)
+                                             .add("neg_inf", Double.NEGATIVE_INFINITY)
+                                             .add("not_a_number", Double.NaN)
+                                             .getRecord();
+
+        assertJSONEquals(Clip.of(record).asJSON(),
+                         makeJSON("[{'field': null, 'plus_inf': 'Infinity', 'neg_inf': '-Infinity', " +
+                                  "'not_a_number': 'NaN'}]"));
+    }
 }

@@ -22,8 +22,8 @@ public class AggregationOperations {
         COUNT_DISTINCT,
         @SerializedName("TOP")
         TOP,
-        @SerializedName("PERCENTILE")
-        PERCENTILE,
+        @SerializedName("DISTRIBUTION")
+        DISTRIBUTION,
         // The alternate value of LIMIT for RAW is allowed to preserve backward compatibility.
         @SerializedName(value = "RAW", alternate = { "LIMIT" })
         RAW
@@ -42,6 +42,29 @@ public class AggregationOperations {
         private String name;
 
         GroupOperationType(String name) {
+            this.name = name;
+        }
+
+        /**
+         * Checks to see if this String represents this enum.
+         *
+         * @param name The String version of the enum.
+         * @return true if the name represents this enum.
+         */
+        public boolean isMe(String name) {
+            return this.name.equals(name);
+        }
+    }
+
+    @Getter
+    public enum DistributionType {
+        QUANTILE("QUANTILE"),
+        PMF("PMF"),
+        CDF("CDF");
+
+        private String name;
+
+        DistributionType(String name) {
             this.name = name;
         }
 

@@ -7,9 +7,12 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.TestHelpers;
+import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
 import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.operations.aggregations.CountDistinct;
 import com.yahoo.bullet.operations.aggregations.CountDistinctTest;
+import com.yahoo.bullet.operations.aggregations.Distribution;
+import com.yahoo.bullet.operations.aggregations.DistributionTest;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.querying.FilterQuery;
@@ -31,6 +34,7 @@ import java.util.Optional;
 import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
+import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
@@ -39,6 +43,15 @@ import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.GREATER_THAN;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.NOT_EQUALS;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.OR;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.COUNT_FIELD;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY_END;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.PROBABILITY_FIELD;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.RANGE_FIELD;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.SEPARATOR;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
+import static com.yahoo.bullet.parsing.AggregationUtils.makeAttributes;
 import static com.yahoo.bullet.parsing.LogicalClauseTest.clause;
 import static com.yahoo.bullet.parsing.QueryUtils.getFilterQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeAggregationQuery;
@@ -618,5 +631,55 @@ public class FilterBoltTest {
         bolt.execute(matching);
 
         Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 2, expected));
+    }
+
+    @Test
+    public void testDistribution() {
+        Map<Object, Object> config = DistributionTest.makeConfiguration(20, 128);
+        // 100 Records will be consumed
+        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(101), collector);
+
+        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                  makeAggregationQuery(DISTRIBUTION, 10, DistributionType.PMF, "field", null, null,
+                                                       null, null, 3));
+        bolt.execute(query);
+
+        IntStream.range(0, 101).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
+                               .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                               .forEach(bolt::execute);
+
+        Assert.assertEquals(collector.getEmittedCount(), 0);
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+
+        Assert.assertEquals(collector.getEmittedCount(), 1);
+
+        byte[] rawData = getRawPayloadOfNthTuple(1);
+        Assert.assertNotNull(rawData);
+
+        Distribution distribution = DistributionTest.makeDistribution(config, makeAttributes(DistributionType.PMF, 3),
+                                                                      "field", 10, null);
+        distribution.combine(rawData);
+
+        List<BulletRecord> records = distribution.getAggregation().getRecords();
+
+        BulletRecord expectedA = RecordBox.get().add(RANGE_FIELD, NEGATIVE_INFINITY_START + SEPARATOR + 0.0 + END_EXCLUSIVE)
+                                                .add(COUNT_FIELD, 0.0)
+                                                .add(PROBABILITY_FIELD, 0.0).getRecord();
+        BulletRecord expectedB = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 0.0 + SEPARATOR + 50.0 + END_EXCLUSIVE)
+                                                .add(COUNT_FIELD, 50.0)
+                                                .add(PROBABILITY_FIELD, 50.0 / 101).getRecord();
+        BulletRecord expectedC = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 50.0 + SEPARATOR + 100.0 + END_EXCLUSIVE)
+                                                .add(COUNT_FIELD, 50.0)
+                                                .add(PROBABILITY_FIELD, 50.0 / 101).getRecord();
+        BulletRecord expectedD = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 100.0 + SEPARATOR + POSITIVE_INFINITY_END)
+                                                .add(COUNT_FIELD, 1.0)
+                                                .add(PROBABILITY_FIELD, 1.0 / 101).getRecord();
+        Assert.assertEquals(records.get(0), expectedA);
+        Assert.assertEquals(records.get(1), expectedB);
+        Assert.assertEquals(records.get(2), expectedC);
+        Assert.assertEquals(records.get(3), expectedD);
     }
 }

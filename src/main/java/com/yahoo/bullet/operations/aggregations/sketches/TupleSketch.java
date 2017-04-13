@@ -1,26 +1,30 @@
 package com.yahoo.bullet.operations.aggregations.sketches;
 
 import com.yahoo.bullet.operations.aggregations.grouping.CachingGroupData;
+import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupDataSummary;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupDataSummaryFactory;
+import com.yahoo.bullet.result.Clip;
+import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.memory.NativeMemory;
+import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
 import com.yahoo.sketches.tuple.Sketch;
+import com.yahoo.sketches.tuple.SketchIterator;
 import com.yahoo.sketches.tuple.Sketches;
 import com.yahoo.sketches.tuple.Union;
 import com.yahoo.sketches.tuple.UpdatableSketch;
 import com.yahoo.sketches.tuple.UpdatableSketchBuilder;
-import lombok.Getter;
 
-public class TupleSketch implements KMVSketch {
-    private final UpdatableSketch<CachingGroupData, GroupDataSummary> updateSketch;
-    private final Union<GroupDataSummary> unionSketch;
+import java.util.Map;
 
-    @Getter
-    private Sketch<GroupDataSummary> mergedSketch;
+public class TupleSketch extends KMVSketch {
+    private UpdatableSketch<CachingGroupData, GroupDataSummary> updateSketch;
+    private Union<GroupDataSummary> unionSketch;
+    private Sketch<GroupDataSummary> merged;
 
-    private boolean updated = false;
-    private boolean unioned = false;
+    private final int maxSize;
+    private final Map<String, String> fieldNames;
 
     /**
      * Initialize a tuple sketch for summarizing group data.
@@ -28,15 +32,21 @@ public class TupleSketch implements KMVSketch {
      * @param resizeFactor The {@link ResizeFactor} to use for the sketch.
      * @param samplingProbability The sampling probability to use.
      * @param nominalEntries The nominal entries for the sketch.
+     * @param maxSize The maximum size of groups to return.
+     * @param fieldNames A non-null mapping of field names (to rename them).
      */
     @SuppressWarnings("unchecked")
-    public TupleSketch(ResizeFactor resizeFactor, float samplingProbability, int nominalEntries) {
+    public TupleSketch(ResizeFactor resizeFactor, float samplingProbability, int nominalEntries,
+                       int maxSize, Map<String, String> fieldNames) {
         GroupDataSummaryFactory factory = new GroupDataSummaryFactory();
         UpdatableSketchBuilder<CachingGroupData, GroupDataSummary> builder = new UpdatableSketchBuilder(factory);
 
         updateSketch = builder.setResizeFactor(resizeFactor).setNominalEntries(nominalEntries)
                               .setSamplingProbability(samplingProbability).build();
         unionSketch = new Union<>(nominalEntries, factory);
+
+        this.maxSize = maxSize;
+        this.fieldNames = fieldNames;
     }
 
     /**
@@ -60,34 +70,87 @@ public class TupleSketch implements KMVSketch {
     @Override
     public byte[] serialize() {
         collect();
-        return mergedSketch.toByteArray();
+        return merged.toByteArray();
     }
 
     @Override
-    public void collect() {
+    public Clip getResult(String metaKey, Map<String, String> conceptKeys) {
+        Clip result = super.getResult(metaKey, conceptKeys);
+
+        SketchIterator<GroupDataSummary> iterator = merged.iterator();
+        for (int count = 0; iterator.next() && count < maxSize; count++) {
+            GroupData data = iterator.getSummary().getData();
+            // Add the record with the remapped group names to new names.
+            result.add(data.getAsBulletRecord(fieldNames));
+        }
+        return result;
+    }
+
+    @Override
+    protected void collect() {
         if (updated && unioned) {
             unionSketch.update(updateSketch.compact());
         }
-        mergedSketch = unioned ? unionSketch.getResult() : updateSketch.compact();
+        merged = unioned ? unionSketch.getResult() : updateSketch.compact();
     }
 
     @Override
-    public boolean isEstimationMode() {
-        return mergedSketch.isEstimationMode();
+    public void reset() {
+        unioned = false;
+        updated = false;
+        unionSketch.reset();
+        updateSketch.reset();
+    }
+
+    // Metadata
+
+    @Override
+    protected Map<String, Object> getMetadata(Map<String, String> conceptKeys) {
+        Map<String, Object> metadata = super.getMetadata(conceptKeys);
+
+        addIfKeyNonNull(metadata, conceptKeys.get(Concept.UNIQUES_ESTIMATE.getName()), this::getUniquesEstimate);
+
+        return metadata;
     }
 
     @Override
-    public double getTheta() {
-        return mergedSketch.getTheta();
+    protected Boolean isEstimationMode() {
+        return merged.isEstimationMode();
     }
 
     @Override
-    public double getLowerBound(int standardDeviation) {
-        return mergedSketch.getLowerBound(standardDeviation);
+    protected String getFamily() {
+        return Family.TUPLE.getFamilyName();
     }
 
     @Override
-    public double getUpperBound(int standardDeviation) {
-        return mergedSketch.getUpperBound(standardDeviation);
+    protected Integer getSize() {
+        // Size need not be calculated since Summaries are arbitrarily large
+        return null;
+    }
+
+    @Override
+    protected Double getTheta() {
+        return merged.getTheta();
+    }
+
+    @Override
+    protected Double getLowerBound(int standardDeviation) {
+        return merged.getLowerBound(standardDeviation);
+    }
+
+    @Override
+    protected Double getUpperBound(int standardDeviation) {
+        return merged.getUpperBound(standardDeviation);
+    }
+
+    /**
+     * Returns the estimate of the uniques in the Sketch. Only applicable after {@link #collect()}.
+     *
+     * @return A Double representing the number of unique values in the Sketch.
+     */
+    protected Double getUniquesEstimate() {
+        return merged.getEstimate();
+
     }
 }

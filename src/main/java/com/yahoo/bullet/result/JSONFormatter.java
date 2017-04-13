@@ -9,7 +9,7 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 public interface JSONFormatter {
-    Gson GSON = new GsonBuilder().serializeNulls().create();
+    Gson GSON = new GsonBuilder().serializeNulls().serializeSpecialFloatingPointValues().create();
 
     /**
      * Returns a JSON string representation of object.

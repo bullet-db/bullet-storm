@@ -8,7 +8,6 @@ import com.yahoo.bullet.result.Metadata;
 
 import java.util.Collections;
 import java.util.Map;
-import java.util.function.Supplier;
 
 /**
  * The parent class for all {@link Strategy} that use Sketches.
@@ -46,44 +45,9 @@ public abstract class SketchingStrategy<S extends Sketch> implements Strategy {
         return sketch.serialize();
     }
 
-    /**
-     * Utility function to add a key to the metadata map if the key is not null.
-     *
-     * @param metadata The non-null {@link Map} representing the metadata.
-     * @param key The key to add if not null.
-     * @param supplier A {@link Supplier} that can produce a value to add to the metadata for the key.
-     */
-    public static void addIfKeyNonNull(Map<String, Object> metadata, String key, Supplier<Object> supplier) {
-        if (key != null) {
-            metadata.put(key, supplier.get());
-        }
+    @Override
+    public Clip getAggregation() {
+        String metakey = metadataKeys.getOrDefault(Metadata.Concept.SKETCH_METADATA.getName(), null);
+        return sketch.getResult(metakey, metadataKeys);
     }
-
-    /**
-     * Get the key to add the sketch metadata for this {@link Strategy} that was configured.
-     *
-     * @return The key name to add the metadata for, or null if one was not configured.
-     */
-    public String getSketchMetaKey() {
-        return metadataKeys.getOrDefault(Metadata.Concept.SKETCH_METADATA.getName(), null);
-    }
-
-    /**
-     * Adds {@link Metadata} to the {@link Clip} if it is enabled.
-     *
-     * @param clip The clip to add the metadata to.
-     * @return The original clip with or without metadata added.
-     */
-    protected Clip addMetadata(Clip clip) {
-        String metaKey = getSketchMetaKey();
-        return metaKey == null ? clip : clip.add(new Metadata().add(metaKey, getSketchMetadata(metadataKeys)));
-    }
-
-    /**
-     * Gets the common metadata for this Sketch strategy.
-     *
-     * @param conceptKeys The {@link Map} of {@link Metadata.Concept} names to their keys.
-     * @return The created {@link Map} of sketch metadata.
-     */
-    protected abstract Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys);
 }

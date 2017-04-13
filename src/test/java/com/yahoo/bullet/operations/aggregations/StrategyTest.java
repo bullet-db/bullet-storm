@@ -5,10 +5,13 @@
  */
 package com.yahoo.bullet.operations.aggregations;
 
+import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import java.util.List;
 
 public class StrategyTest {
     class TestStrategy implements Strategy {
@@ -27,6 +30,11 @@ public class StrategyTest {
 
         @Override
         public Clip getAggregation() {
+            return null;
+        }
+
+        @Override
+        public List<Error> initialize() {
             return null;
         }
     }

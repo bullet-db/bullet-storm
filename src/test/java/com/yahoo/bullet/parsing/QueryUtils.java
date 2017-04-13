@@ -6,7 +6,9 @@
 package com.yahoo.bullet.parsing;
 
 import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
+import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
 import com.yahoo.bullet.operations.FilterOperations.FilterType;
+import com.yahoo.bullet.operations.aggregations.Distribution;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.operations.typesystem.Type;
 import com.yahoo.bullet.querying.AggregationQuery;
@@ -17,6 +19,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**.
  * This class deliberately doesn't use GSON to make JSON in order to avoid any GSON specific changes or
@@ -131,6 +134,13 @@ public class QueryUtils {
         return "{'aggregation' : " + makeStringAttributesAggregation(size, operation, attributes, fields) + "}";
     }
 
+    public static String makeAggregationQuery(AggregationType operation, Integer size, DistributionType type,
+                                              String field, List<Double> points, Double start, Double end,
+                                              Double increment, Integer numberOfPoints) {
+        return "{'aggregation' : " + makeDistributionAggregation(size, operation, type, field, points, start, end,
+                                                                 increment, numberOfPoints) + "}";
+    }
+
     public static String makeFilter(String field, List<String> values, FilterType operation) {
         return "{" +
                 "'field' : " + makeString(field) + ", " +
@@ -174,6 +184,17 @@ public class QueryUtils {
                "}";
     }
 
+    public static String makeDistributionAggregation(Integer size, AggregationType operation, DistributionType type,
+                                                     String field, List<Double> points, Double start, Double end,
+                                                     Double increment, Integer numberOfPoints) {
+        return "{" +
+                 "'type' : '" + getOperationFor(operation) + "', " +
+                 "'fields' : " + makeGroupFields(Pair.of(field, field)) + ", " +
+                 "'attributes' : " + makeMap(type, points, start, end, increment, numberOfPoints) + ", " +
+                 "'size' : " + size +
+               "}";
+    }
+
     @SafeVarargs
     public static String makeStringAttributesAggregation(Integer size, AggregationType operation,
                                                          Map<String, String> attributes,
@@ -206,6 +227,27 @@ public class QueryUtils {
     public static String makeString(String field) {
         return field != null ? "'" + field + "'" : "null";
 
+    }
+
+    public static String makeMap(DistributionType type, List<Double> points, Double start, Double end, Double increment,
+                                 Integer numberOfPoints) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        builder.append("'" + Distribution.TYPE + "' : '").append(type.getName()).append("', ");
+
+        if (points != null) {
+            builder.append("'" + Distribution.POINTS + "' : [")
+                   .append(points.stream().map(Object::toString).collect(Collectors.joining(",")))
+                   .append("]");
+        } else if (numberOfPoints != null) {
+            builder.append("'" + Distribution.NUMBER_OF_POINTS + "' : ").append(numberOfPoints);
+        } else {
+            builder.append("'" + Distribution.RANGE_START + "' : ").append(start).append(", ");
+            builder.append("'" + Distribution.RANGE_END + "' : ").append(end).append(", ");
+            builder.append("'" + Distribution.RANGE_INCREMENT + "' : ").append(increment);
+        }
+        builder.append("}");
+        return builder.toString();
     }
 
     @SafeVarargs
@@ -296,6 +338,8 @@ public class QueryUtils {
                 return "GROUP";
             case COUNT_DISTINCT:
                 return "COUNT DISTINCT";
+            case DISTRIBUTION:
+                return "DISTRIBUTION";
             default:
                 return "";
         }

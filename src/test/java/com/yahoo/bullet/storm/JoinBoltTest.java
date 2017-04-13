@@ -8,9 +8,12 @@ package com.yahoo.bullet.storm;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
 import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.operations.aggregations.CountDistinct;
 import com.yahoo.bullet.operations.aggregations.CountDistinctTest;
+import com.yahoo.bullet.operations.aggregations.Distribution;
+import com.yahoo.bullet.operations.aggregations.DistributionTest;
 import com.yahoo.bullet.operations.aggregations.GroupBy;
 import com.yahoo.bullet.operations.aggregations.GroupByTest;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
@@ -18,12 +21,12 @@ import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.AggregationUtils;
 import com.yahoo.bullet.parsing.Error;
+import com.yahoo.bullet.querying.AggregationQuery;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.bullet.result.RecordBox;
-import com.yahoo.bullet.querying.AggregationQuery;
 import org.apache.commons.lang3.tuple.Pair;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.tuple.Fields;
@@ -42,12 +45,22 @@ import java.util.stream.IntStream;
 import static com.yahoo.bullet.TestHelpers.assertJSONEquals;
 import static com.yahoo.bullet.TestHelpers.getListBytes;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
+import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.COUNT_FIELD;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY_END;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.PROBABILITY_FIELD;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.RANGE_FIELD;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.SEPARATOR;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
+import static com.yahoo.bullet.parsing.AggregationUtils.makeAttributes;
 import static com.yahoo.bullet.parsing.QueryUtils.getAggregationQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeAggregationQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeGroupFilterQuery;
@@ -602,7 +615,7 @@ public class JoinBoltTest {
         bolt.execute(returnInfo);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Error expectedError = Error.of(Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX,
+        Error expectedError = Error.of(Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + null,
                                        singletonList(Aggregation.TYPE_NOT_SUPPORTED_RESOLUTION));
         Metadata expectedMetadata = Metadata.of(expectedError);
         List<Object> expected = TupleUtils.makeTuple(Clip.of(expectedMetadata).asJSON(), "").getValues();
@@ -882,5 +895,67 @@ public class JoinBoltTest {
         Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
         Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
         Assert.assertEquals(context.getCountForMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+    }
+
+    @Test
+    public void testDistribution() {
+        Map<Object, Object> config = DistributionTest.makeConfiguration(10, 128);
+
+        Distribution distribution = DistributionTest.makeDistribution(config, makeAttributes(DistributionType.PMF, 3),
+                                                                      "field", 10, null);
+
+        IntStream.range(0, 50).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
+                               .forEach(distribution::consume);
+
+        byte[] first = distribution.getSerializedAggregation();
+
+        distribution = DistributionTest.makeDistribution(config, makeAttributes(DistributionType.PMF, 3),
+                                                         "field", 10, null);
+
+        IntStream.range(50, 101).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
+                                .forEach(distribution::consume);
+
+        byte[] second = distribution.getSerializedAggregation();
+
+        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(), collector);
+
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeAggregationQuery(DISTRIBUTION, 10, DistributionType.PMF, "field",
+                                                                  null, null, null, null, 3));
+        bolt.execute(query);
+
+        Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
+
+        bolt.execute(returnInfo);
+
+        sendRawByteTuplesTo(bolt, 42L, asList(first, second));
+
+        BulletRecord expectedA = RecordBox.get().add(RANGE_FIELD, NEGATIVE_INFINITY_START + SEPARATOR + 0.0 + END_EXCLUSIVE)
+                                                .add(COUNT_FIELD, 0.0)
+                                                .add(PROBABILITY_FIELD, 0.0).getRecord();
+        BulletRecord expectedB = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 0.0 + SEPARATOR + 50.0 + END_EXCLUSIVE)
+                                                .add(COUNT_FIELD, 50.0)
+                                                .add(PROBABILITY_FIELD, 50.0 / 101).getRecord();
+        BulletRecord expectedC = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 50.0 + SEPARATOR + 100.0 + END_EXCLUSIVE)
+                                                .add(COUNT_FIELD, 50.0)
+                                                .add(PROBABILITY_FIELD, 50.0 / 101).getRecord();
+        BulletRecord expectedD = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 100.0 + SEPARATOR + POSITIVE_INFINITY_END)
+                                                .add(COUNT_FIELD, 1.0)
+                                                .add(PROBABILITY_FIELD, 1.0 / 101).getRecord();
+
+        List<BulletRecord> results = asList(expectedA, expectedB, expectedC, expectedD);
+        Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(results).asJSON(), "");
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+            bolt.execute(tick);
+            Assert.assertFalse(collector.wasTupleEmitted(expected));
+        }
+        bolt.execute(tick);
+
+        Assert.assertTrue(collector.wasNthEmitted(expected, 1));
+        Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
 }
