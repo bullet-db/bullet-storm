@@ -28,6 +28,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
     public static final int DEFAULT_ENTRIES = 1024;
 
     public static final int DEFAULT_MAX_POINTS = 100;
+    public static final int DEFAULT_POINTS = 1;
 
     // Distribution fields
     public static final String TYPE = "type";
@@ -78,7 +79,8 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
                                                 DEFAULT_ENTRIES)).intValue();
         int pointLimit = ((Number) config.getOrDefault(BulletConfig.DISTRIBUTION_AGGREGATION_MAX_POINTS,
                                                        DEFAULT_MAX_POINTS)).intValue();
-        maxPoints = Math.min(pointLimit, aggregation.getSize());
+        // The max gets rid of negative sizes if accidentally configured.
+        maxPoints = Math.max(DEFAULT_POINTS, Math.min(pointLimit, aggregation.getSize()));
         this.aggregation = aggregation;
 
         // The sketch is initialized in initialize!

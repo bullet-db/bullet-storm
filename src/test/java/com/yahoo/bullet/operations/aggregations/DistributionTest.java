@@ -430,4 +430,32 @@ public class DistributionTest {
         Assert.assertEquals(records.get(0), expectedA);
         Assert.assertEquals(records.get(1), expectedB);
     }
+
+    @Test
+    public void testNegativeSize() {
+        // We will default to MAX_POINTS is configured to -1 and we will default to Distribution.DEFAULT_SIZE which is 1
+        Distribution distribution = makeDistribution(makeConfiguration(-1, 128), makeAttributes(DistributionType.PMF, 10L),
+                                                     "field", 10, ALL_METADATA);
+
+        IntStream.range(0, 100).mapToDouble(i -> i).mapToObj(d -> RecordBox.get().add("field", d).getRecord())
+                               .forEach(distribution::consume);
+
+        Clip result = distribution.getAggregation();
+
+        Map<String, Object> metadata = (Map<String, Object>) result.getMeta().asMap().get("meta");
+        Assert.assertEquals(metadata.size(), 7);
+        Assert.assertFalse((Boolean) metadata.get("isEst"));
+
+        List<BulletRecord> records = result.getRecords();
+        Assert.assertEquals(records.size(), 2);
+
+        BulletRecord expectedA = RecordBox.get().add(RANGE_FIELD, NEGATIVE_INFINITY_START + SEPARATOR + 0.0 + END_EXCLUSIVE)
+                                                .add(COUNT_FIELD, 0.0)
+                                                .add(PROBABILITY_FIELD, 0.0).getRecord();
+        BulletRecord expectedB = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 0.0 + SEPARATOR + POSITIVE_INFINITY_END)
+                                                .add(COUNT_FIELD, 100.0)
+                                                .add(PROBABILITY_FIELD, 1.0).getRecord();
+        Assert.assertEquals(records.get(0), expectedA);
+        Assert.assertEquals(records.get(1), expectedB);
+    }
 }

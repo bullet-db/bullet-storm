@@ -105,7 +105,7 @@ public class GroupOperation implements Serializable {
     }
 
     /**
-     * Parses a {@link Set} of group operation from an Object that is expected to be a {@link List} of {@link Map}.
+     * Parses a {@link Set} of group operations from an Object that is expected to be a {@link List} of {@link Map}.
      *
      * @param attributes An Map that contains an object that is the representation of List of group operations.
      * @return A {@link Set} of GroupOperation or {@link Collections#emptySet()}.

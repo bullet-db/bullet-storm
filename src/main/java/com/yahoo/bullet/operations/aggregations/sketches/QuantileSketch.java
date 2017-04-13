@@ -216,13 +216,13 @@ public class QuantileSketch extends Sketch {
     // Static helpers
 
     private static double[] getPoints(double start, double end, int numberOfPoints) {
+        // We should have numberOfPoints >= 1 but just in case...
+        if  (numberOfPoints <= 1) {
+            return new double[] { start };
+        }
+
         double[] points = new double[numberOfPoints];
 
-        // We should have points < 1 but just in case...
-        if  (numberOfPoints <= 1) {
-            points[0] = start;
-            return points;
-        }
         // Subtract one to generate [start, start + increment, ..., start + (N-1)*increment]
         int count = numberOfPoints - 1;
         double increment = (end - start) / count;
