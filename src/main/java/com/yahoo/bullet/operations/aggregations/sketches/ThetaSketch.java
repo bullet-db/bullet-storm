@@ -1,5 +1,7 @@
 package com.yahoo.bullet.operations.aggregations.sketches;
 
+import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import com.yahoo.memory.NativeMemory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
@@ -8,16 +10,16 @@ import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
 import com.yahoo.sketches.theta.UpdateSketch;
-import lombok.Getter;
 
-public class ThetaSketch implements KMVSketch {
-    private final UpdateSketch updateSketch;
-    private final Union unionSketch;
-    @Getter
-    private Sketch mergedSketch;
+import java.util.Map;
 
-    private boolean updated = false;
-    private boolean unioned = false;
+public class ThetaSketch extends KMVSketch {
+    private UpdateSketch updateSketch;
+    private Union unionSketch;
+    private Sketch merged;
+
+    private String family;
+    private String newName;
 
     /**
      * Constructor for creating a theta sketch.
@@ -26,13 +28,17 @@ public class ThetaSketch implements KMVSketch {
      * @param family The {@link Family} to use.
      * @param samplingProbability The sampling probability to use.
      * @param nominalEntries The nominal entries for the sketch.
+     * @param newName The String name to add the result as.
      */
-    public ThetaSketch(ResizeFactor resizeFactor, Family family, float samplingProbability, int nominalEntries) {
+    public ThetaSketch(ResizeFactor resizeFactor, Family family,
+                       float samplingProbability, int nominalEntries, String newName) {
         updateSketch = UpdateSketch.builder().setFamily(family).setNominalEntries(nominalEntries)
                                              .setP(samplingProbability).setResizeFactor(resizeFactor)
                                              .build();
         unionSketch = SetOperation.builder().setNominalEntries(nominalEntries).setP(samplingProbability)
                                             .setResizeFactor(resizeFactor).buildUnion();
+        this.family = family.getFamilyName();
+        this.newName = newName;
     }
 
     /**
@@ -55,34 +61,63 @@ public class ThetaSketch implements KMVSketch {
     @Override
     public byte[] serialize() {
         collect();
-        return mergedSketch.toByteArray();
+        return merged.toByteArray();
     }
 
     @Override
-    public void collect() {
+    public Clip getResult(String metaKey, Map<String, String> conceptKeys) {
+        Clip data = super.getResult(metaKey, conceptKeys);
+        double count = merged.getEstimate();
+        BulletRecord record = new BulletRecord();
+        record.setDouble(newName, count);
+        return data.add(record);
+    }
+
+    @Override
+    protected void collect() {
         if (updated && unioned) {
             unionSketch.update(updateSketch.compact(false, null));
         }
-        mergedSketch = unioned ? unionSketch.getResult(false, null) : updateSketch.compact(false, null);
+        merged = unioned ? unionSketch.getResult(false, null) : updateSketch.compact(false, null);
     }
 
     @Override
-    public boolean isEstimationMode() {
-        return mergedSketch.isEstimationMode();
+    public void reset() {
+        unioned = false;
+        updated = false;
+        unionSketch.reset();
+        updateSketch.reset();
+    }
+
+    // Metadata
+
+    @Override
+    protected Boolean isEstimationMode() {
+        return merged.isEstimationMode();
     }
 
     @Override
-    public double getTheta() {
-        return mergedSketch.getTheta();
+    protected String getFamily() {
+        return family;
     }
 
     @Override
-    public double getLowerBound(int standardDeviation) {
-        return mergedSketch.getLowerBound(standardDeviation);
+    protected Integer getSize() {
+        return merged.getCurrentBytes(true);
     }
 
     @Override
-    public double getUpperBound(int standardDeviation) {
-        return mergedSketch.getUpperBound(standardDeviation);
+    protected Double getTheta() {
+        return merged.getTheta();
+    }
+
+    @Override
+    protected Double getLowerBound(int standardDeviation) {
+        return merged.getLowerBound(standardDeviation);
+    }
+
+    @Override
+    protected Double getUpperBound(int standardDeviation) {
+        return merged.getUpperBound(standardDeviation);
     }
 }

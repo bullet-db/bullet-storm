@@ -1,13 +1,13 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.sketches.KMVSketch;
 import com.yahoo.bullet.parsing.Aggregation;
-import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.sketches.ResizeFactor;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -20,13 +20,6 @@ public abstract class KMVStrategy<S extends KMVSketch> extends SketchingStrategy
     public static final float DEFAULT_SAMPLING_PROBABILITY = 1.0f;
     // Sketch * 8 its size upto 2 * nominal entries everytime it reaches cap
     public static final int DEFAULT_RESIZE_FACTOR = ResizeFactor.X8.lg();
-
-    // Metadata keys for Standard Deviation
-    public static final String META_STD_DEV_1 = "1";
-    public static final String META_STD_DEV_2 = "2";
-    public static final String META_STD_DEV_3 = "3";
-    public static final String META_STD_DEV_UB = "upperBound";
-    public static final String META_STD_DEV_LB = "lowerBound";
 
     // Separator for multiple fields when inserting into the Sketch
     protected final String separator;
@@ -45,52 +38,8 @@ public abstract class KMVStrategy<S extends KMVSketch> extends SketchingStrategy
         separator = config.getOrDefault(BulletConfig.AGGREGATION_COMPOSITE_FIELD_SEPARATOR,
                                         Aggregation.DEFAULT_FIELD_SEPARATOR).toString();
 
-        fields = new ArrayList<>(aggregation.getFields().keySet());
-    }
-
-    @Override
-    protected Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys) {
-        Map<String, Object> metadata = new HashMap<>();
-
-        String standardDeviationsKey = conceptKeys.get(Concept.STANDARD_DEVIATIONS.getName());
-        String isEstimatedKey = conceptKeys.get(Concept.ESTIMATED_RESULT.getName());
-        String thetaKey = conceptKeys.get(Concept.THETA.getName());
-
-        addIfKeyNonNull(metadata, standardDeviationsKey, () -> getStandardDeviations(sketch));
-        addIfKeyNonNull(metadata, isEstimatedKey, sketch::isEstimationMode);
-        addIfKeyNonNull(metadata, thetaKey, sketch::getTheta);
-
-        return metadata;
-    }
-
-    /**
-     * Gets all the standard deviations for this sketch.
-     *
-     * @param sketch A KMVSketch object.
-     * @return A standard deviations {@link Map} containing all the standard deviations.
-     */
-    public static Map<String, Map<String, Double>> getStandardDeviations(KMVSketch sketch) {
-        Map<String, Map<String, Double>> standardDeviations = new HashMap<>();
-        standardDeviations.put(META_STD_DEV_1, getStandardDeviation(sketch, 1));
-        standardDeviations.put(META_STD_DEV_2, getStandardDeviation(sketch, 2));
-        standardDeviations.put(META_STD_DEV_3, getStandardDeviation(sketch, 3));
-        return standardDeviations;
-    }
-
-    /**
-     * Gets the standard deviation for this sketch.
-     *
-     * @param sketch A wrapper around a sketch that can get the standard deviations.
-     * @param standardDeviation The standard deviation to get. Valid values are 1, 2, and 3.
-     * @return A standard deviation {@link Map} containing the upper and lower bound.
-     */
-    public static Map<String, Double> getStandardDeviation(KMVSketch sketch, int standardDeviation) {
-        double lowerBound = sketch.getLowerBound(standardDeviation);
-        double upperBound = sketch.getUpperBound(standardDeviation);
-        Map<String, Double> bounds = new HashMap<>();
-        bounds.put(META_STD_DEV_LB, lowerBound);
-        bounds.put(META_STD_DEV_UB, upperBound);
-        return bounds;
+        Map<String, String> fieldMapping = aggregation.getFields();
+        fields = Utilities.isEmpty(fieldMapping) ? Collections.emptyList() : new ArrayList<>(fieldMapping.keySet());
     }
 
     /**

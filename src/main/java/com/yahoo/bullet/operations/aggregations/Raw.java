@@ -8,6 +8,7 @@ package com.yahoo.bullet.operations.aggregations;
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import lombok.extern.slf4j.Slf4j;
@@ -132,5 +133,10 @@ public class Raw implements Strategy {
         List<BulletRecord> aggregation = aggregate;
         aggregate = new ArrayList<>();
         return Clip.of(aggregation);
+    }
+
+    @Override
+    public List<Error> initialize() {
+        return null;
     }
 }

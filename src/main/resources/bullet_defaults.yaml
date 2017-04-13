@@ -165,6 +165,18 @@ bullet.query.aggregation.group.sketch.sampling: 1.0
 # https://datasketches.github.io/docs/Theta/ThetaUpdateSpeed.html
 bullet.query.aggregation.group.sketch.resize.factor: 8
 
+# The maximum number of entries stored by a Quantile Sketch created for doing DISTRIBUTIONS. Decreasing this number
+# (rounded to powers of 2) can increase the normalized error while decreasing the total memory used by the Sketch.
+# The normalized error for a Quantile Sketch is fixed at a maximum when this number is chosen - in other
+# words, the error will be no worse than this maximum regardless of how many entries are inserted into the
+# Sketch. Refer to: https://datasketches.github.io/docs/Quantiles/QuantilesAccuracy.html
+bullet.query.aggregation.distribution.sketch.entries: 1024
+
+# The maximum number of points that can be provided or generated for the DISTRIBUTION aggregation. Any more will be
+# clamped to this value. These points are used to pick at the quantiles, or the PMF or the CDF. The number here must
+# smaller than bullet.query.aggregation.max.size. If not, the smaller of the two will be used.
+bullet.query.aggregation.distribution.max.points: 100
+
 # Enable logging meta information in the results. Configured metadata will be add to the meta section of the
 # results: {"meta": {}, "records": []}
 bullet.result.metadata.enable: true
@@ -174,13 +186,13 @@ bullet.result.metadata.enable: true
 # Query Body adds the received query definition. This is useful for diagnosing syntax exceptions when errors are received.
 # Query Creation Time adds the timestamp in milliseconds when the query was received by the Join Bolt
 # Query Termination Time adds the timestamp in milliseconds when the result was emitted by the Join Bolt
-# Aggregation Metadata adds additional nested metadata about the aggregation if set. These are listed below.
 
-# Estimated Result adds a boolean denoting whether the result was estimated. (COUNT DISTINCT, GROUP)
+# Sketch Metadata adds additional nested metadata about sketches if set. These are listed below.
+# Estimated Result adds a boolean denoting whether the result was estimated. (COUNT DISTINCT, GROUP, DISTRIBUTION)
 # Standard Deviations adds an object inside the Aggregation Metadata object where the keys are the standard deviations
 #                     and the values are objects containing upper and lower bounds (COUNT DISTINCT, GROUP)
-# Family adds the family of Sketches uses to produce the result, if one was used. (COUNT DISTINCT)
-# Size adds the size of final Sketch used to produced the result, if one was used. (COUNT DISTINCT)
+# Family adds the family of Sketches uses to produce the result, if one was used. (COUNT DISTINCT, GROUP, DISTRIBUTION)
+# Size adds the size of final Sketch used to produced the result, if one was used. (COUNT DISTINCT, DISTRIBUTION)
 # Theta adds the theta value of the Sketch for Theta and Tuple Sketches, if one was used. (COUNT DISTINCT, GROUP)
 # Uniques Estimate adds the approximate unique values seen for Tuple Sketches. (GROUP)
 # Minimum Value adds the smallest value seen for Quantile Sketches. (DISTRIBUTION)

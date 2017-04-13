@@ -5,10 +5,20 @@
  */
 package com.yahoo.bullet.operations.aggregations;
 
+import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 
+import java.util.List;
+
+import static com.yahoo.bullet.parsing.Error.makeError;
+
 public interface Strategy {
+    String REQUIRES_FEED_RESOLUTION = "Please add a field for this aggregation.";
+
+    Error REQUIRES_FIELD_ERROR =
+            makeError("This aggregation type requires at least one field", REQUIRES_FEED_RESOLUTION);
+
     /**
      * Returns true if more data will be consumed or combined. This method can be used to avoid passing more
      * data into this Strategy.
@@ -57,5 +67,12 @@ public interface Strategy {
      * @return The resulting {@link Clip} representing aggregation and metadata of the data aggregated so far.
      */
     Clip getAggregation();
+
+    /**
+     * Checks to see if this Strategy is valid. Any other methods may behave unexpectedly unless initialize passes.
+     *
+     * @return An {@link List} of {@link Error} that contains errors if validation failed or null if succeeded.
+     */
+    List<Error> initialize();
 }
 

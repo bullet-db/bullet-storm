@@ -5,12 +5,11 @@
  */
 package com.yahoo.bullet.operations.aggregations.grouping;
 
+import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.AggregationOperations;
 import com.yahoo.bullet.operations.AggregationOperations.AggregationOperator;
 import com.yahoo.bullet.operations.AggregationOperations.GroupOperationType;
 import com.yahoo.bullet.operations.SerializerDeserializer;
-import com.yahoo.bullet.operations.typesystem.Type;
-import com.yahoo.bullet.operations.typesystem.TypedObject;
 import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.Setter;
@@ -22,7 +21,6 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.AVG;
-import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
 
 /**
@@ -151,7 +149,7 @@ public class GroupData implements Serializable {
         for (Map.Entry<String, String> e : groupFields.entrySet()) {
             String field = e.getKey();
             String mapped = mapping.get(field);
-            record.setString(mapped == null || mapped.isEmpty() ? field : mapped, e.getValue());
+            record.setString(Utilities.isEmpty(mapped) ? field : mapped, e.getValue());
         }
         return record;
     }
@@ -168,10 +166,10 @@ public class GroupData implements Serializable {
             case MAX:
             case SUM:
             case AVG:
-                casted = getFieldAsNumber(operation.getField(), data);
+                casted = Specification.extractFieldAsNumber(operation.getField(), data);
                 break;
             case COUNT_FIELD:
-                casted = getFieldAsNumber(operation.getField(), data) ;
+                casted = Specification.extractFieldAsNumber(operation.getField(), data) ;
                 casted = casted != null ? 1L : null;
                 break;
         }
@@ -259,19 +257,6 @@ public class GroupData implements Serializable {
         }
         Number current = metric.getValue();
         metrics.put(metric.getKey(), current == null ? number : operator.apply(number, current));
-    }
-
-    private Number getFieldAsNumber(String field, BulletRecord data) {
-        Object value = Specification.extractField(field, data);
-        // Also checks for null
-        if (value instanceof Number) {
-            return (Number) value;
-        }
-        TypedObject asNumber = TypedObject.makeNumber(value);
-        if (asNumber.getType() == Type.UNKNOWN) {
-            return null;
-        }
-        return (Number) asNumber.getValue();
     }
 }
 

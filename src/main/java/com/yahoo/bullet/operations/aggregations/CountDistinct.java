@@ -1,24 +1,23 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.sketches.ThetaSketch;
 import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
-import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
-import com.yahoo.sketches.theta.Sketch;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class CountDistinct extends KMVStrategy<ThetaSketch> {
-    private final String newName;
+import static java.util.Collections.singletonList;
 
+public class CountDistinct extends KMVStrategy<ThetaSketch> {
     public static final String NEW_NAME_KEY = "newName";
     public static final String DEFAULT_NEW_NAME = "COUNT DISTINCT";
 
@@ -39,8 +38,6 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
         super(aggregation);
         Map<String, Object> attributes = aggregation.getAttributes();
 
-        newName = attributes == null ? DEFAULT_NEW_NAME : attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
-
         ResizeFactor resizeFactor = getResizeFactor(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_RESIZE_FACTOR);
         float samplingProbability = ((Number) config.getOrDefault(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_SAMPLING,
                                                                   DEFAULT_SAMPLING_PROBABILITY)).floatValue();
@@ -48,26 +45,21 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
                                                       DEFAULT_UPDATE_SKETCH_FAMILY).toString());
         int nominalEntries = ((Number) config.getOrDefault(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES,
                                                            DEFAULT_NOMINAL_ENTRIES)).intValue();
+        String newName = attributes == null ? DEFAULT_NEW_NAME :
+                                              attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
 
-        sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries);
+        sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries, newName);
+    }
+
+    @Override
+    public List<Error> initialize() {
+        return Utilities.isEmpty(fields) ? singletonList(REQUIRES_FIELD_ERROR) : null;
     }
 
     @Override
     public void consume(BulletRecord data) {
         String field = getFieldsAsString(fields, data, separator);
         sketch.update(field);
-    }
-
-    @Override
-    public Clip getAggregation() {
-        sketch.collect();
-        Sketch result = sketch.getMergedSketch();
-
-        double count = result.getEstimate();
-        BulletRecord record = new BulletRecord();
-        record.setDouble(newName, count);
-
-        return addMetadata(Clip.of(record));
     }
 
     private static String getFieldsAsString(List<String> fields, BulletRecord record, String separator) {
@@ -77,23 +69,8 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
                               .collect(Collectors.joining(separator));
     }
 
-    @Override
-    protected Map<String, Object> getSketchMetadata(Map<String, String> conceptKeys) {
-        Map<String, Object> metadata = super.getSketchMetadata(conceptKeys);
-
-        Sketch result = sketch.getMergedSketch();
-
-        String familyKey = conceptKeys.get(Concept.FAMILY.getName());
-        String sizeKey = conceptKeys.get(Concept.SIZE.getName());
-
-        addIfKeyNonNull(metadata, familyKey, () -> result.getFamily().getFamilyName());
-        addIfKeyNonNull(metadata, sizeKey, () -> result.getCurrentBytes(true));
-
-        return metadata;
-    }
-
     /**
-     * Convert a String family into a {@link Family}. For testing.
+     * Convert a String family into a {@link Family}. This is used to recognize a user input family choice.
      *
      * @param family The string version of the {@link Family}. Currently, QuickSelect and Alpha are supported.
      * @return The Sketch family represented by the string or {@link #DEFAULT_UPDATE_SKETCH_FAMILY} otherwise.
