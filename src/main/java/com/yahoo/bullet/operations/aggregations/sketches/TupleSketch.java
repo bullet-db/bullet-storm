@@ -16,6 +16,7 @@ import com.yahoo.sketches.tuple.Union;
 import com.yahoo.sketches.tuple.UpdatableSketch;
 import com.yahoo.sketches.tuple.UpdatableSketchBuilder;
 
+import java.util.Collections;
 import java.util.Map;
 
 public class TupleSketch extends KMVSketch {
@@ -24,7 +25,6 @@ public class TupleSketch extends KMVSketch {
     private Sketch<GroupDataSummary> merged;
 
     private final int maxSize;
-    private final Map<String, String> fieldNames;
 
     /**
      * Initialize a tuple sketch for summarizing group data.
@@ -33,11 +33,9 @@ public class TupleSketch extends KMVSketch {
      * @param samplingProbability The sampling probability to use.
      * @param nominalEntries The nominal entries for the sketch.
      * @param maxSize The maximum size of groups to return.
-     * @param fieldNames A non-null mapping of field names (to rename them).
      */
     @SuppressWarnings("unchecked")
-    public TupleSketch(ResizeFactor resizeFactor, float samplingProbability, int nominalEntries,
-                       int maxSize, Map<String, String> fieldNames) {
+    public TupleSketch(ResizeFactor resizeFactor, float samplingProbability, int nominalEntries, int maxSize) {
         GroupDataSummaryFactory factory = new GroupDataSummaryFactory();
         UpdatableSketchBuilder<CachingGroupData, GroupDataSummary> builder = new UpdatableSketchBuilder(factory);
 
@@ -46,7 +44,6 @@ public class TupleSketch extends KMVSketch {
         unionSketch = new Union<>(nominalEntries, factory);
 
         this.maxSize = maxSize;
-        this.fieldNames = fieldNames;
     }
 
     /**
@@ -80,8 +77,7 @@ public class TupleSketch extends KMVSketch {
         SketchIterator<GroupDataSummary> iterator = merged.iterator();
         for (int count = 0; iterator.next() && count < maxSize; count++) {
             GroupData data = iterator.getSummary().getData();
-            // Add the record with the remapped group names to new names.
-            result.add(data.getAsBulletRecord(fieldNames));
+            result.add(data.getAsBulletRecord(Collections.emptyMap()));
         }
         return result;
     }

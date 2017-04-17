@@ -128,7 +128,7 @@ public class GroupData implements Serializable {
     }
 
     /**
-     * Gets the data stored for the group as a {@link BulletRecord}.
+     * Gets the metrics stored for the group as a {@link BulletRecord}.
      *
      * @return A non-null {@link BulletRecord} containing the data stored in this object.
      */

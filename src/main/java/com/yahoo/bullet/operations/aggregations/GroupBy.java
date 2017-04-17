@@ -1,6 +1,7 @@
 package com.yahoo.bullet.operations.aggregations;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.grouping.CachingGroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
@@ -9,6 +10,7 @@ import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import com.yahoo.sketches.ResizeFactor;
 
 import java.util.HashMap;
@@ -16,7 +18,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * This {@link Strategy} implements a Tuple Sketch based approach to doing a group by. In particular, it
@@ -31,7 +32,9 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
     // 13.27% error rate at 99.73% confidence (3 SD). Irrelevant since we are using this to cap the number of groups.
     public static final int DEFAULT_NOMINAL_ENTRIES = 512;
 
-    private Set<GroupOperation> operations;
+    private final Set<GroupOperation> operations;
+
+    private final Map<String, String> fieldsToNames;
 
     /**
      * Constructor that requires an {@link Aggregation}.
@@ -53,9 +56,9 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
         int nominalEntries = ((Number) config.getOrDefault(BulletConfig.GROUP_AGGREGATION_SKETCH_ENTRIES,
                                                            DEFAULT_NOMINAL_ENTRIES)).intValue();
         int size = aggregation.getSize();
-        Map<String, String> fieldsToNames = aggregation.getFields();
 
-        sketch = new TupleSketch(resizeFactor, samplingProbability, nominalEntries, size, fieldsToNames);
+        fieldsToNames = aggregation.getFields();
+        sketch = new TupleSketch(resizeFactor, samplingProbability, nominalEntries, size);
     }
 
     @Override
@@ -66,7 +69,7 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
     @Override
     public void consume(BulletRecord data) {
         Map<String, String> fieldToValues = getGroups(data);
-        String key = getFieldsAsString(fields, fieldToValues, separator);
+        String key = getFieldsAsString(fields, fieldToValues);
 
         // Set the record and the group values into the container. The metrics are already initialized.
         container.setCachedRecord(data);
@@ -74,8 +77,24 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
         sketch.update(key, container);
     }
 
-    private static String getFieldsAsString(List<String> fields, Map<String, String> mapping, String separator) {
-        return fields.stream().map(mapping::get).collect(Collectors.joining(separator));
+    @Override
+    public Clip getAggregation() {
+        Clip result = super.getAggregation();
+        result.getRecords().forEach(this::renameFields);
+        return result;
+    }
+
+    private void renameFields(BulletRecord record) {
+        for (Map.Entry<String, String> entry : fieldsToNames.entrySet()) {
+            String newName = entry.getValue();
+            if (!Utilities.isEmpty(newName)) {
+                record.rename(entry.getKey(), newName);
+            }
+        }
+    }
+
+    private String getFieldsAsString(List<String> fields, Map<String, String> mapping) {
+        return composeField(fields.stream().map(mapping::get));
     }
 
     private Map<String, String> getGroups(BulletRecord record) {

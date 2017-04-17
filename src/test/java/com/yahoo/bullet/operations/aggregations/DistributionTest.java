@@ -87,6 +87,7 @@ public class DistributionTest {
         Assert.assertEquals(errors.get(0), Distribution.REQUIRES_ONE_FIELD_ERROR);
 
         aggregation.setFields(Collections.singletonMap("foo", "bar"));
+        distribution = new Distribution(aggregation);
         errors = distribution.initialize();
         Assert.assertEquals(errors.size(), 1);
         Assert.assertEquals(errors.get(0), Distribution.REQUIRES_TYPE_ERROR);
