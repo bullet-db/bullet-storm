@@ -165,7 +165,7 @@ public class FilterBoltTest {
     }
 
     private boolean isEqual(GroupData actual, BulletRecord expected) {
-        return actual.getAsBulletRecord().equals(expected);
+        return actual.getMetricsAsBulletRecord().equals(expected);
     }
 
     @BeforeMethod

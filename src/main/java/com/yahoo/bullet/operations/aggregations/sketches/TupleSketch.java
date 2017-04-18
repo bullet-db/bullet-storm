@@ -16,7 +16,6 @@ import com.yahoo.sketches.tuple.Union;
 import com.yahoo.sketches.tuple.UpdatableSketch;
 import com.yahoo.sketches.tuple.UpdatableSketchBuilder;
 
-import java.util.Collections;
 import java.util.Map;
 
 public class TupleSketch extends KMVSketch {
@@ -77,7 +76,7 @@ public class TupleSketch extends KMVSketch {
         SketchIterator<GroupDataSummary> iterator = merged.iterator();
         for (int count = 0; iterator.next() && count < maxSize; count++) {
             GroupData data = iterator.getSummary().getData();
-            result.add(data.getAsBulletRecord(Collections.emptyMap()));
+            result.add(data.getAsBulletRecord());
         }
         return result;
     }

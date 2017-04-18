@@ -5,14 +5,12 @@ import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.sketches.ThetaSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
-import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 import static java.util.Collections.singletonList;
 
@@ -57,14 +55,8 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
 
     @Override
     public void consume(BulletRecord data) {
-        String field = getFieldsAsString(fields, data);
+        String field = composeField(data);
         sketch.update(field);
-    }
-
-    private String getFieldsAsString(List<String> fields, BulletRecord record) {
-        // This explicitly does not do a TypedObject checking. Nulls turn into a String that will be counted.
-        return composeField(fields.stream().map(field -> Specification.extractField(field, record))
-                                           .map(Objects::toString));
     }
 
     /**

@@ -24,6 +24,11 @@ public class FrequentItemsSketch extends Sketch {
     // No state -> static
     private static final ArrayOfItemsSerDe<String> SER_DE = new ArrayOfUtf16StringsSerDe();
 
+    public static final String ITEM_FIELD = "item";
+    public static final String COUNT_FIELD = "count";
+    public static final String COUNT_UPPER_BOUND_FIELD = "count_ub";
+    public static final String COUNT_LOWER_BOUND_FIELD = "count_lb";
+
     /**
      * Creates a FrequentItemsSketch with the given {@link ErrorType}, the maximum map entries, and threshold.
      *
@@ -75,6 +80,10 @@ public class FrequentItemsSketch extends Sketch {
 
         for (ItemsSketch.Row<String> item : items) {
             BulletRecord record = new BulletRecord();
+            record.setString(ITEM_FIELD, item.getItem());
+            record.setLong(COUNT_FIELD, item.getEstimate());
+            record.setLong(COUNT_LOWER_BOUND_FIELD, item.getLowerBound());
+            record.setLong(COUNT_UPPER_BOUND_FIELD, item.getUpperBound());
             data.add(record);
         }
 

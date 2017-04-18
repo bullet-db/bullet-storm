@@ -8,15 +8,12 @@ import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.operations.aggregations.sketches.TupleSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
-import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.sketches.ResizeFactor;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -68,7 +65,8 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
 
     @Override
     public void consume(BulletRecord data) {
-        Map<String, String> fieldToValues = getGroups(data);
+        Map<String, String> fieldToValues = getFields(data);
+        // More optimal than calling composeFields
         String key = getFieldsAsString(fields, fieldToValues);
 
         // Set the record and the group values into the container. The metrics are already initialized.
@@ -95,15 +93,5 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
 
     private String getFieldsAsString(List<String> fields, Map<String, String> mapping) {
         return composeField(fields.stream().map(mapping::get));
-    }
-
-    private Map<String, String> getGroups(BulletRecord record) {
-        Map<String, String> groupMapping = new HashMap<>();
-        for (String key : fields) {
-            // This explicitly does not do a TypedObject checking. Nulls (and everything else) turn into Strings
-            String value = Objects.toString(Specification.extractField(key, record));
-            groupMapping.put(key, value);
-        }
-        return groupMapping;
     }
 }

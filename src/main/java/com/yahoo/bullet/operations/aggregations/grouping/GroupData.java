@@ -16,6 +16,7 @@ import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -132,20 +133,29 @@ public class GroupData implements Serializable {
      *
      * @return A non-null {@link BulletRecord} containing the data stored in this object.
      */
-    public BulletRecord getAsBulletRecord() {
+    public BulletRecord getMetricsAsBulletRecord() {
         BulletRecord record = new BulletRecord();
         metrics.entrySet().stream().forEach(e -> addToRecord(e, record));
         return record;
     }
 
     /**
-     * Gets the data stored for the group as a {@link BulletRecord}.
+     * Gets the metrics and the group values stored as a {@link BulletRecord}.
      *
-     * @param mapping A non-null new name mapping for the names of the group fields.
+     * @return A non-null {@link BulletRecord} containing the data stored in this object.
+     */
+    public BulletRecord getAsBulletRecord() {
+        return getAsBulletRecord(Collections.emptyMap());
+    }
+
+    /**
+     * Gets the metrics and the group values stored as a {@link BulletRecord}.
+     *
+     * @param mapping An non-null new name mapping for the names of the group fields.
      * @return A non-null {@link BulletRecord} containing the data stored in this object.
      */
     public BulletRecord getAsBulletRecord(Map<String, String> mapping) {
-        BulletRecord record = getAsBulletRecord();
+        BulletRecord record = getMetricsAsBulletRecord();
         for (Map.Entry<String, String> e : groupFields.entrySet()) {
             String field = e.getKey();
             String mapped = mapping.get(field);

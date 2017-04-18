@@ -4,14 +4,18 @@ import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.sketches.Sketch;
 import com.yahoo.bullet.parsing.Aggregation;
+import com.yahoo.bullet.parsing.Specification;
+import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -71,10 +75,36 @@ public abstract class SketchingStrategy<S extends Sketch> implements Strategy {
     }
 
     /**
-     * Collects a {@link Stream} of String fields into a single composite field with the separator.
+     * Gets the values for the fields from the record.
      *
-     * @param fields The non-null fields to combine.
+     * @param record The record containing values for the fields.
+     * @return A {@link Map} of the field names to the values.
+     */
+    public Map<String, String> getFields(BulletRecord record) {
+        Map<String, String> fieldValues = new HashMap<>();
+        for (String field : fields) {
+            // This explicitly does not do a TypedObject checking. Nulls (and everything else) turn into Strings
+            String value = Objects.toString(Specification.extractField(field, record));
+            fieldValues.put(field, value);
+        }
+        return fieldValues;
+    }
+
+    /**
+     * Extracts the fields in a pre-determined order from {@link BulletRecord} as one String with the separator.
+     *
+     * @param record The non-null record containing data for the fields.
      * @return A string representing the composite field.
+     */
+    public String composeField(BulletRecord record) {
+        return composeField(fields.stream().map(field -> Objects.toString(Specification.extractField(field, record))));
+    }
+
+    /**
+     * Composes a {@link Stream} of strings together into one string with the separator.
+     *
+     * @param fields The fields to combine.
+     * @return A string that represents the fields.
      */
     public String composeField(Stream<String> fields) {
         return fields.collect(Collectors.joining(separator));
