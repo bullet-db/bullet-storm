@@ -2,7 +2,7 @@ package com.yahoo.bullet.operations.aggregations.sketches;
 
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata;
+import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.memory.NativeMemory;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
 import com.yahoo.sketches.ArrayOfUtf16StringsSerDe;
@@ -20,14 +20,13 @@ public class FrequentItemsSketch extends Sketch {
 
     private final ErrorType type;
     private final long threshold;
+    private final int maxSize;
 
     // No state -> static
     private static final ArrayOfItemsSerDe<String> SER_DE = new ArrayOfUtf16StringsSerDe();
 
     public static final String ITEM_FIELD = "item";
     public static final String COUNT_FIELD = "count";
-    public static final String COUNT_UPPER_BOUND_FIELD = "count_ub";
-    public static final String COUNT_LOWER_BOUND_FIELD = "count_lb";
 
     /**
      * Creates a FrequentItemsSketch with the given {@link ErrorType}, the maximum map entries, and threshold.
@@ -35,10 +34,12 @@ public class FrequentItemsSketch extends Sketch {
      * @param type The {@link ErrorType} for the Sketch.
      * @param maxMapCapacity The maximum power of 2 entries for the Sketch used as the internal map size.
      * @param threshold The threshold that will be used for selecting items if the Sketch error is less than it.
+     * @param maxSize The maximum size of the number of frequent items.
      */
-    public FrequentItemsSketch(ErrorType type, int maxMapCapacity, long threshold) {
+    public FrequentItemsSketch(ErrorType type, int maxMapCapacity, long threshold, int maxSize) {
         this.type = type;
         this.threshold = threshold;
+        this.maxSize = maxSize;
         sketch = new ItemsSketch<>(maxMapCapacity);
     }
 
@@ -47,10 +48,11 @@ public class FrequentItemsSketch extends Sketch {
      *
      * @param type The {@link ErrorType} for the Sketch.
      * @param maxMapCapacity The maximum power of 2 entries for the Sketch used as the internal map size.
+     * @param maxSize The maximum size of the number of frequent items.
      */
-    public FrequentItemsSketch(ErrorType type, int maxMapCapacity) {
+    public FrequentItemsSketch(ErrorType type, int maxMapCapacity, int maxSize) {
         // Using -1 guarantees that the Sketch will use its error rather than the -1 threshold.
-        this(type, maxMapCapacity, -1L);
+        this(type, maxMapCapacity, -1L, maxSize);
     }
 
     /**
@@ -78,12 +80,11 @@ public class FrequentItemsSketch extends Sketch {
         Clip data = super.getResult(metaKey, conceptKeys);
         ItemsSketch.Row<String>[] items = sketch.getFrequentItems(threshold, type);
 
-        for (ItemsSketch.Row<String> item : items) {
+        for (int i = 0; i < items.length && i < maxSize; ++i) {
+            ItemsSketch.Row<String> item = items[i];
             BulletRecord record = new BulletRecord();
             record.setString(ITEM_FIELD, item.getItem());
             record.setLong(COUNT_FIELD, item.getEstimate());
-            record.setLong(COUNT_LOWER_BOUND_FIELD, item.getLowerBound());
-            record.setLong(COUNT_UPPER_BOUND_FIELD, item.getUpperBound());
             data.add(record);
         }
 
@@ -93,11 +94,9 @@ public class FrequentItemsSketch extends Sketch {
     @Override
     protected Map<String, Object> getMetadata(Map<String, String> conceptKeys) {
         Map<String, Object> metadata = super.getMetadata(conceptKeys);
-
-        addIfKeyNonNull(metadata, Metadata.Concept.ITEMS_SEEN.getName(), this::getStreamLength);
-        addIfKeyNonNull(metadata, Metadata.Concept.ACTIVE_ITEMS.getName(), this::getItemsStored);
-        addIfKeyNonNull(metadata, Metadata.Concept.MAXIMUM_COUNT_ERROR.getName(), this::getMaximumError);
-
+        addIfNonNull(metadata, conceptKeys.get(Concept.ITEMS_SEEN.getName()), this::getStreamLength);
+        addIfNonNull(metadata, conceptKeys.get(Concept.ACTIVE_ITEMS.getName()), this::getItemsStored);
+        addIfNonNull(metadata, conceptKeys.get(Concept.MAXIMUM_COUNT_ERROR.getName()), this::getMaximumError);
         return metadata;
     }
 

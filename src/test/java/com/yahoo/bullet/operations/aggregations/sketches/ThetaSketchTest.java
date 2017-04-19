@@ -27,12 +27,12 @@ public class ThetaSketchTest {
 
     @Test(expectedExceptions = SketchesArgumentException.class)
     public void testBadCreation() {
-        new ThetaSketch(null, null, 1.0f, -2, "foo");
+        new ThetaSketch(null, null, 1.0f, -2);
     }
 
     @Test
     public void testUpdatingForExactResult() {
-        ThetaSketch sketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512, "count");
+        ThetaSketch sketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512);
         sketch.update("foo");
         sketch.update("bar");
         sketch.update("baz");
@@ -40,14 +40,14 @@ public class ThetaSketchTest {
         List<BulletRecord> actuals = sketch.getResult(null, null).getRecords();
         Assert.assertEquals(actuals.size(), 1);
 
-        BulletRecord expected = RecordBox.get().add("count", 3.0).getRecord();
+        BulletRecord expected = RecordBox.get().add(ThetaSketch.COUNT_FIELD, 3.0).getRecord();
         BulletRecord actual = actuals.get(0);
         Assert.assertEquals(actual, expected);
     }
 
     @Test
     public void testUpdatingForApproximateResult() {
-        ThetaSketch sketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512, "count");
+        ThetaSketch sketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512);
         IntStream.range(0, 1024).forEach(i -> sketch.update(String.valueOf(i)));
 
         Map<String, String> metaKeys = new HashMap<>();
@@ -62,7 +62,7 @@ public class ThetaSketchTest {
         Assert.assertTrue((Boolean) stats.get("isEst"));
 
         Assert.assertEquals(result.getRecords().size(), 1);
-        double actual = (Double) result.getRecords().get(0).get("count");
+        double actual = (Double) result.getRecords().get(0).get(ThetaSketch.COUNT_FIELD);
         // We better be at least 50% accurate with 512 entries and 1024 uniques
         Assert.assertTrue(actual > 512);
         Assert.assertTrue(actual < 1536);
@@ -70,13 +70,13 @@ public class ThetaSketchTest {
 
     @Test
     public void testUnioning() {
-        ThetaSketch sketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512, "count");
+        ThetaSketch sketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512);
         IntStream.range(0, 1024).forEach(i -> sketch.update(String.valueOf(i)));
 
-        ThetaSketch anotherSketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512, "count");
+        ThetaSketch anotherSketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512);
         IntStream.range(-1024, 0).forEach(i -> anotherSketch.update(String.valueOf(i)));
 
-        ThetaSketch unionSketch = new ThetaSketch(ResizeFactor.X4, Family.QUICKSELECT, 1.0f, 512, "count");
+        ThetaSketch unionSketch = new ThetaSketch(ResizeFactor.X4, Family.QUICKSELECT, 1.0f, 512);
         unionSketch.union(sketch.serialize());
         unionSketch.union(anotherSketch.serialize());
 
@@ -103,7 +103,7 @@ public class ThetaSketchTest {
         double lowerThreeSigma = standardDeviations.get(KMVSketch.META_STD_DEV_3).get(KMVSketch.META_STD_DEV_LB);
 
         Assert.assertEquals(result.getRecords().size(), 1);
-        double actual = (Double) result.getRecords().get(0).get("count");
+        double actual = (Double) result.getRecords().get(0).get(ThetaSketch.COUNT_FIELD);
 
         Assert.assertTrue(actual >= lowerOneSigma);
         Assert.assertTrue(actual <= upperOneSigma);
@@ -115,14 +115,14 @@ public class ThetaSketchTest {
 
     @Test
     public void testResetting() {
-        ThetaSketch sketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512, "count");
+        ThetaSketch sketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512);
         sketch.update("foo");
         sketch.update("bar");
         sketch.update("baz");
 
         List<BulletRecord> actuals = sketch.getResult(null, null).getRecords();
         Assert.assertEquals(actuals.size(), 1);
-        BulletRecord expected = RecordBox.get().add("count", 3.0).getRecord();
+        BulletRecord expected = RecordBox.get().add(ThetaSketch.COUNT_FIELD, 3.0).getRecord();
         BulletRecord actual = actuals.get(0);
         Assert.assertEquals(actual, expected);
 
@@ -130,11 +130,11 @@ public class ThetaSketchTest {
 
         actuals = sketch.getResult(null, null).getRecords();
         Assert.assertEquals(actuals.size(), 1);
-        expected = RecordBox.get().add("count", 0.0).getRecord();
+        expected = RecordBox.get().add(ThetaSketch.COUNT_FIELD, 0.0).getRecord();
         actual = actuals.get(0);
         Assert.assertEquals(actual, expected);
 
-        ThetaSketch anotherSketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512, "count");
+        ThetaSketch anotherSketch = new ThetaSketch(ResizeFactor.X4, Family.ALPHA, 1.0f, 512);
         IntStream.range(0, 41).forEach(i -> anotherSketch.update(String.valueOf(i)));
 
         sketch.union(anotherSketch.serialize());
@@ -142,7 +142,7 @@ public class ThetaSketchTest {
 
         actuals = sketch.getResult(null, null).getRecords();
         Assert.assertEquals(actuals.size(), 1);
-        expected = RecordBox.get().add("count", 42.0).getRecord();
+        expected = RecordBox.get().add(ThetaSketch.COUNT_FIELD, 42.0).getRecord();
         actual = actuals.get(0);
         Assert.assertEquals(actual, expected);
     }

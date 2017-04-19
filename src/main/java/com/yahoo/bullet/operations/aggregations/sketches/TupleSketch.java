@@ -102,9 +102,7 @@ public class TupleSketch extends KMVSketch {
     @Override
     protected Map<String, Object> getMetadata(Map<String, String> conceptKeys) {
         Map<String, Object> metadata = super.getMetadata(conceptKeys);
-
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.UNIQUES_ESTIMATE.getName()), this::getUniquesEstimate);
-
+        addIfNonNull(metadata, conceptKeys.get(Concept.UNIQUES_ESTIMATE.getName()), this::getUniquesEstimate);
         return metadata;
     }
 

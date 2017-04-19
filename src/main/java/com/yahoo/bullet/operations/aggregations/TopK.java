@@ -15,7 +15,7 @@ import java.util.Map;
 import static java.util.Collections.singletonList;
 
 public class TopK extends SketchingStrategy<FrequentItemsSketch> {
-    public static final int MAX_MAP_ENTRIES = 1024;
+    public static final int DEFAULT_MAX_MAP_ENTRIES = 1024;
 
     public static final String NO_FALSE_NEGATIVES = "NFN";
     public static final String NO_FALSE_POSITIVES = "NFP";
@@ -32,18 +32,19 @@ public class TopK extends SketchingStrategy<FrequentItemsSketch> {
     public TopK(Aggregation aggregation) {
         super(aggregation);
 
-        int maxMapSize = ((Number) config.getOrDefault(BulletConfig.TOP_K_AGGREGATION_SKETCH_ENTRIES,
-                                                       MAX_MAP_ENTRIES)).intValue();
-
         String errorConfiguration = (config.getOrDefault(BulletConfig.TOP_K_AGGREGATION_SKETCH_ERROR_TYPE,
                                                          DEFAULT_ERROR_TYPE)).toString();
 
         ErrorType errorType = getErrorType(errorConfiguration);
 
+        int maxMapSize = getMaxMapEntries(config);
+
         Long threshold = getThreshold(aggregation.getAttributes());
 
-        sketch = threshold != null ? new FrequentItemsSketch(errorType, maxMapSize, threshold) :
-                                     new FrequentItemsSketch(errorType, maxMapSize);
+        int size = aggregation.getSize();
+
+        sketch = threshold != null ? new FrequentItemsSketch(errorType, maxMapSize, threshold, size) :
+                                     new FrequentItemsSketch(errorType, maxMapSize, size);
     }
 
     @Override
@@ -67,12 +68,22 @@ public class TopK extends SketchingStrategy<FrequentItemsSketch> {
     }
 
     private void splitFields(BulletRecord record) {
-        String field = record.get(FrequentItemsSketch.ITEM_FIELD).toString();
+        String field = record.getAndRemove(FrequentItemsSketch.ITEM_FIELD).toString();
         List<String> values = decomposeField(field);
         for (int i = 0; i < fields.size(); ++i) {
             record.setString(fields.get(i), values.get(i));
         }
-        record.remove(FrequentItemsSketch.ITEM_FIELD);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static int getMaxMapEntries(Map config) {
+        int entries = ((Number) config.getOrDefault(BulletConfig.TOP_K_AGGREGATION_SKETCH_ENTRIES,
+                                                   DEFAULT_MAX_MAP_ENTRIES)).intValue();
+        // If non-positive or not a power of 2
+        if (entries <= 0 || (entries & entries - 1) != 0) {
+            return DEFAULT_MAX_MAP_ENTRIES;
+        }
+        return entries;
     }
 
     private static Long getThreshold(Map<String, Object> attributes)  {

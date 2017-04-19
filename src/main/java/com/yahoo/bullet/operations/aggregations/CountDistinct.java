@@ -6,6 +6,7 @@ import com.yahoo.bullet.operations.aggregations.sketches.ThetaSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
 
@@ -25,6 +26,8 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
     // rate at 99.73% confidence (3 Standard Deviations).
     public static final int DEFAULT_NOMINAL_ENTRIES = 16384;
 
+    private final String newName;
+
     /**
      * Constructor that requires an {@link Aggregation}.
      *
@@ -42,10 +45,9 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
                                                       DEFAULT_UPDATE_SKETCH_FAMILY).toString());
         int nominalEntries = ((Number) config.getOrDefault(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES,
                                                            DEFAULT_NOMINAL_ENTRIES)).intValue();
-        String newName = attributes == null ? DEFAULT_NEW_NAME :
-                                              attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
+        newName = attributes == null ? DEFAULT_NEW_NAME : attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
 
-        sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries, newName);
+        sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries);
     }
 
     @Override
@@ -57,6 +59,15 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
     public void consume(BulletRecord data) {
         String field = composeField(data);
         sketch.update(field);
+    }
+
+    @Override
+    public Clip getAggregation() {
+        Clip result = super.getAggregation();
+        // One record only
+        BulletRecord record = result.getRecords().get(0);
+        record.rename(ThetaSketch.COUNT_FIELD, newName);
+        return result;
     }
 
     /**
