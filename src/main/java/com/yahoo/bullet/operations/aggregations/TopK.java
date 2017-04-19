@@ -15,6 +15,9 @@ import java.util.Map;
 import static java.util.Collections.singletonList;
 
 public class TopK extends SketchingStrategy<FrequentItemsSketch> {
+    public static final String NEW_NAME_KEY = "newName";
+    public static final String DEFAULT_NEW_NAME = "COUNT";
+
     public static final int DEFAULT_MAX_MAP_ENTRIES = 1024;
 
     public static final String NO_FALSE_NEGATIVES = "NFN";
@@ -22,6 +25,8 @@ public class TopK extends SketchingStrategy<FrequentItemsSketch> {
     public static final String DEFAULT_ERROR_TYPE = NO_FALSE_NEGATIVES;
 
     public static final String THRESHOLD_FIELD = "threshold";
+
+    private final String newName;
 
     /**
      * Constructor that requires an {@link Aggregation}.
@@ -39,9 +44,13 @@ public class TopK extends SketchingStrategy<FrequentItemsSketch> {
 
         int maxMapSize = getMaxMapEntries(config);
 
-        Long threshold = getThreshold(aggregation.getAttributes());
+        Map<String, Object> attributes = aggregation.getAttributes();
+
+        Integer threshold = getThreshold(attributes);
 
         int size = aggregation.getSize();
+
+        newName = attributes == null ? DEFAULT_NEW_NAME : attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
 
         sketch = threshold != null ? new FrequentItemsSketch(errorType, maxMapSize, threshold, size) :
                                      new FrequentItemsSketch(errorType, maxMapSize, size);
@@ -71,8 +80,11 @@ public class TopK extends SketchingStrategy<FrequentItemsSketch> {
         String field = record.getAndRemove(FrequentItemsSketch.ITEM_FIELD).toString();
         List<String> values = decomposeField(field);
         for (int i = 0; i < fields.size(); ++i) {
-            record.setString(fields.get(i), values.get(i));
+            String originalField = fields.get(i);
+            String fieldName = fieldsToNames.get(originalField);
+            record.setString(Utilities.isEmpty(fieldName) ? originalField : fieldName, values.get(i));
         }
+        record.rename(FrequentItemsSketch.COUNT_FIELD, newName);
     }
 
     @SuppressWarnings("unchecked")
@@ -86,11 +98,11 @@ public class TopK extends SketchingStrategy<FrequentItemsSketch> {
         return entries;
     }
 
-    private static Long getThreshold(Map<String, Object> attributes)  {
+    private static Integer getThreshold(Map<String, Object> attributes)  {
         if (Utilities.isEmpty(attributes)) {
             return null;
         }
-        return Utilities.getCasted(attributes, THRESHOLD_FIELD, Long.class);
+        return Utilities.getCasted(attributes, THRESHOLD_FIELD, Integer.class);
     }
 
     private static ErrorType getErrorType(String errorType) {

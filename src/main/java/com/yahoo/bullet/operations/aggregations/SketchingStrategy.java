@@ -12,10 +12,10 @@ import com.yahoo.bullet.result.Metadata;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -34,11 +34,11 @@ public abstract class SketchingStrategy<S extends Sketch> implements Strategy {
     protected final String separator;
 
     // The fields being inserted into the Sketch
+    protected final Map<String, String> fieldsToNames;
     protected final List<String> fields;
 
     // The Sketch that should be initialized by a child class
     protected S sketch;
-
 
     /**
      * The constructor for creating a Sketch based strategy.
@@ -53,8 +53,8 @@ public abstract class SketchingStrategy<S extends Sketch> implements Strategy {
         separator = config.getOrDefault(BulletConfig.AGGREGATION_COMPOSITE_FIELD_SEPARATOR,
                                         Aggregation.DEFAULT_FIELD_SEPARATOR).toString();
 
-        Map<String, String> fieldMapping = aggregation.getFields();
-        fields = Utilities.isEmpty(fieldMapping) ? Collections.emptyList() : new ArrayList<>(fieldMapping.keySet());
+        fieldsToNames = aggregation.getFields();
+        fields = Utilities.isEmpty(fieldsToNames) ? Collections.emptyList() : new ArrayList<>(fieldsToNames.keySet());
 
     }
 
@@ -72,22 +72,6 @@ public abstract class SketchingStrategy<S extends Sketch> implements Strategy {
     public Clip getAggregation() {
         String metakey = metadataKeys.getOrDefault(Metadata.Concept.SKETCH_METADATA.getName(), null);
         return sketch.getResult(metakey, metadataKeys);
-    }
-
-    /**
-     * Gets the values for the fields from the record.
-     *
-     * @param record The record containing values for the fields.
-     * @return A {@link Map} of the field names to the values.
-     */
-    public Map<String, String> getFields(BulletRecord record) {
-        Map<String, String> fieldValues = new HashMap<>();
-        for (String field : fields) {
-            // This explicitly does not do a TypedObject checking. Nulls (and everything else) turn into Strings
-            String value = Objects.toString(Specification.extractField(field, record));
-            fieldValues.put(field, value);
-        }
-        return fieldValues;
     }
 
     /**
@@ -117,6 +101,6 @@ public abstract class SketchingStrategy<S extends Sketch> implements Strategy {
      * @return A {@link List} of the fields that this field was made of.
      */
     public List<String> decomposeField(String field) {
-        return Arrays.asList(field.split(separator));
+        return Arrays.asList(field.split(Pattern.quote(separator)));
     }
 }

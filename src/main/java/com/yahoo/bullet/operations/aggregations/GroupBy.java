@@ -8,12 +8,15 @@ import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.operations.aggregations.sketches.TupleSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
+import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.sketches.ResizeFactor;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -30,8 +33,6 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
     public static final int DEFAULT_NOMINAL_ENTRIES = 512;
 
     private final Set<GroupOperation> operations;
-
-    private final Map<String, String> fieldsToNames;
 
     /**
      * Constructor that requires an {@link Aggregation}.
@@ -54,7 +55,6 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
                                                            DEFAULT_NOMINAL_ENTRIES)).intValue();
         int size = aggregation.getSize();
 
-        fieldsToNames = aggregation.getFields();
         sketch = new TupleSketch(resizeFactor, samplingProbability, nominalEntries, size);
     }
 
@@ -80,6 +80,16 @@ public class GroupBy extends KMVStrategy<TupleSketch> {
         Clip result = super.getAggregation();
         result.getRecords().forEach(this::renameFields);
         return result;
+    }
+
+    private Map<String, String> getFields(BulletRecord record) {
+        Map<String, String> fieldValues = new HashMap<>();
+        for (String field : fields) {
+            // This explicitly does not do a TypedObject checking. Nulls (and everything else) turn into Strings
+            String value = Objects.toString(Specification.extractField(field, record));
+            fieldValues.put(field, value);
+        }
+        return fieldValues;
     }
 
     private void renameFields(BulletRecord record) {
