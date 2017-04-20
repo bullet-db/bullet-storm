@@ -313,5 +313,3 @@ public class AggregationTest {
         Assert.assertEquals(aggregation.getStrategy().getClass(), Distribution.class);
     }
 }
-
-
