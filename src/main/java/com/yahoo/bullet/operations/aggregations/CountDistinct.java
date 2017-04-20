@@ -16,7 +16,7 @@ import java.util.Map;
 import static java.util.Collections.singletonList;
 
 public class CountDistinct extends KMVStrategy<ThetaSketch> {
-    public static final String NEW_NAME_KEY = "newName";
+    public static final String NEW_NAME_FIELD = "newName";
     public static final String DEFAULT_NEW_NAME = "COUNT DISTINCT";
 
     // Theta Sketch defaults
@@ -45,7 +45,8 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
                                                       DEFAULT_UPDATE_SKETCH_FAMILY).toString());
         int nominalEntries = ((Number) config.getOrDefault(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES,
                                                            DEFAULT_NOMINAL_ENTRIES)).intValue();
-        newName = attributes == null ? DEFAULT_NEW_NAME : attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
+        newName = attributes == null ? DEFAULT_NEW_NAME :
+                                       attributes.getOrDefault(NEW_NAME_FIELD, DEFAULT_NEW_NAME).toString();
 
         sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries);
     }

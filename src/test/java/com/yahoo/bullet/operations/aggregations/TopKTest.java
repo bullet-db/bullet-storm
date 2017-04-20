@@ -42,7 +42,7 @@ public class TopKTest {
     public static TopK makeTopK(Map<Object, Object> configuration, Map<String, Object> attributes,
                                 Map<String, String> fields, int size, List<Map.Entry<Concept, String>> metadata) {
         Aggregation aggregation = new Aggregation();
-        aggregation.setType(AggregationOperations.AggregationType.TOP);
+        aggregation.setType(AggregationOperations.AggregationType.TOP_K);
         aggregation.setFields(fields);
         aggregation.setAttributes(attributes);
         aggregation.setSize(size);
@@ -53,7 +53,7 @@ public class TopKTest {
     }
 
     public static TopK makeTopK(ErrorType type, List<String> fields, String newName, int maxMapSize, int size,
-                                Integer threshold) {
+                                Long threshold) {
         return makeTopK(makeConfiguration(type, maxMapSize), makeAttributes(newName, threshold),
                         makeGroupFields(fields), size, ALL_METADATA);
     }
@@ -138,7 +138,7 @@ public class TopKTest {
 
     @Test
     public void testExactTopKThreshold() {
-        TopK topK = makeTopK(ErrorType.NO_FALSE_POSITIVES, asList("A", "B"), "cnt", 64, 3, 25);
+        TopK topK = makeTopK(ErrorType.NO_FALSE_POSITIVES, asList("A", "B"), "cnt", 64, 3, 25L);
         IntStream.range(0, 20).mapToObj(i -> RecordBox.get().add("A", i).getRecord()).forEach(topK::consume);
         IntStream.range(0, 25).mapToObj(i -> RecordBox.get().add("A", 108).getRecord()).forEach(topK::consume);
         IntStream.range(0, 24).mapToObj(i -> RecordBox.get().add("A", "foo").add("B", "bar").getRecord())

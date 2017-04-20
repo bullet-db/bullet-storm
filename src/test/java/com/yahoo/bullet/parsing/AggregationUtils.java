@@ -118,18 +118,18 @@ public class AggregationUtils {
     public static Map<String, Object> makeAttributes(String name) {
         Map<String, Object> map = new HashMap<>();
         if (name != null) {
-            map.put(CountDistinct.NEW_NAME_KEY, name);
+            map.put(CountDistinct.NEW_NAME_FIELD, name);
         }
         return map;
     }
 
-    public static Map<String, Object> makeAttributes(String name, Integer threshold) {
+    public static Map<String, Object> makeAttributes(String name, Long threshold) {
         Map<String, Object> map = new HashMap<>();
         if (threshold != null) {
             map.put(TopK.THRESHOLD_FIELD, threshold);
         }
         if (name != null) {
-            map.put(TopK.NEW_NAME_KEY, name);
+            map.put(TopK.NEW_NAME_FIELD, name);
         }
         return map;
     }

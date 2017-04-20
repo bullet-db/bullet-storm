@@ -15,7 +15,7 @@ import java.util.Map;
 import static java.util.Collections.singletonList;
 
 public class TopK extends SketchingStrategy<FrequentItemsSketch> {
-    public static final String NEW_NAME_KEY = "newName";
+    public static final String NEW_NAME_FIELD = "newName";
     public static final String DEFAULT_NEW_NAME = "COUNT";
 
     public static final int DEFAULT_MAX_MAP_ENTRIES = 1024;
@@ -42,17 +42,15 @@ public class TopK extends SketchingStrategy<FrequentItemsSketch> {
 
         ErrorType errorType = getErrorType(errorConfiguration);
 
-        int maxMapSize = getMaxMapEntries(config);
-
         Map<String, Object> attributes = aggregation.getAttributes();
 
-        Integer threshold = getThreshold(attributes);
+        newName = attributes == null ? DEFAULT_NEW_NAME :
+                                       attributes.getOrDefault(NEW_NAME_FIELD, DEFAULT_NEW_NAME).toString();
 
+        int maxMapSize = getMaxMapEntries(config);
+        Number threshold = getThreshold(attributes);
         int size = aggregation.getSize();
-
-        newName = attributes == null ? DEFAULT_NEW_NAME : attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
-
-        sketch = threshold != null ? new FrequentItemsSketch(errorType, maxMapSize, threshold, size) :
+        sketch = threshold != null ? new FrequentItemsSketch(errorType, maxMapSize, threshold.longValue(), size) :
                                      new FrequentItemsSketch(errorType, maxMapSize, size);
     }
 
@@ -98,11 +96,11 @@ public class TopK extends SketchingStrategy<FrequentItemsSketch> {
         return entries;
     }
 
-    private static Integer getThreshold(Map<String, Object> attributes)  {
+    private static Number getThreshold(Map<String, Object> attributes)  {
         if (Utilities.isEmpty(attributes)) {
             return null;
         }
-        return Utilities.getCasted(attributes, THRESHOLD_FIELD, Integer.class);
+        return Utilities.getCasted(attributes, THRESHOLD_FIELD, Number.class);
     }
 
     private static ErrorType getErrorType(String errorType) {
