@@ -5,20 +5,18 @@ import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.sketches.ThetaSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.Error;
-import com.yahoo.bullet.parsing.Specification;
 import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.result.Clip;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.ResizeFactor;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import static java.util.Collections.singletonList;
 
 public class CountDistinct extends KMVStrategy<ThetaSketch> {
-    public static final String NEW_NAME_KEY = "newName";
+    public static final String NEW_NAME_FIELD = "newName";
     public static final String DEFAULT_NEW_NAME = "COUNT DISTINCT";
 
     // Theta Sketch defaults
@@ -27,6 +25,8 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
     // This gives us (Alpha sketches fall back to QuickSelect RSEs after compaction or set operations) a 2.34% error
     // rate at 99.73% confidence (3 Standard Deviations).
     public static final int DEFAULT_NOMINAL_ENTRIES = 16384;
+
+    private final String newName;
 
     /**
      * Constructor that requires an {@link Aggregation}.
@@ -45,10 +45,10 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
                                                       DEFAULT_UPDATE_SKETCH_FAMILY).toString());
         int nominalEntries = ((Number) config.getOrDefault(BulletConfig.COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES,
                                                            DEFAULT_NOMINAL_ENTRIES)).intValue();
-        String newName = attributes == null ? DEFAULT_NEW_NAME :
-                                              attributes.getOrDefault(NEW_NAME_KEY, DEFAULT_NEW_NAME).toString();
+        newName = attributes == null ? DEFAULT_NEW_NAME :
+                                       attributes.getOrDefault(NEW_NAME_FIELD, DEFAULT_NEW_NAME).toString();
 
-        sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries, newName);
+        sketch = new ThetaSketch(resizeFactor, family, samplingProbability, nominalEntries);
     }
 
     @Override
@@ -58,15 +58,17 @@ public class CountDistinct extends KMVStrategy<ThetaSketch> {
 
     @Override
     public void consume(BulletRecord data) {
-        String field = getFieldsAsString(fields, data, separator);
+        String field = composeField(data);
         sketch.update(field);
     }
 
-    private static String getFieldsAsString(List<String> fields, BulletRecord record, String separator) {
-        // This explicitly does not do a TypedObject checking. Nulls turn into a String that will be counted.
-        return fields.stream().map(field -> Specification.extractField(field, record))
-                              .map(Objects::toString)
-                              .collect(Collectors.joining(separator));
+    @Override
+    public Clip getAggregation() {
+        Clip result = super.getAggregation();
+        // One record only
+        BulletRecord record = result.getRecords().get(0);
+        record.rename(ThetaSketch.COUNT_FIELD, newName);
+        return result;
     }
 
     /**

@@ -88,7 +88,6 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
 
     @Override
     public List<Error> initialize() {
-        Map<String, String> fields = aggregation.getFields();
         if (Utilities.isEmpty(fields) || fields.size() != 1) {
             return singletonList(REQUIRES_ONE_FIELD_ERROR);
         }
@@ -104,9 +103,6 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
             return singletonList(REQUIRES_TYPE_ERROR);
         }
 
-        // Initialize field since we have exactly 1
-        field = fields.keySet().stream().findFirst().get();
-
         // Try to initialize sketch now
         sketch = getSketch(entries, maxPoints, type, attributes);
 
@@ -114,6 +110,10 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
             return type == DistributionType.QUANTILE ? asList(REQUIRES_POINTS_ERROR, REQUIRES_POINTS_PROPER_RANGE) :
                                                        singletonList(REQUIRES_POINTS_ERROR);
         }
+
+        // Initialize field since we have exactly 1
+        field = fields.get(0);
+
         return null;
     }
 

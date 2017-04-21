@@ -45,10 +45,8 @@ public abstract class KMVSketch extends Sketch {
     @Override
     protected Map<String, Object> getMetadata(Map<String, String> conceptKeys) {
         Map<String, Object> metadata = super.getMetadata(conceptKeys);
-
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.STANDARD_DEVIATIONS.getName()), this::getStandardDeviations);
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.THETA.getName()), this::getTheta);
-
+        addIfNonNull(metadata, conceptKeys.get(Concept.STANDARD_DEVIATIONS.getName()), this::getStandardDeviations);
+        addIfNonNull(metadata, conceptKeys.get(Concept.THETA.getName()), this::getTheta);
         return metadata;
     }
 

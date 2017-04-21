@@ -62,6 +62,6 @@ public class GroupAll implements Strategy {
 
     @Override
     public Clip getAggregation() {
-        return Clip.of(data.getAsBulletRecord());
+        return Clip.of(data.getMetricsAsBulletRecord());
     }
 }

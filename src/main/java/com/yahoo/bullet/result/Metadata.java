@@ -41,7 +41,9 @@ public class Metadata {
         MINIMUM_VALUE("Minimum Value"),
         MAXIMUM_VALUE("Maximum Value"),
         ITEMS_SEEN("Items Seen"),
-        NORMALIZED_RANK_ERROR("Normalized Rank Error");
+        NORMALIZED_RANK_ERROR("Normalized Rank Error"),
+        MAXIMUM_COUNT_ERROR("Maximum Count Error"),
+        ACTIVE_ITEMS("Active Items");
 
         private String name;
 

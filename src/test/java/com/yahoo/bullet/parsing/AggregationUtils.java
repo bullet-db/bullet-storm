@@ -8,7 +8,9 @@ package com.yahoo.bullet.parsing;
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.AggregationOperations;
 import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
+import com.yahoo.bullet.operations.aggregations.CountDistinct;
 import com.yahoo.bullet.operations.aggregations.Distribution;
+import com.yahoo.bullet.operations.aggregations.TopK;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.result.Metadata;
 
@@ -111,5 +113,24 @@ public class AggregationUtils {
 
     public static Map<String, Object> makeAttributes(DistributionType type, List<Double> points) {
         return makeAttributes(type, null, null, null, null, points);
+    }
+
+    public static Map<String, Object> makeAttributes(String name) {
+        Map<String, Object> map = new HashMap<>();
+        if (name != null) {
+            map.put(CountDistinct.NEW_NAME_FIELD, name);
+        }
+        return map;
+    }
+
+    public static Map<String, Object> makeAttributes(String name, Long threshold) {
+        Map<String, Object> map = new HashMap<>();
+        if (threshold != null) {
+            map.put(TopK.THRESHOLD_FIELD, threshold);
+        }
+        if (name != null) {
+            map.put(TopK.NEW_NAME_FIELD, name);
+        }
+        return map;
     }
 }

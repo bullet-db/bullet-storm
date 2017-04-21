@@ -19,7 +19,8 @@ public class ThetaSketch extends KMVSketch {
     private Sketch merged;
 
     private String family;
-    private String newName;
+
+    public static final String COUNT_FIELD = "count";
 
     /**
      * Constructor for creating a theta sketch.
@@ -28,17 +29,14 @@ public class ThetaSketch extends KMVSketch {
      * @param family The {@link Family} to use.
      * @param samplingProbability The sampling probability to use.
      * @param nominalEntries The nominal entries for the sketch.
-     * @param newName The String name to add the result as.
      */
-    public ThetaSketch(ResizeFactor resizeFactor, Family family,
-                       float samplingProbability, int nominalEntries, String newName) {
+    public ThetaSketch(ResizeFactor resizeFactor, Family family, float samplingProbability, int nominalEntries) {
         updateSketch = UpdateSketch.builder().setFamily(family).setNominalEntries(nominalEntries)
                                              .setP(samplingProbability).setResizeFactor(resizeFactor)
                                              .build();
         unionSketch = SetOperation.builder().setNominalEntries(nominalEntries).setP(samplingProbability)
                                             .setResizeFactor(resizeFactor).buildUnion();
         this.family = family.getFamilyName();
-        this.newName = newName;
     }
 
     /**
@@ -69,7 +67,7 @@ public class ThetaSketch extends KMVSketch {
         Clip data = super.getResult(metaKey, conceptKeys);
         double count = merged.getEstimate();
         BulletRecord record = new BulletRecord();
-        record.setDouble(newName, count);
+        record.setDouble(COUNT_FIELD, count);
         return data.add(record);
     }
 

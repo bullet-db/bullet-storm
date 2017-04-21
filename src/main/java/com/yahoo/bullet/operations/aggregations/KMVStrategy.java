@@ -1,15 +1,8 @@
 package com.yahoo.bullet.operations.aggregations;
 
-import com.yahoo.bullet.BulletConfig;
-import com.yahoo.bullet.Utilities;
 import com.yahoo.bullet.operations.aggregations.sketches.KMVSketch;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.sketches.ResizeFactor;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
 
 /**
  * The parent class for {@link SketchingStrategy} that use the KMV type of Sketch - Theta and Tuple.
@@ -21,12 +14,6 @@ public abstract class KMVStrategy<S extends KMVSketch> extends SketchingStrategy
     // Sketch * 8 its size upto 2 * nominal entries everytime it reaches cap
     public static final int DEFAULT_RESIZE_FACTOR = ResizeFactor.X8.lg();
 
-    // Separator for multiple fields when inserting into the Sketch
-    protected final String separator;
-
-    // The fields being inserted into the Sketch
-    protected final List<String> fields;
-
     /**
      * Constructor that requires an {@link Aggregation}.
      *
@@ -35,11 +22,6 @@ public abstract class KMVStrategy<S extends KMVSketch> extends SketchingStrategy
     @SuppressWarnings("unchecked")
     public KMVStrategy(Aggregation aggregation) {
         super(aggregation);
-        separator = config.getOrDefault(BulletConfig.AGGREGATION_COMPOSITE_FIELD_SEPARATOR,
-                                        Aggregation.DEFAULT_FIELD_SEPARATOR).toString();
-
-        Map<String, String> fieldMapping = aggregation.getFields();
-        fields = Utilities.isEmpty(fieldMapping) ? Collections.emptyList() : new ArrayList<>(fieldMapping.keySet());
     }
 
     /**

@@ -309,7 +309,7 @@ public class GroupByTest {
 
     @Test
     public void testMetadata() {
-        Map<String, String> fields = singletonMap("fieldA", "A");
+        Map<String, String> fields = singletonMap("fieldA", null);
         // Nominal Entries is 32. Aggregation size is also 32
         GroupBy groupBy = makeGroupBy(makeConfiguration(32), fields, 32,
                                       singletonList(makeGroupOperation(COUNT, null, null)), ALL_METADATA);
@@ -321,6 +321,7 @@ public class GroupByTest {
 
         List<BulletRecord> records = aggregate.getRecords();
         Assert.assertEquals(records.size(), 32);
+        records.forEach(r -> Assert.assertTrue(Integer.valueOf(r.get("fieldA").toString()) < 64));
 
         Map<String, Object> meta = aggregate.getMeta().asMap();
         Assert.assertEquals(meta.size(), 1);

@@ -20,8 +20,8 @@ public class AggregationOperations {
         GROUP,
         @SerializedName("COUNT DISTINCT")
         COUNT_DISTINCT,
-        @SerializedName("TOP")
-        TOP,
+        @SerializedName("TOP K")
+        TOP_K,
         @SerializedName("DISTRIBUTION")
         DISTRIBUTION,
         // The alternate value of LIMIT for RAW is allowed to preserve backward compatibility.
