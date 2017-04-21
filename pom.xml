@@ -37,7 +37,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <storm.version>0.10.2</storm.version>
-        <bullet.record.version>0.1.0</bullet.record.version>
+        <bullet.record.version>0.1.1</bullet.record.version>
         <sketches.version>0.9.1</sketches.version>
     </properties>
 

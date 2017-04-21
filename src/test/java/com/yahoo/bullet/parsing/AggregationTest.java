@@ -26,7 +26,6 @@ import java.util.Optional;
 
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT_FIELD;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
@@ -110,16 +109,7 @@ public class AggregationTest {
         aggregation.setType(null);
         List<Error> errors = aggregation.validate().get();
         Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + null);
-    }
-
-    @Test
-    public void testFailValidateOnUnknownType() {
-        Aggregation aggregation = new Aggregation();
-        aggregation.setType(TOP);
-        List<Error> errors = aggregation.validate().get();
-        Assert.assertEquals(errors.size(), 1);
-        Assert.assertEquals(errors.get(0).getError(), Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + "TOP");
+        Assert.assertEquals(errors.get(0), Aggregation.TYPE_NOT_SUPPORTED_ERROR);
     }
 
     @Test
@@ -255,7 +245,7 @@ public class AggregationTest {
     public void testUnimplementedStrategies() {
         Aggregation aggregation = new Aggregation();
 
-        aggregation.setType(AggregationOperations.AggregationType.TOP);
+        aggregation.setType(null);
         aggregation.configure(Collections.emptyMap());
         Assert.assertNull(aggregation.getStrategy());
     }
@@ -323,5 +313,3 @@ public class AggregationTest {
         Assert.assertEquals(aggregation.getStrategy().getClass(), Distribution.class);
     }
 }
-
-

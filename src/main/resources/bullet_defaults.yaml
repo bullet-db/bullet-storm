@@ -54,7 +54,7 @@ bullet.topology.join.bolt.parallelism: 20
 
 # Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if queries
 # have expired) etc. This setting controls the how frequently a tick happens - number of seconds between ticks.
-bullet.topology.tick.interval.secs: 5
+bullet.topology.tick.interval.secs: 1
 
 # This is the number of ticks for which an error caused by receiving a bad query will be buffered if the
 # return information has not been received, will be buffered before being thrown away
@@ -96,7 +96,7 @@ bullet.query.aggregation.raw.micro.batch.size: 1
 
 # The maximum number of records that will be collected for Raw aggregations. This number should be <= to the
 # query.aggregation.max.size value. If it is greater, the aggregation size will be used.
-bullet.query.aggregation.raw.max.size: 30
+bullet.query.aggregation.raw.max.size: 100
 
 # The maximum number of entries stored by a Sketch created for doing COUNT DISTINCTS. Decreasing this number
 # (rounded to powers of 2) can decrease the accuracy for high cardinality dimensions while decreasing the total
@@ -156,6 +156,25 @@ bullet.query.aggregation.distribution.sketch.entries: 1024
 # smaller than bullet.query.aggregation.max.size. If not, the smaller of the two will be used.
 bullet.query.aggregation.distribution.max.points: 100
 
+# The maximum number of entries used as an internal map size by a FrequentItems Sketch created for doing TOP K. It must
+# be a power of 2. Decreasing this number can increase the maximum count error while decreasing the total memory used
+# by the Sketch. The Sketch will count frequencies correctly up to 0.75 * this number for each of the UNIQUE items.
+# However, if your number of uniques exceeds this value, the distribution of your data determines the accuracy of the
+# count. The only thing the Sketch can guarantee is that error bound is determined by the number of items inserted into
+# the Sketch and NOT the number of unique items. There is a table that can be found at:
+# https://datasketches.github.io/docs/FrequentItems/FrequentItemsErrorTable.html
+# that shows how the error grows with stream length. This error is almost always a high over-estimate. In practice,
+# the error is MUCH smaller (discussion here: https://datasketches.github.io/docs/FrequentItems/FrequentItemsOverview.html)
+bullet.query.aggregation.top.k.sketch.entries: 1024
+
+# The ErrorType to be used for getting frequent items for the TOP K aggregation. The accepted values are "NFP" and
+# "NFN". NFP is No False Positives and NFN is No False Negatives. The frequent item entries returned by the Sketch for
+# NFN will be a superset of the entries for NFP.
+# The Sketch has a error threshold number determined by the data and it can't be sure that the items that have an error
+# range that cross this threshold have a usable count or is just noise. NFN returns these items while NFP does not.
+# More details can be found here: https://datasketches.github.io/docs/FrequentItems/FrequentItemsOverview.html
+bullet.query.aggregation.top.k.sketch.error.type: "NFN"
+
 # Enable logging meta information in the results. Configured metadata will be add to the meta section of the
 # results: {"meta": {}, "records": []}
 bullet.result.metadata.enable: true
@@ -167,18 +186,21 @@ bullet.result.metadata.enable: true
 # Query Termination Time adds the timestamp in milliseconds when the result was emitted by the Join Bolt
 
 # Sketch Metadata adds additional nested metadata about sketches if set. These are listed below.
-# Estimated Result adds a boolean denoting whether the result was estimated. (COUNT DISTINCT, GROUP, DISTRIBUTION)
+# Estimated Result adds a boolean denoting whether the result was estimated. (COUNT DISTINCT, GROUP, DISTRIBUTION, TOP K)
 # Standard Deviations adds an object inside the Aggregation Metadata object where the keys are the standard deviations
 #                     and the values are objects containing upper and lower bounds (COUNT DISTINCT, GROUP)
-# Family adds the family of Sketches uses to produce the result, if one was used. (COUNT DISTINCT, GROUP, DISTRIBUTION)
+# Family adds the family of Sketches uses to produce the result, if one was used. (COUNT DISTINCT, GROUP, DISTRIBUTION, TOP K)
 # Size adds the size of final Sketch used to produced the result, if one was used. (COUNT DISTINCT, DISTRIBUTION)
 # Theta adds the theta value of the Sketch for Theta and Tuple Sketches, if one was used. (COUNT DISTINCT, GROUP)
 # Uniques Estimate adds the approximate unique values seen for Tuple Sketches. (GROUP)
 # Minimum Value adds the smallest value seen for Quantile Sketches. (DISTRIBUTION)
 # Maximum Value adds the largest value seen for Quantile Sketches. (DISTRIBUTION)
-# Items Seen adds the number of items inserted into Quantile Sketches. (DISTRIBUTION)
+# Items Seen adds the number of items inserted into Quantile Sketches, FrequentItemsSketches. (DISTRIBUTION, TOP K)
 # Normalized Rank Error adds the error of the Quantile Sketch as a double between 0 and 1.0. If this was 0.002, for e.g, then
 #                       the error bound on a quantile estimate like median would be : 49.8% >= median <= 50.2%. (DISTRIBUTION)
+# Maximum Count Error adds the error of the FrequentItems Sketch as a long. This will be the distance between the upper
+#                     bound and lower bound of a count for an item. It will be 0 if the count is exact. (TOP K)
+# Active Items adds the number of items being tracked in the the FrequentItems Sketch at the time of the query completion. (TOP K)
 bullet.result.metadata.metrics:
     - name: "Query Identifier"
       key: "query_id"
@@ -210,6 +232,10 @@ bullet.result.metadata.metrics:
       key: "items_seen"
     - name: "Normalized Rank Error"
       key: "normalized_rank_error"
+    - name: "Maximum Count Error"
+      key: "maximum_count_error"
+    - name: "Active Items"
+      key: "active_items"
 
 # Enables whether each record should have a new key added to it denoting when the Filter Bolt saw it
 bullet.record.inject.timestamp.enable: true

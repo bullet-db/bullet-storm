@@ -15,6 +15,7 @@ import com.yahoo.bullet.operations.aggregations.GroupAll;
 import com.yahoo.bullet.operations.aggregations.GroupBy;
 import com.yahoo.bullet.operations.aggregations.Raw;
 import com.yahoo.bullet.operations.aggregations.Strategy;
+import com.yahoo.bullet.operations.aggregations.TopK;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -48,10 +49,10 @@ public class Aggregation implements Configurable, Validatable {
 
     public static final Set<AggregationType> SUPPORTED_AGGREGATION_TYPES =
             new HashSet<>(asList(AggregationType.GROUP, AggregationType.COUNT_DISTINCT, AggregationType.RAW,
-                                 AggregationType.DISTRIBUTION));
-    public static final String TYPE_NOT_SUPPORTED_ERROR_PREFIX = "Aggregation type not supported: ";
-    public static final String TYPE_NOT_SUPPORTED_RESOLUTION = "Current supported aggregation types are: RAW (or LIMIT), " +
-                                                               "GROUP (or DISTINCT), COUNT DISTINCT, DISTRIBUTION";
+                                 AggregationType.DISTRIBUTION, AggregationType.TOP_K));
+    public static final Error TYPE_NOT_SUPPORTED_ERROR =
+            makeError("Unknown aggregation type", "Current supported aggregation types are: RAW (or LIMIT), " +
+                                                  "GROUP (or DISTINCT), COUNT DISTINCT, DISTRIBUTION, TOP K");
 
     public static final Integer DEFAULT_SIZE = 1;
     public static final Integer DEFAULT_MAX_SIZE = 512;
@@ -85,8 +86,7 @@ public class Aggregation implements Configurable, Validatable {
     @Override
     public Optional<List<Error>> validate() {
         if (strategy == null) {
-            return Optional.of(singletonList(makeError(TYPE_NOT_SUPPORTED_ERROR_PREFIX + type,
-                                                       TYPE_NOT_SUPPORTED_RESOLUTION)));
+            return Optional.of(singletonList(TYPE_NOT_SUPPORTED_ERROR));
         }
         List<Error> errors = strategy.initialize();
         return Utilities.isEmpty(errors) ? Optional.empty() : Optional.of(errors);
@@ -109,6 +109,8 @@ public class Aggregation implements Configurable, Validatable {
                 return new Distribution(this);
             case RAW:
                 return new Raw(this);
+            case TOP_K:
+                return new TopK(this);
         }
         // If we have any fields -> GroupBy
         return Utilities.isEmpty(fields) ? new GroupAll(this) : new GroupBy(this);

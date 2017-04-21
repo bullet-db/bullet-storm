@@ -137,10 +137,10 @@ public class QuantileSketch extends Sketch {
     protected Map<String, Object> getMetadata(Map<String, String> conceptKeys) {
         Map<String, Object> metadata = super.getMetadata(conceptKeys);
 
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.MINIMUM_VALUE.getName()), this::getMinimum);
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.MAXIMUM_VALUE.getName()), this::getMaximum);
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.ITEMS_SEEN.getName()), this::getNumberOfEntries);
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.NORMALIZED_RANK_ERROR.getName()), this::getNormalizedRankError);
+        addIfNonNull(metadata, conceptKeys.get(Concept.MINIMUM_VALUE.getName()), this::getMinimum);
+        addIfNonNull(metadata, conceptKeys.get(Concept.MAXIMUM_VALUE.getName()), this::getMaximum);
+        addIfNonNull(metadata, conceptKeys.get(Concept.ITEMS_SEEN.getName()), this::getNumberOfEntries);
+        addIfNonNull(metadata, conceptKeys.get(Concept.NORMALIZED_RANK_ERROR.getName()), this::getNormalizedRankError);
 
         return metadata;
     }

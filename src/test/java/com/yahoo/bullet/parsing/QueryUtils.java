@@ -9,6 +9,7 @@ import com.yahoo.bullet.operations.AggregationOperations.AggregationType;
 import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
 import com.yahoo.bullet.operations.FilterOperations.FilterType;
 import com.yahoo.bullet.operations.aggregations.Distribution;
+import com.yahoo.bullet.operations.aggregations.TopK;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.operations.typesystem.Type;
 import com.yahoo.bullet.querying.AggregationQuery;
@@ -141,6 +142,12 @@ public class QueryUtils {
                                                                  increment, numberOfPoints) + "}";
     }
 
+    @SafeVarargs
+    public static String makeAggregationQuery(AggregationType operation, Integer size, Long threshold,
+                                              String newName, Pair<String, String>... fields) {
+        return "{'aggregation' : " + makeTopKAggregation(size, operation, threshold, newName, fields) + "}";
+    }
+
     public static String makeFilter(String field, List<String> values, FilterType operation) {
         return "{" +
                 "'field' : " + makeString(field) + ", " +
@@ -193,6 +200,17 @@ public class QueryUtils {
                  "'attributes' : " + makeMap(type, points, start, end, increment, numberOfPoints) + ", " +
                  "'size' : " + size +
                "}";
+    }
+
+    @SafeVarargs
+    public static String makeTopKAggregation(Integer size, AggregationType operation, Long threshold,
+                                             String newName, Pair<String, String>... fields) {
+        return "{" +
+                "'type' : '" + getOperationFor(operation) + "', " +
+                "'fields' : " + makeGroupFields(fields) + ", " +
+                "'attributes' : " + makeMap(threshold, newName) + ", " +
+                "'size' : " + size +
+                "}";
     }
 
     @SafeVarargs
@@ -250,6 +268,22 @@ public class QueryUtils {
         return builder.toString();
     }
 
+    public static String makeMap(Long threshold, String newName) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("{");
+        if (threshold != null) {
+            builder.append("'" + TopK.THRESHOLD_FIELD + "' : ").append(threshold);
+        }
+        if (threshold != null && newName != null) {
+            builder.append(", ");
+        }
+        if (newName != null) {
+            builder.append("'" + TopK.NEW_NAME_FIELD + "' : ").append(newName);
+        }
+        builder.append("}");
+        return builder.toString();
+    }
+
     @SafeVarargs
     public static String makeMap(Pair<String, String>... pairs) {
         StringBuilder builder = new StringBuilder();
@@ -258,8 +292,8 @@ public class QueryUtils {
         String delimiter = "";
         for (Pair<String, String> pair : pairs) {
             builder.append(delimiter)
-                    .append("'").append(pair.getKey()).append("'")
-                    .append(" : '").append(pair.getValue()).append("'");
+                   .append("'").append(pair.getKey()).append("'")
+                   .append(" : '").append(pair.getValue()).append("'");
             delimiter = ", ";
         }
         builder.append("}");
@@ -330,8 +364,8 @@ public class QueryUtils {
 
     public static String getOperationFor(AggregationType operation) {
         switch (operation) {
-            case TOP:
-                return "TOP";
+            case TOP_K:
+                return "TOP K";
             case RAW:
                 return "RAW";
             case GROUP:

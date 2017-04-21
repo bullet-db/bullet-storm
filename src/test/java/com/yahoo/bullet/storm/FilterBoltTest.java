@@ -13,11 +13,14 @@ import com.yahoo.bullet.operations.aggregations.CountDistinct;
 import com.yahoo.bullet.operations.aggregations.CountDistinctTest;
 import com.yahoo.bullet.operations.aggregations.Distribution;
 import com.yahoo.bullet.operations.aggregations.DistributionTest;
+import com.yahoo.bullet.operations.aggregations.TopK;
+import com.yahoo.bullet.operations.aggregations.TopKTest;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.querying.FilterQuery;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
+import com.yahoo.sketches.frequencies.ErrorType;
 import org.apache.commons.lang3.tuple.Pair;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
@@ -37,6 +40,7 @@ import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
+import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP_K;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.AND;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
@@ -165,7 +169,7 @@ public class FilterBoltTest {
     }
 
     private boolean isEqual(GroupData actual, BulletRecord expected) {
-        return actual.getAsBulletRecord().equals(expected);
+        return actual.getMetricsAsBulletRecord().equals(expected);
     }
 
     @BeforeMethod
@@ -245,8 +249,8 @@ public class FilterBoltTest {
     @Test
     public void testProjectionAndFiltering() {
         Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
-                                  makeProjectionFilterQuery("map_field.id", singletonList("123"), EQUALS,
-                                          Pair.of("field", "id"), Pair.of("map_field.id", "mid")));
+                makeProjectionFilterQuery("map_field.id", singletonList("123"), EQUALS,
+                        Pair.of("field", "id"), Pair.of("map_field.id", "mid")));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -302,7 +306,7 @@ public class FilterBoltTest {
     @Test
     public void testMultiFiltering() {
         Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5));
+                makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5));
         bolt.execute(query);
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
         Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
@@ -320,7 +324,7 @@ public class FilterBoltTest {
     public void testDifferentQueryMatchingSameTuple() {
         Tuple queryA = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, makeFieldFilterQuery("b235gf23b"));
         Tuple queryB = makeIDTuple(TupleType.Type.QUERY_TUPLE, 43L,
-                                   makeFilterQuery("timestamp", asList("1", "2", "3", "45"), EQUALS));
+                makeFilterQuery("timestamp", asList("1", "2", "3", "45"), EQUALS));
         bolt.execute(queryA);
         bolt.execute(queryB);
 
@@ -340,7 +344,7 @@ public class FilterBoltTest {
     public void testDifferentQueryMatchingDifferentTuple() {
         Tuple queryA = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, makeFieldFilterQuery("b235gf23b"));
         Tuple queryB = makeIDTuple(TupleType.Type.QUERY_TUPLE, 43L,
-                                   makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS));
+                makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS));
         bolt.execute(queryA);
         bolt.execute(queryB);
 
@@ -442,24 +446,24 @@ public class FilterBoltTest {
     @Test
     public void testComplexFilterQuery() {
         Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
-                                  makeFilterQuery(OR,
-                                                  clause(AND,
-                                                         clause("field", EQUALS, "abc"),
-                                                         clause(OR,
-                                                                clause(AND,
-                                                                       clause("experience", EQUALS, "app", "tv"),
-                                                                       clause("pid", EQUALS, "1", "2")),
-                                                                clause("mid", GREATER_THAN, "10"))),
-                                                  clause(AND,
-                                                         clause("demographic_map.age", GREATER_THAN, "65"),
-                                                         clause("filter_map.is_fake_event", EQUALS, "true"))));
+                makeFilterQuery(OR,
+                        clause(AND,
+                                clause("field", EQUALS, "abc"),
+                                clause(OR,
+                                        clause(AND,
+                                                clause("experience", EQUALS, "app", "tv"),
+                                                clause("pid", EQUALS, "1", "2")),
+                                        clause("mid", GREATER_THAN, "10"))),
+                        clause(AND,
+                                clause("demographic_map.age", GREATER_THAN, "65"),
+                                clause("filter_map.is_fake_event", EQUALS, "true"))));
         bolt.execute(query);
 
         // first clause is true : field == "abc", experience == "app" or "tv", mid < 10
         BulletRecord recordA = RecordBox.get().add("field", "abc")
                                               .add("experience", "tv")
                                               .add("mid", 11)
-                                              .getRecord();
+                .getRecord();
         // second clause is false: age > 65 and is_fake_event == null
         BulletRecord recordB = RecordBox.get().addMap("demographic_map", Pair.of("age", "67")).getRecord();
 
@@ -513,8 +517,8 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new ExpiringFilterBolt(15), collector);
 
         Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
-                                  makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS,
-                                                       GROUP, 1, singletonList(new GroupOperation(COUNT, null, "cnt"))));
+                makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS,
+                        GROUP, 1, singletonList(new GroupOperation(COUNT, null, "cnt"))));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("timestamp", "1").getRecord();
@@ -585,7 +589,7 @@ public class FilterBoltTest {
 
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
                                .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
-                               .forEach(bolt::execute);
+                .forEach(bolt::execute);
 
         Assert.assertEquals(collector.getEmittedCount(), 0);
 
@@ -609,7 +613,7 @@ public class FilterBoltTest {
     @Test
     public void testNoConsumptionAfterExpiry() {
         Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5));
+                makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -660,7 +664,7 @@ public class FilterBoltTest {
         Assert.assertNotNull(rawData);
 
         Distribution distribution = DistributionTest.makeDistribution(config, makeAttributes(DistributionType.PMF, 3),
-                                                                      "field", 10, null);
+                "field", 10, null);
         distribution.combine(rawData);
 
         List<BulletRecord> records = distribution.getAggregation().getRecords();
@@ -681,5 +685,50 @@ public class FilterBoltTest {
         Assert.assertEquals(records.get(1), expectedB);
         Assert.assertEquals(records.get(2), expectedC);
         Assert.assertEquals(records.get(3), expectedD);
+    }
+
+    @Test
+    public void testTopK() {
+        Map<Object, Object> config = TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 32);
+        // 16 records
+        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(16), collector);
+
+        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                  makeAggregationQuery(TOP_K, 5, null, "cnt", Pair.of("A", ""), Pair.of("B", "foo")));
+        bolt.execute(query);
+
+        IntStream.range(0, 8).mapToObj(i -> RecordBox.get().add("A", i).getRecord())
+                .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                .forEach(bolt::execute);
+        IntStream.range(0, 6).mapToObj(i -> RecordBox.get().add("A", 0).getRecord())
+                             .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                .forEach(bolt::execute);
+        IntStream.range(0, 2).mapToObj(i -> RecordBox.get().add("A", 3).getRecord())
+                             .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                .forEach(bolt::execute);
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+
+        Assert.assertEquals(collector.getEmittedCount(), 1);
+
+        byte[] rawData = getRawPayloadOfNthTuple(1);
+        Assert.assertNotNull(rawData);
+
+        Map<String, String> fields = new HashMap<>();
+        fields.put("A", "");
+        fields.put("B", "foo");
+        TopK topK = TopKTest.makeTopK(config, makeAttributes("cnt", null), fields, 2, null);
+        topK.combine(rawData);
+
+        List<BulletRecord> records = topK.getAggregation().getRecords();
+        Assert.assertEquals(records.size(), 2);
+
+        BulletRecord expectedA = RecordBox.get().add("A", "0").add("foo", "null").add("cnt", 7L).getRecord();
+        BulletRecord expectedB = RecordBox.get().add("A", "3").add("foo", "null").add("cnt", 3L).getRecord();
+
+        Assert.assertEquals(records.get(0), expectedA);
+        Assert.assertEquals(records.get(1), expectedB);
     }
 }

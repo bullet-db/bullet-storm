@@ -16,6 +16,8 @@ import com.yahoo.bullet.operations.aggregations.Distribution;
 import com.yahoo.bullet.operations.aggregations.DistributionTest;
 import com.yahoo.bullet.operations.aggregations.GroupBy;
 import com.yahoo.bullet.operations.aggregations.GroupByTest;
+import com.yahoo.bullet.operations.aggregations.TopK;
+import com.yahoo.bullet.operations.aggregations.TopKTest;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
 import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.parsing.Aggregation;
@@ -27,6 +29,7 @@ import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.Metadata.Concept;
 import com.yahoo.bullet.result.RecordBox;
+import com.yahoo.sketches.frequencies.ErrorType;
 import org.apache.commons.lang3.tuple.Pair;
 import backtype.storm.topology.IRichBolt;
 import backtype.storm.tuple.Fields;
@@ -48,7 +51,7 @@ import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP;
+import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP_K;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
@@ -77,9 +80,18 @@ public class JoinBoltTest {
     private JoinBolt bolt;
 
     private class ExpiringJoinBolt extends JoinBolt {
+        private Map config = emptyMap();
+
+        public ExpiringJoinBolt(Map config) {
+            this.config = config;
+        }
+
+        public ExpiringJoinBolt() {
+        }
+
         @Override
         protected AggregationQuery getQuery(Long id, String queryString) {
-            AggregationQuery spied = spy(getAggregationQuery(queryString, emptyMap()));
+            AggregationQuery spied = spy(getAggregationQuery(queryString, config));
             when(spied.isExpired()).thenReturn(false).thenReturn(true);
             return spied;
         }
@@ -596,9 +608,9 @@ public class JoinBoltTest {
 
     @Test
     public void testUnsupportedAggregation() {
-        // "TOP" aggregation type not currently supported - error should be emitted
+        // "TOP_K" aggregation type not currently supported - error should be emitted
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
-                                             makeAggregationQuery(TOP, 5));
+                                             makeAggregationQuery(TOP_K, 5));
         bolt.execute(query);
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -615,8 +627,7 @@ public class JoinBoltTest {
         bolt.execute(returnInfo);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Error expectedError = Error.of(Aggregation.TYPE_NOT_SUPPORTED_ERROR_PREFIX + null,
-                                       singletonList(Aggregation.TYPE_NOT_SUPPORTED_RESOLUTION));
+        Error expectedError = Aggregation.TYPE_NOT_SUPPORTED_ERROR;
         Metadata expectedMetadata = Metadata.of(expectedError);
         List<Object> expected = TupleUtils.makeTuple(Clip.of(expectedMetadata).asJSON(), "").getValues();
         List<Object> actual = collector.getNthTupleEmittedTo(JoinBolt.JOIN_STREAM, 1).get();
@@ -712,7 +723,7 @@ public class JoinBoltTest {
         byte[] second = distinct.getSerializedAggregation();
 
         // Send generated data to JoinBolt
-        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(), collector);
+        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
                                              makeAggregationQuery(COUNT_DISTINCT, 1, null, Pair.of("field", "field")));
@@ -744,8 +755,8 @@ public class JoinBoltTest {
         Map<Object, Object> config = GroupByTest.makeConfiguration(entries);
 
         GroupBy groupBy = GroupByTest.makeGroupBy(config, singletonMap("fieldA", "A"), entries,
-                                                  AggregationUtils.makeGroupOperation(COUNT, null, "cnt"),
-                                                  AggregationUtils.makeGroupOperation(SUM, "fieldB", "sumB"));
+                AggregationUtils.makeGroupOperation(COUNT, null, "cnt"),
+                AggregationUtils.makeGroupOperation(SUM, "fieldB", "sumB"));
 
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("fieldA", i % 16).add("fieldB", i / 16).getRecord())
                                .forEach(groupBy::consume);
@@ -756,17 +767,17 @@ public class JoinBoltTest {
                                           AggregationUtils.makeGroupOperation(SUM, "fieldB", "sumB"));
 
         IntStream.range(256, 1024).mapToObj(i -> RecordBox.get().add("fieldA", i % 16).add("fieldB", i / 16).getRecord())
-                                  .forEach(groupBy::consume);
+                .forEach(groupBy::consume);
 
         byte[] second = groupBy.getSerializedAggregation();
 
         // Send generated data to JoinBolt
-        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(), collector);
+        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
 
         List<GroupOperation> operations = asList(new GroupOperation(COUNT, null, "cnt"),
                                                  new GroupOperation(SUM, "fieldB", "sumB"));
         String queryString = makeGroupFilterQuery("ts", singletonList("1"), EQUALS, GROUP,
-                                                  entries, operations, Pair.of("fieldA", "A"));
+                entries, operations, Pair.of("fieldA", "A"));
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, queryString);
         bolt.execute(query);
@@ -905,7 +916,7 @@ public class JoinBoltTest {
                                                                       "field", 10, null);
 
         IntStream.range(0, 50).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
-                               .forEach(distribution::consume);
+                .forEach(distribution::consume);
 
         byte[] first = distribution.getSerializedAggregation();
 
@@ -913,11 +924,11 @@ public class JoinBoltTest {
                                                          "field", 10, null);
 
         IntStream.range(50, 101).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
-                                .forEach(distribution::consume);
+                .forEach(distribution::consume);
 
         byte[] second = distribution.getSerializedAggregation();
 
-        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(), collector);
+        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
                                              makeAggregationQuery(DISTRIBUTION, 10, DistributionType.PMF, "field",
@@ -938,12 +949,62 @@ public class JoinBoltTest {
                                                 .add(PROBABILITY_FIELD, 50.0 / 101).getRecord();
         BulletRecord expectedC = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 50.0 + SEPARATOR + 100.0 + END_EXCLUSIVE)
                                                 .add(COUNT_FIELD, 50.0)
-                                                .add(PROBABILITY_FIELD, 50.0 / 101).getRecord();
+                .add(PROBABILITY_FIELD, 50.0 / 101).getRecord();
         BulletRecord expectedD = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + 100.0 + SEPARATOR + POSITIVE_INFINITY_END)
                                                 .add(COUNT_FIELD, 1.0)
                                                 .add(PROBABILITY_FIELD, 1.0 / 101).getRecord();
 
         List<BulletRecord> results = asList(expectedA, expectedB, expectedC, expectedD);
+        Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(results).asJSON(), "");
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+            bolt.execute(tick);
+            Assert.assertFalse(collector.wasTupleEmitted(expected));
+        }
+        bolt.execute(tick);
+
+        Assert.assertTrue(collector.wasNthEmitted(expected, 1));
+        Assert.assertEquals(collector.getAllEmitted().count(), 1);
+    }
+
+    @Test
+    public void testTopK() {
+        Map<Object, Object> config = TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 16);
+
+        Map<String, String> fields = new HashMap<>();
+        fields.put("A", "");
+        fields.put("B", "foo");
+        TopK topK = TopKTest.makeTopK(config, makeAttributes(null, 5L), fields, 2, null);
+
+        IntStream.range(0, 32).mapToObj(i -> RecordBox.get().add("A", i % 8).getRecord()).forEach(topK::consume);
+
+        byte[] first = topK.getSerializedAggregation();
+
+        topK = TopKTest.makeTopK(config, makeAttributes(null, 5L), fields, 2, null);
+
+        IntStream.range(0, 8).mapToObj(i -> RecordBox.get().add("A", i % 2).getRecord()).forEach(topK::consume);
+
+        byte[] second = topK.getSerializedAggregation();
+
+        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
+
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
+                                             makeAggregationQuery(TOP_K, 2, 5L, "cnt", Pair.of("A", ""), Pair.of("B", "foo")));
+        bolt.execute(query);
+
+        Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
+
+        bolt.execute(returnInfo);
+
+        sendRawByteTuplesTo(bolt, 42L, asList(first, second));
+
+        BulletRecord expectedA = RecordBox.get().add("A", "0").add("foo", "null").add("cnt", 8L).getRecord();
+        BulletRecord expectedB = RecordBox.get().add("A", "1").add("foo", "null").add("cnt", 8L).getRecord();
+
+        List<BulletRecord> results = asList(expectedA, expectedB);
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(results).asJSON(), "");
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);

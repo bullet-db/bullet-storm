@@ -53,11 +53,9 @@ public abstract class Sketch {
      */
     protected Map<String, Object> getMetadata(Map<String, String> conceptKeys) {
         Map<String, Object> metadata = new HashMap<>();
-
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.FAMILY.getName()), this::getFamily);
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.SIZE.getName()), this::getSize);
-        addIfKeyNonNull(metadata, conceptKeys.get(Concept.ESTIMATED_RESULT.getName()), this::isEstimationMode);
-
+        addIfNonNull(metadata, conceptKeys.get(Concept.FAMILY.getName()), this::getFamily);
+        addIfNonNull(metadata, conceptKeys.get(Concept.SIZE.getName()), this::getSize);
+        addIfNonNull(metadata, conceptKeys.get(Concept.ESTIMATED_RESULT.getName()), this::isEstimationMode);
         return metadata;
     }
 
@@ -97,20 +95,20 @@ public abstract class Sketch {
     protected abstract Integer getSize();
 
     /**
-     * Utility function to add a key to the metadata if the key is not null.
+     * Utility function to add a key to the metadata if the key and value are not null.
      *
      * @param metadata The non-null {@link Map} representing the metadata.
      * @param key The key to add if not null.
      * @param supplier A {@link Supplier} that can produce a value to add to the metadata for the key. If the supplier
      *                 produces null, it is not added.
      */
-    static void addIfKeyNonNull(Map<String, Object> metadata, String key, Supplier<Object> supplier) {
+    static void addIfNonNull(Map<String, Object> metadata, String key, Supplier<Object> supplier) {
         Object data = null;
         if (key != null) {
             data = supplier.get();
         }
         if (data != null) {
-            metadata.put(key, supplier.get());
+            metadata.put(key, data);
         }
     }
 }
