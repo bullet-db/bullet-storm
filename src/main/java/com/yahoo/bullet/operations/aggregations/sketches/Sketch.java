@@ -108,7 +108,7 @@ public abstract class Sketch {
             data = supplier.get();
         }
         if (data != null) {
-            metadata.put(key, supplier.get());
+            metadata.put(key, data);
         }
     }
 }
