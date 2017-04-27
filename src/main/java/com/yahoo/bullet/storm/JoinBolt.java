@@ -270,8 +270,8 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         Metadata meta = new Metadata();
         consumeRegisteredConcept(Concept.QUERY_ID, (k) -> meta.add(k, id));
         consumeRegisteredConcept(Concept.QUERY_BODY, (k) -> meta.add(k, query.toString()));
-        consumeRegisteredConcept(Concept.CREATION_TIME, (k) -> meta.add(k, query.getStartTime()));
-        consumeRegisteredConcept(Concept.TERMINATION_TIME, (k) -> meta.add(k, query.getLastAggregationTime()));
+        consumeRegisteredConcept(Concept.QUERY_CREATION_TIME, (k) -> meta.add(k, query.getStartTime()));
+        consumeRegisteredConcept(Concept.QUERY_TERMINATION_TIME, (k) -> meta.add(k, query.getLastAggregationTime()));
         return meta;
     }
 

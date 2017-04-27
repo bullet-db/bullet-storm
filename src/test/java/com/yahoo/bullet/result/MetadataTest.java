@@ -40,7 +40,7 @@ public class MetadataTest {
 
     @Test
     public void testConceptFinding() {
-        Assert.assertEquals(Concept.from("Creation Time"), Concept.CREATION_TIME);
+        Assert.assertEquals(Concept.from("Query Creation Time"), Concept.QUERY_CREATION_TIME);
         Assert.assertEquals(Concept.from("Query Identifier"), Concept.QUERY_ID);
         Assert.assertEquals(Concept.from("Sketch Metadata"), Concept.SKETCH_METADATA);
         Assert.assertEquals(Concept.from("Standard Deviations"), Concept.STANDARD_DEVIATIONS);
