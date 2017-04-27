@@ -569,8 +569,8 @@ public class JoinBoltTest {
         Map<String, Object> config = new HashMap<>();
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         enableMetadataInConfig(config, Concept.QUERY_BODY.getName(), "query");
-        enableMetadataInConfig(config, Concept.CREATION_TIME.getName(), "created");
-        enableMetadataInConfig(config, Concept.TERMINATION_TIME.getName(), "finished");
+        enableMetadataInConfig(config, Concept.QUERY_CREATION_TIME.getName(), "created");
+        enableMetadataInConfig(config, Concept.QUERY_TERMINATION_TIME.getName(), "finished");
         setup(config, new JoinBolt());
 
         long startTime = System.currentTimeMillis();
