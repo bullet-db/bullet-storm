@@ -24,6 +24,10 @@ public class ClipTest {
         return "{\"meta\": {}, \"records\": " + results + "}";
     }
 
+    public static String makeJSON(String meta, String records) {
+        return "{\"meta\": " + meta + ", \"records\": " + records + "}";
+    }
+
     @Test
     public void testEmptyRecord() {
         assertJSONEquals(new Clip().asJSON(), EMPTY_RESULT);
@@ -70,14 +74,16 @@ public class ClipTest {
     }
 
     @Test
-    public void testSpecialValues() {
+    public void testInvalidDoubles() {
         BulletRecord record = new RecordBox().addNull("field").add("plus_inf", Double.POSITIVE_INFINITY)
                                              .add("neg_inf", Double.NEGATIVE_INFINITY)
                                              .add("not_a_number", Double.NaN)
                                              .getRecord();
 
-        assertJSONEquals(Clip.of(record).asJSON(),
-                         makeJSON("[{'field': null, 'plus_inf': 'Infinity', 'neg_inf': '-Infinity', " +
-                                  "'not_a_number': 'NaN'}]"));
+        Metadata metadata = new Metadata().add("foo", Double.POSITIVE_INFINITY).add("bar", Double.NaN).add("baz", Double.NEGATIVE_INFINITY);
+
+        assertJSONEquals(Clip.of(record).add(metadata).asJSON(),
+                         makeJSON("{'foo': 'Infinity', 'baz': '-Infinity', 'bar': 'NaN'}",
+                                 "[{'field': null, 'plus_inf': 'Infinity', 'neg_inf': '-Infinity', 'not_a_number': 'NaN'}]"));
     }
 }
