@@ -217,7 +217,7 @@ public class QuantileSketch extends Sketch {
 
     private static double[] getPoints(double start, double end, int numberOfPoints) {
         // We should have numberOfPoints >= 1 but just in case...
-        if  (numberOfPoints <= 1) {
+        if  (numberOfPoints <= 1 || start >= end) {
             return new double[] { start };
         }
 

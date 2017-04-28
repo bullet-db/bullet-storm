@@ -7,9 +7,13 @@ package com.yahoo.bullet.result;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonPrimitive;
+import com.google.gson.JsonSerializer;
 
 public interface JSONFormatter {
-    Gson GSON = new GsonBuilder().serializeNulls().serializeSpecialFloatingPointValues().create();
+    JsonSerializer<Double> INVALID_DOUBLES = (item, type, context) -> item.isNaN() || item.isInfinite() ?
+                                                                      new JsonPrimitive(item.toString()) : new JsonPrimitive(item);
+    Gson GSON = new GsonBuilder().serializeNulls().registerTypeAdapter(Double.class, INVALID_DOUBLES).create();
 
     /**
      * Returns a JSON string representation of object.
