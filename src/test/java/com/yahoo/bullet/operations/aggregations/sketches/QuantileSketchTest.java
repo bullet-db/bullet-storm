@@ -19,6 +19,7 @@ import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.TestHelpers.assertApproxEquals;
 import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.COUNT_FIELD;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
 import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY;
 import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
 import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY;
@@ -27,6 +28,7 @@ import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.P
 import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.QUANTILE_FIELD;
 import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.RANGE_FIELD;
 import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.SEPARATOR;
+import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
 import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.VALUE_FIELD;
 
 public class QuantileSketchTest {
@@ -263,6 +265,88 @@ public class QuantileSketchTest {
                 }
             }
         }
+    }
+
+    @Test
+    public void testNoDataQuantileDistribution() {
+        QuantileSketch sketch = new QuantileSketch(64, DistributionType.QUANTILE, new double[]{ 0, 0.3, 1 });
+
+        Clip result = sketch.getResult("meta", ALL_METADATA);
+        Map<String, Object> metadata = (Map<String, Object>) result.getMeta().asMap().get("meta");
+        Assert.assertEquals(metadata.size(), 7);
+
+        Assert.assertFalse((Boolean) metadata.get("isEst"));
+        Assert.assertEquals(metadata.get("n"), 0L);
+        Assert.assertEquals(metadata.get("min"), Double.POSITIVE_INFINITY);
+        Assert.assertEquals(metadata.get("max"), Double.NEGATIVE_INFINITY);
+
+        List<BulletRecord> records = result.getRecords();
+        Assert.assertEquals(records.size(), 3);
+
+        BulletRecord expectedA = RecordBox.get().add(QUANTILE_FIELD, 0.0).add(VALUE_FIELD, Double.POSITIVE_INFINITY)
+                                                .getRecord();
+        BulletRecord expectedB = RecordBox.get().add(QUANTILE_FIELD, 0.3).add(VALUE_FIELD, Double.NaN).getRecord();
+        BulletRecord expectedC = RecordBox.get().add(QUANTILE_FIELD, 1.0).add(VALUE_FIELD, Double.NEGATIVE_INFINITY)
+                                                .getRecord();
+        Assert.assertEquals(records.get(0), expectedA);
+        Assert.assertEquals(records.get(1), expectedB);
+        Assert.assertEquals(records.get(2), expectedC);
+    }
+
+    @Test
+    public void testNoDataPMFDistribution() {
+        QuantileSketch sketch = new QuantileSketch(64, DistributionType.PMF, 10);
+
+        Clip result = sketch.getResult("meta", ALL_METADATA);
+        Map<String, Object> metadata = (Map<String, Object>) result.getMeta().asMap().get("meta");
+        Assert.assertEquals(metadata.size(), 7);
+
+        Assert.assertFalse((Boolean) metadata.get("isEst"));
+        Assert.assertEquals(metadata.get("n"), 0L);
+        Assert.assertEquals(metadata.get("min"), Double.POSITIVE_INFINITY);
+        Assert.assertEquals(metadata.get("max"), Double.NEGATIVE_INFINITY);
+
+        List<BulletRecord> records = result.getRecords();
+        Assert.assertEquals(records.size(), 2);
+
+        BulletRecord expectedA = RecordBox.get().add(RANGE_FIELD, NEGATIVE_INFINITY_START + SEPARATOR + Double.POSITIVE_INFINITY + END_EXCLUSIVE)
+                                                .add(PROBABILITY_FIELD, Double.NaN)
+                                                .add(COUNT_FIELD, Double.NaN)
+                                                .getRecord();
+        BulletRecord expectedB = RecordBox.get().add(RANGE_FIELD, START_INCLUSIVE + Double.POSITIVE_INFINITY + SEPARATOR + POSITIVE_INFINITY_END)
+                                                .add(PROBABILITY_FIELD, Double.NaN)
+                                                .add(COUNT_FIELD, Double.NaN)
+                                                .getRecord();
+        Assert.assertEquals(records.get(0), expectedA);
+        Assert.assertEquals(records.get(1), expectedB);
+    }
+
+    @Test
+    public void testNoDataCDFDistribution() {
+        QuantileSketch sketch = new QuantileSketch(64, DistributionType.CDF, 10);
+
+        Clip result = sketch.getResult("meta", ALL_METADATA);
+        Map<String, Object> metadata = (Map<String, Object>) result.getMeta().asMap().get("meta");
+        Assert.assertEquals(metadata.size(), 7);
+
+        Assert.assertFalse((Boolean) metadata.get("isEst"));
+        Assert.assertEquals(metadata.get("n"), 0L);
+        Assert.assertEquals(metadata.get("min"), Double.POSITIVE_INFINITY);
+        Assert.assertEquals(metadata.get("max"), Double.NEGATIVE_INFINITY);
+
+        List<BulletRecord> records = result.getRecords();
+        Assert.assertEquals(records.size(), 2);
+
+        BulletRecord expectedA = RecordBox.get().add(RANGE_FIELD, NEGATIVE_INFINITY_START + SEPARATOR + Double.POSITIVE_INFINITY + END_EXCLUSIVE)
+                                                .add(PROBABILITY_FIELD, Double.NaN)
+                                                .add(COUNT_FIELD, Double.NaN)
+                                                .getRecord();
+        BulletRecord expectedB = RecordBox.get().add(RANGE_FIELD, NEGATIVE_INFINITY_START + SEPARATOR + POSITIVE_INFINITY_END)
+                                                .add(PROBABILITY_FIELD, Double.NaN)
+                                                .add(COUNT_FIELD, Double.NaN)
+                                                .getRecord();
+        Assert.assertEquals(records.get(0), expectedA);
+        Assert.assertEquals(records.get(1), expectedB);
     }
 
     @Test
