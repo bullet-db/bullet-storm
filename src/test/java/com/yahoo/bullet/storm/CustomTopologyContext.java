@@ -41,16 +41,24 @@ public class CustomTopologyContext extends TopologyContext {
         return metric.isPresent() ? metric.get().getValue() : null;
     }
 
-    private Long fetchCount(IMetric metric) {
-        return metric == null ? null : (Long) ((AbsoluteCountMetric) metric).getValueAndReset();
+    private Number fetchResult(IMetric metric) {
+        return metric == null ? null : (Number) metric.getValueAndReset();
     }
 
-    public Long getCountForMetric(String name) {
-        return fetchCount(getRegisteredMetricByName(name));
+    public Double getDoubleMetric(String name) {
+        return (Double) fetchResult(getRegisteredMetricByName(name));
     }
 
-    public Long getCountForMetric(Integer timeBucket, String name) {
-        return fetchCount(getRegisteredMetricInTimeBucket(timeBucket, name));
+    public Double getDoubleMetric(Integer timeBucket, String name) {
+        return (Double) fetchResult(getRegisteredMetricInTimeBucket(timeBucket, name));
+    }
+
+    public Long getLongMetric(String name) {
+        return (Long) fetchResult(getRegisteredMetricByName(name));
+    }
+
+    public Long getLongMetric(Integer timeBucket, String name) {
+        return (Long) fetchResult(getRegisteredMetricInTimeBucket(timeBucket, name));
     }
 }
 

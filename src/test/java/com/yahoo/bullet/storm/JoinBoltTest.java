@@ -262,8 +262,8 @@ public class JoinBoltTest {
                                              makeAggregationQuery(RAW, 3));
         bolt.execute(query);
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -282,15 +282,15 @@ public class JoinBoltTest {
         for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
-            Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-            Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+            Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+            Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
         }
         // This will cause the emission
         bolt.execute(tick);
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
     }
 
     @Test
@@ -303,8 +303,8 @@ public class JoinBoltTest {
                                              makeAggregationQuery(RAW, 3));
         bolt.execute(query);
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -323,8 +323,8 @@ public class JoinBoltTest {
         for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
-            Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-            Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+            Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+            Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
         }
         // Now we satisfy the aggregation and see if it causes an emission
         List<BulletRecord> sentLate = sendRawRecordTuplesTo(bolt, 42L, 1);
@@ -335,8 +335,8 @@ public class JoinBoltTest {
 
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
     }
 
     @Test
@@ -349,8 +349,8 @@ public class JoinBoltTest {
                                              makeAggregationQuery(RAW, 3));
         bolt.execute(query);
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
         // No return information
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, 42L, 2);
@@ -359,8 +359,8 @@ public class JoinBoltTest {
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(sent).asJSON(), "");
 
@@ -369,8 +369,8 @@ public class JoinBoltTest {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
     }
 
     @Test
@@ -809,13 +809,13 @@ public class JoinBoltTest {
                                              makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
                                                                   singletonList(new GroupOperation(COUNT, null, "cnt"))));
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
 
         bolt.execute(query);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple returnInfo = TupleUtils.makeIDTuple(TupleType.Type.RETURN_TUPLE, 42L, "");
         bolt.execute(returnInfo);
@@ -837,18 +837,18 @@ public class JoinBoltTest {
             bolt.execute(tick);
         }
         Assert.assertFalse(collector.wasTupleEmitted(expected));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         bolt.execute(tick);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
 
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 
         bolt.execute(query);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(2));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(2));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
     }
 
     @Test
@@ -857,16 +857,16 @@ public class JoinBoltTest {
         config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new JoinBolt());
 
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
 
         Tuple badQuery = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "");
         bolt.execute(badQuery);
         bolt.execute(badQuery);
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(2));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(2));
     }
 
     @Test
@@ -884,13 +884,13 @@ public class JoinBoltTest {
                                              makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
                                                      singletonList(new GroupOperation(COUNT, null, "cnt"))));
 
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
 
         bolt.execute(query);
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
@@ -903,9 +903,9 @@ public class JoinBoltTest {
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, Clip.of(result).asJSON(), "");
         Assert.assertFalse(collector.wasTupleEmitted(expected));
 
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getCountForMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getCountForMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
     }
 
     @Test

@@ -18,13 +18,22 @@ bullet.topology.metrics.enable: false
 
 # Enable the collection of the Bullet built-in metrics. These will be sent to your metrics classes. This is in addition
 # to the storm built-in metrics. Currently supported are:
+
 # Counting metrics: These behave like org.apache.storm.metric.api.CountMetric but do not reset their value when getValueAndReset()
 # is called. This custom metric is defined in com.yahoo.bullet.storm.AbsoluteCountMetric.
 #   1. bullet_active_queries : A metric that counts the number of queries active per JoinBolt. Note that this metric will
-#                            increase and decrease as queries come and go. Make sure to configure the emit period accordingly
-#                            otherwise short running queries may not be even counted.
+#                              increase and decrease as queries come and go. Make sure to configure the emit period accordingly
+#                              otherwise short running queries may not be even counted.
 #   2. bullet_created_queries : A metric that counts the number of queries created per JoinBolt.
 #   3. bullet_improper_queries : A metric that counts the number of semantically incorrect queries created per JoinBolt.
+
+# Averaging metrics: These are org.apache.storm.metric.api.ReducedMetrics
+#   1. bullet_filter_latency: A metric that computes the average latency to filter a single record in the Filter Bolt. The latency is
+#                             subtracted from record tuple that the Filter Bolts receive from your Data Source component. If the
+#                             record tuple is of the format (record, timestamp), then Bullet WILL try to read your timestamp as a Long,
+#                             and subtract it from the time when it finishes filtering a record to compute the filtering latency. You
+#                             will get an RuntimeException if your tuple contains more than just the record but the second position
+#                             is not a Long.
 bullet.topology.metrics.built.in.enable: false
 # The time period mapping from metric name to seconds for emitting the metric. This is passed to Storm when the metrics are registered.
 # A default value for all metrics can also be set by using the "default" key.
@@ -156,6 +165,10 @@ bullet.query.aggregation.distribution.sketch.entries: 1024
 # smaller than bullet.query.aggregation.max.size. If not, the smaller of the two will be used.
 bullet.query.aggregation.distribution.max.points: 100
 
+# Rounds the max number of decimal places for the points generated for the DISTRIBUTION aggregation to absolute value of this.
+# This helps double rounding errors when generating points for the DISTRIBUTION aggregation.
+bullet.query.aggregation.distribution.generated.points.rounding: 6
+
 # The maximum number of entries used as an internal map size by a FrequentItems Sketch created for doing TOP K. It must
 # be a power of 2. Decreasing this number can increase the maximum count error while decreasing the total memory used
 # by the Sketch. The Sketch will count frequencies correctly up to 0.75 * this number for each of the UNIQUE items.
@@ -239,5 +252,6 @@ bullet.result.metadata.metrics:
 
 # Enables whether each record should have a new key added to it denoting when the Filter Bolt saw it
 bullet.record.inject.timestamp.enable: true
-# This is the key that is used to add the timestamp in milliseconds to the record, if record.inject.timestamp.enable is true
-bullet.record.inject.timestamp.key: "bullet_receive_timestamp"
+# This is the key that is used to add the timestamp in milliseconds to the record, if record.inject.timestamp.enable is true. This is the timestamp when
+# the Filter Bolt projects the record. This is last task for RAW queries.
+bullet.record.inject.timestamp.key: "bullet_project_timestamp"

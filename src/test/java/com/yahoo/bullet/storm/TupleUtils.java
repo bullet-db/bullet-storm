@@ -23,6 +23,7 @@ public class TupleUtils {
 
     private static Tuple pushInto(Tuple mocked, Object... contents) {
         when(mocked.getValues()).thenReturn(Arrays.asList(contents));
+        when(mocked.size()).thenReturn(contents.length);
         for (int i = 0; i < contents.length; ++i) {
             when(mocked.getValue(i)).thenReturn(contents[i]);
             when(mocked.getString(i)).thenReturn(contents[i].toString());

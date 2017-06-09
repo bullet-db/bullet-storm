@@ -9,6 +9,10 @@ import com.yahoo.bullet.parsing.ParsingException;
 import com.yahoo.bullet.querying.FilterQuery;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.extern.slf4j.Slf4j;
+import backtype.storm.metric.api.MeanReducer;
+import backtype.storm.metric.api.ReducedMetric;
+import backtype.storm.task.OutputCollector;
+import backtype.storm.task.TopologyContext;
 import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
@@ -21,6 +25,9 @@ import java.util.Map;
 public class FilterBolt extends QueryBolt<FilterQuery> {
     public static final String FILTER_STREAM = Utils.DEFAULT_STREAM_ID;
     private String recordComponent;
+
+    public static final String LATENCY_METRIC = TopologyConstants.METRIC_PREFIX + "filter_latency";
+    private transient ReducedMetric averageLatency;
 
     /**
      * Default constructor.
@@ -47,6 +54,14 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
         this.recordComponent = recordComponent;
     }
 
+    @Override
+    public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
+        super.prepare(stormConf, context, collector);
+        if (metricsEnabled) {
+            averageLatency = registerAveragingMetric(LATENCY_METRIC, context);
+        }
+    }
+
     private TupleType.Type getCustomType(Tuple tuple) {
         return recordComponent.equals(tuple.getSourceComponent()) ? TupleType.Type.RECORD_TUPLE : null;
     }
@@ -64,6 +79,7 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
                 break;
             case RECORD_TUPLE:
                 checkQuery(tuple);
+                updateLatency(tuple);
                 break;
             default:
                 // May want to throw an error here instead of not acking
@@ -104,5 +120,20 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
         if (data != null) {
             collector.emit(new Values(pair.getKey(), data));
         }
+    }
+
+    private void updateLatency(Tuple tuple) {
+        if (metricsEnabled && tuple.size() > 1) {
+            // Could use named fields instead
+            Long timestamp = (Long) tuple.getValue(1);
+            averageLatency.update(System.currentTimeMillis() - timestamp);
+        }
+    }
+
+    private ReducedMetric registerAveragingMetric(String name, TopologyContext context) {
+        Number interval = metricsIntervalMapping.getOrDefault(name,
+                                                              metricsIntervalMapping.get(DEFAULT_METRICS_INTERVAL_KEY));
+        log.info("Registered {} with interval {}", name, interval);
+        return context.registerMetric(name, new ReducedMetric(new MeanReducer()), interval.intValue());
     }
 }
