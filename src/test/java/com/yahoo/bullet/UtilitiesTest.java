@@ -59,4 +59,13 @@ public class UtilitiesTest {
         Assert.assertTrue(Utilities.isEmpty(""));
         Assert.assertFalse(Utilities.isEmpty("foo"));
     }
+
+    @Test
+    public void testRounding() {
+        Assert.assertEquals(String.valueOf(Utilities.round(1.2000000000001, 5)), "1.2");
+        Assert.assertEquals(String.valueOf(Utilities.round(0.7999999999999, 8)), "0.8");
+        Assert.assertEquals(String.valueOf(Utilities.round(1.0000000000001, 6)), "1.0");
+        // This might be a valid double representation for 1.45 and then rounding to 1 places gives 1.4 instead of 1.5!
+        Assert.assertEquals(String.valueOf(Utilities.round(1.4499999999999, 1)), "1.4");
+    }
 }
