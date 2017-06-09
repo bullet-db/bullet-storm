@@ -1,5 +1,6 @@
 package com.yahoo.bullet;
 
+import java.math.BigDecimal;
 import java.util.Collection;
 import java.util.Map;
 
@@ -52,5 +53,18 @@ public class Utilities {
      */
     public static boolean isEmpty(String string) {
         return string == null || string.isEmpty();
+    }
+
+
+    /**
+     * Rounds a double up to the specified number of places.
+     *
+     * @param value The number to round.
+     * @param places The number of maximum decimal places to round up to.
+     * @return The resulting rounded double.
+     */
+    public static double round(double value, int places) {
+        return Double.isInfinite(value) || Double.isNaN(value) ?
+                 value : BigDecimal.valueOf(value).setScale(places, BigDecimal.ROUND_HALF_UP).doubleValue();
     }
 }

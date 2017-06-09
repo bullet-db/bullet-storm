@@ -29,6 +29,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
 
     public static final int DEFAULT_MAX_POINTS = 100;
     public static final int DEFAULT_POINTS = 1;
+    public static final int DEFAULT_ROUNDING = 4;
 
     // Distribution fields
     public static final String TYPE = "type";
@@ -40,6 +41,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
 
     private final int entries;
     private final int maxPoints;
+    private final int rounding;
 
     private String field;
 
@@ -77,6 +79,8 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         super(aggregation);
         entries = ((Number) config.getOrDefault(BulletConfig.DISTRIBUTION_AGGREGATION_SKETCH_ENTRIES,
                                                 DEFAULT_ENTRIES)).intValue();
+        rounding = ((Number) config.getOrDefault(BulletConfig.DISTRIBUTION_AGGREGATION_GENERATED_POINTS_ROUNDING,
+                                                 DEFAULT_ROUNDING)).intValue();
         int pointLimit = ((Number) config.getOrDefault(BulletConfig.DISTRIBUTION_AGGREGATION_MAX_POINTS,
                                                        DEFAULT_MAX_POINTS)).intValue();
         // The max gets rid of negative sizes if accidentally configured.
@@ -104,7 +108,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         }
 
         // Try to initialize sketch now
-        sketch = getSketch(entries, maxPoints, type, attributes);
+        sketch = getSketch(entries, maxPoints, rounding, type, attributes);
 
         if (sketch == null) {
             return type == DistributionType.QUANTILE ? asList(REQUIRES_POINTS_ERROR, REQUIRES_POINTS_PROPER_RANGE) :
@@ -125,14 +129,15 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         }
     }
 
-    private static QuantileSketch getSketch(int entries, int maxPoints, DistributionType type, Map<String, Object> attributes) {
+    private static QuantileSketch getSketch(int entries, int maxPoints, int rounding,
+                                            DistributionType type, Map<String, Object> attributes) {
         int equidistantPoints = getNumberOfEquidistantPoints(attributes);
         if (equidistantPoints > 0) {
-            return new QuantileSketch(entries, type, Math.min(equidistantPoints, maxPoints));
+            return new QuantileSketch(entries, rounding, type, Math.min(equidistantPoints, maxPoints));
         }
         List<Double> points = getProvidedPoints(attributes);
         if (Utilities.isEmpty(points)) {
-            points = generatePoints(maxPoints, attributes);
+            points = generatePoints(maxPoints, rounding, attributes);
         }
 
         // If still not good, return null
@@ -167,7 +172,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         return Collections.emptyList();
     }
 
-    private static List<Double> generatePoints(int maxPoints, Map<String, Object> attributes) {
+    private static List<Double> generatePoints(int maxPoints, int rounding, Map<String, Object> attributes) {
         Number start = Utilities.getCasted(attributes, RANGE_START, Number.class);
         Number end = Utilities.getCasted(attributes, RANGE_END, Number.class);
         Number increment = Utilities.getCasted(attributes, RANGE_INCREMENT, Number.class);
@@ -180,7 +185,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
         Double by = increment.doubleValue();
         List<Double> points = new ArrayList<>();
         for (int i = 0; i < maxPoints && from <= to; ++i) {
-            points.add(from);
+            points.add(Utilities.round(from, rounding));
             from += by;
         }
         return points;

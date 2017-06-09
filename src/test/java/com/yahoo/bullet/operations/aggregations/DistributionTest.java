@@ -14,10 +14,14 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.TestHelpers.assertApproxEquals;
@@ -63,15 +67,25 @@ public class DistributionTest {
         return makeDistribution(makeConfiguration(100, 512), makeAttributes(type, numberOfPoints), field, 20, ALL_METADATA);
     }
 
+    public static Distribution makeDistribution(DistributionType type, int maxPoints, int rounding, double start, double end, double increment) {
+        return makeDistribution(makeConfiguration(maxPoints, 128, rounding), makeAttributes(type, start, end, increment),
+                                "field", 20, ALL_METADATA);
+    }
+
     public static Distribution makeDistribution(DistributionType type, List<Double> points) {
         return makeDistribution(makeConfiguration(10, 128), makeAttributes(type, points), "field", 20, ALL_METADATA);
     }
 
-    public static Map<Object, Object> makeConfiguration(int maxPoints, int k) {
+    public static Map<Object, Object> makeConfiguration(int maxPoints, int k, int rounding) {
         Map<Object, Object> config = new HashMap<>();
         config.put(BulletConfig.DISTRIBUTION_AGGREGATION_SKETCH_ENTRIES, k);
         config.put(BulletConfig.DISTRIBUTION_AGGREGATION_MAX_POINTS, maxPoints);
+        config.put(BulletConfig.DISTRIBUTION_AGGREGATION_GENERATED_POINTS_ROUNDING, rounding);
         return config;
+    }
+
+    public static Map<Object, Object> makeConfiguration(int maxPoints, int k) {
+        return makeConfiguration(maxPoints, k, 4);
     }
 
     @Test
@@ -456,5 +470,27 @@ public class DistributionTest {
                                                 .add(PROBABILITY_FIELD, 1.0).getRecord();
         Assert.assertEquals(records.get(0), expectedA);
         Assert.assertEquals(records.get(1), expectedB);
+    }
+
+    @Test
+    public void testRounding() {
+        Distribution distribution = makeDistribution(DistributionType.QUANTILE, 20, 6, 0.0, 1.0, 0.1);
+
+        IntStream.range(0, 10).mapToDouble(i -> (i * 0.1)).mapToObj(d -> RecordBox.get().add("field", d).getRecord())
+                               .forEach(distribution::consume);
+
+        Clip result = distribution.getAggregation();
+
+        Map<String, Object> metadata = (Map<String, Object>) result.getMeta().asMap().get("meta");
+        Assert.assertEquals(metadata.size(), 7);
+        Assert.assertFalse((Boolean) metadata.get("isEst"));
+
+        List<BulletRecord> records = result.getRecords();
+        Assert.assertEquals(records.size(), 11);
+        Set<String> actualQuantilePoints = records.stream().map(r -> r.get(QUANTILE_FIELD).toString())
+                                                           .collect(Collectors.toSet());
+        Set<String> expectedQuantilePoints = new HashSet<>(Arrays.asList("0.0", "0.1", "0.2", "0.3", "0.4", "0.5", "0.6",
+                                                                         "0.7", "0.8", "0.9", "1.0"));
+        Assert.assertEquals(actualQuantilePoints, expectedQuantilePoints);
     }
 }

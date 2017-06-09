@@ -75,6 +75,7 @@ import static org.mockito.Mockito.when;
 
 public class FilterBoltTest {
     private CustomCollector collector;
+    private CustomTopologyContext context;
     private FilterBolt bolt;
 
     private class NoQueryFilterBolt extends FilterBolt {
@@ -176,6 +177,12 @@ public class FilterBoltTest {
     public void setup() {
         collector = new CustomCollector();
         bolt = ComponentUtils.prepare(new NeverExpiringFilterBolt(), collector);
+    }
+
+    public void setup(Map<String, Object> config, FilterBolt bolt) {
+        collector = new CustomCollector();
+        context = new CustomTopologyContext();
+        this.bolt = ComponentUtils.prepare(config, bolt, context, collector);
     }
 
     @Test
@@ -730,5 +737,23 @@ public class FilterBoltTest {
 
         Assert.assertEquals(records.get(0), expectedA);
         Assert.assertEquals(records.get(1), expectedB);
+    }
+
+    @Test
+    public void testFilteringLatency() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        setup(config, new NeverExpiringFilterBolt());
+
+        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, makeFieldFilterQuery("bar"));
+        bolt.execute(query);
+
+        BulletRecord record = RecordBox.get().add("field", "foo").getRecord();
+        long start = System.currentTimeMillis();
+        IntStream.range(0, 10).mapToObj(i -> makeTuple(TupleType.Type.RECORD_TUPLE, record, System.currentTimeMillis()))
+                              .forEach(bolt::execute);
+        long end = System.currentTimeMillis();
+        double actualLatecy = context.getDoubleMetric(FilterBolt.LATENCY_METRIC);
+        Assert.assertTrue(actualLatecy <= end - start);
     }
 }

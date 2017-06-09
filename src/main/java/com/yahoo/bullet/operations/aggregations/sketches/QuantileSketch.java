@@ -16,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import static com.yahoo.bullet.Utilities.round;
+
 /**
  * Wraps operations for working with a {@link DoublesSketch} - Quantile Sketch.
  */
@@ -26,6 +28,7 @@ public class QuantileSketch extends Sketch {
 
     private double[] points;
     private Integer numberOfPoints;
+    private int rounding;
     private final DistributionType type;
 
     public static final double QUANTILE_MIN = 0.0;
@@ -70,11 +73,13 @@ public class QuantileSketch extends Sketch {
      * points (evenly-spaced).
      *
      * @param k A number representative of the size of the sketch.
+     * @param rounding A number representing how many max decimal places points should have.
      * @param type A {@link DistributionType} that determines what the points mean.
      * @param numberOfPoints A positive number of evenly spaced points in the range for the type to get the data for.
      */
-    public QuantileSketch(int k, DistributionType type, int numberOfPoints) {
+    public QuantileSketch(int k, int rounding, DistributionType type, int numberOfPoints) {
         this(k, type);
+        this.rounding = Math.abs(rounding);
         this.numberOfPoints = numberOfPoints;
     }
 
@@ -178,8 +183,8 @@ public class QuantileSketch extends Sketch {
 
     private double[] getDomain() {
         if (numberOfPoints != null) {
-            return type == DistributionType.QUANTILE ? getPoints(QUANTILE_MIN, QUANTILE_MAX, numberOfPoints) :
-                                                       getPoints(getMinimum(), getMaximum(), numberOfPoints);
+            return type == DistributionType.QUANTILE ? getPoints(QUANTILE_MIN, QUANTILE_MAX, numberOfPoints, rounding) :
+                                                       getPoints(getMinimum(), getMaximum(), numberOfPoints, rounding);
         }
         return points;
     }
@@ -215,10 +220,10 @@ public class QuantileSketch extends Sketch {
 
     // Static helpers
 
-    private static double[] getPoints(double start, double end, int numberOfPoints) {
+    private static double[] getPoints(double start, double end, int numberOfPoints, int rounding) {
         // We should have numberOfPoints >= 1 but just in case...
         if  (numberOfPoints <= 1 || start >= end) {
-            return new double[] { start };
+            return new double[] { round(start, rounding) };
         }
 
         double[] points = new double[numberOfPoints];
@@ -228,13 +233,14 @@ public class QuantileSketch extends Sketch {
         double increment = (end - start) / count;
         double begin = start;
         for (int i = 0; i < count; ++i) {
-            points[i] = begin;
+            points[i] = round(begin, rounding);
             begin += increment;
         }
         // Add start + N*increment = end after
-        points[count] = end;
+        points[count] = round(end, rounding);
         return points;
     }
+
 
     private static List<BulletRecord> zipQuantiles(double[] domain, double[] range) {
         List<BulletRecord> records = new ArrayList<>();

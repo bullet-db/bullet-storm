@@ -12,9 +12,13 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import static com.yahoo.bullet.TestHelpers.assertApproxEquals;
@@ -77,7 +81,7 @@ public class QuantileSketchTest {
 
     @Test
     public void testExactQuantilesWithNumberOfPoints() {
-        QuantileSketch sketch = new QuantileSketch(64, DistributionType.QUANTILE, 11);
+        QuantileSketch sketch = new QuantileSketch(64, 2, DistributionType.QUANTILE, 11);
 
         // Insert 0, 10, 20 ... 100
         IntStream.range(0, 11).forEach(i -> sketch.update(i * 10.0));
@@ -95,7 +99,7 @@ public class QuantileSketchTest {
 
     @Test
     public void testExactPMFWithNumberOfPoints() {
-        QuantileSketch sketch = new QuantileSketch(64, DistributionType.PMF, 10);
+        QuantileSketch sketch = new QuantileSketch(64, 2, DistributionType.PMF, 10);
 
         // Insert 0, 1, 2 ... 9 three times
         IntStream.range(0, 30).forEach(i -> sketch.update(i % 10));
@@ -148,7 +152,7 @@ public class QuantileSketchTest {
 
     @Test
     public void testExactCDFWithNumberOfPoints() {
-        QuantileSketch sketch = new QuantileSketch(64, DistributionType.CDF, 10);
+        QuantileSketch sketch = new QuantileSketch(64, 2, DistributionType.CDF, 10);
 
         IntStream.range(0, 30).forEach(i -> sketch.update(i % 10));
         IntStream.range(0, 30).forEach(i -> sketch.update(i % 3));
@@ -295,7 +299,7 @@ public class QuantileSketchTest {
 
     @Test
     public void testNoDataPMFDistribution() {
-        QuantileSketch sketch = new QuantileSketch(64, DistributionType.PMF, 10);
+        QuantileSketch sketch = new QuantileSketch(64, 2, DistributionType.PMF, 10);
 
         Clip result = sketch.getResult("meta", ALL_METADATA);
         Map<String, Object> metadata = (Map<String, Object>) result.getMeta().asMap().get("meta");
@@ -323,7 +327,7 @@ public class QuantileSketchTest {
 
     @Test
     public void testNoDataCDFDistribution() {
-        QuantileSketch sketch = new QuantileSketch(64, DistributionType.CDF, 10);
+        QuantileSketch sketch = new QuantileSketch(64, 2, DistributionType.CDF, 10);
 
         Clip result = sketch.getResult("meta", ALL_METADATA);
         Map<String, Object> metadata = (Map<String, Object>) result.getMeta().asMap().get("meta");
@@ -351,7 +355,7 @@ public class QuantileSketchTest {
 
     @Test
     public void testOnePointDistribution() {
-        QuantileSketch sketch = new QuantileSketch(64, DistributionType.QUANTILE, 1);
+        QuantileSketch sketch = new QuantileSketch(64, 2, DistributionType.QUANTILE, 1);
 
         // Insert 10, 20 ... 100
         IntStream.range(1, 11).forEach(i -> sketch.update(i * 10.0));
@@ -375,7 +379,7 @@ public class QuantileSketchTest {
 
     @Test
     public void testApproximateQuantilesWithNumberOfPoints() {
-        QuantileSketch sketch = new QuantileSketch(32, DistributionType.QUANTILE, 11);
+        QuantileSketch sketch = new QuantileSketch(32, 2, DistributionType.QUANTILE, 11);
 
         IntStream.range(1, 101).forEach(i -> sketch.update(i * 0.1));
 
@@ -561,5 +565,23 @@ public class QuantileSketchTest {
                                        .mapToDouble(r -> (Double) r.get(VALUE_FIELD)).toArray();
 
         Assert.assertEquals(actualValues, values);
+    }
+
+    @Test
+    public void testRounding() {
+        QuantileSketch sketch = new QuantileSketch(64, 6, DistributionType.CDF, 10);
+
+        IntStream.range(0, 30).forEach(i -> sketch.update(i % 10));
+        IntStream.range(0, 30).forEach(i -> sketch.update(i % 3));
+
+        Clip result = sketch.getResult(null, null);
+
+        Set<String> actualRangeEnds = result.getRecords().stream().map(r -> (String) r.get(RANGE_FIELD))
+                                                                  .map(QuantileSketchTest::getEnd)
+                                                                  .collect(Collectors.toSet());
+        Set<String> expectedRangeEnds = new HashSet<>(Arrays.asList("0.0", "1.0", "2.0", "3.0", "4.0", "5.0", "6.0",
+                                                                    "7.0", "8.0", "9.0", POSITIVE_INFINITY));
+        Assert.assertEquals(actualRangeEnds, expectedRangeEnds);
+
     }
 }
