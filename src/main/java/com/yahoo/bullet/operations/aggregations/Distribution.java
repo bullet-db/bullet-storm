@@ -29,7 +29,7 @@ public class Distribution extends SketchingStrategy<QuantileSketch> {
 
     public static final int DEFAULT_MAX_POINTS = 100;
     public static final int DEFAULT_POINTS = 1;
-    public static final int DEFAULT_ROUNDING = 4;
+    public static final int DEFAULT_ROUNDING = 6;
 
     // Distribution fields
     public static final String TYPE = "type";
