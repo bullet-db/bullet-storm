@@ -7,7 +7,6 @@ package com.yahoo.bullet.storm;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
 import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.operations.aggregations.CountDistinct;
@@ -45,8 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.TestHelpers.assertJSONEquals;
-import static com.yahoo.bullet.TestHelpers.getListBytes;
+import static com.yahoo.bullet.storm.TestHelpers.assertJSONEquals;
+import static com.yahoo.bullet.storm.TestHelpers.getListBytes;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
@@ -136,14 +135,14 @@ public class JoinBoltTest {
 
     public static void enableMetadataInConfig(Map<String, Object> config, String metaConcept, String key) {
         List<Map<String, String>> metadataConfig =
-                (List<Map<String, String>>) config.getOrDefault(BulletConfig.RESULT_METADATA_METRICS, new ArrayList<>());
+                (List<Map<String, String>>) config.getOrDefault(BulletStormConfig.RESULT_METADATA_METRICS, new ArrayList<>());
         Map<String, String> conceptConfig = new HashMap<>();
-        conceptConfig.put(BulletConfig.RESULT_METADATA_METRICS_CONCEPT_KEY, metaConcept);
-        conceptConfig.put(BulletConfig.RESULT_METADATA_METRICS_NAME_KEY, key);
+        conceptConfig.put(BulletStormConfig.RESULT_METADATA_METRICS_CONCEPT_KEY, metaConcept);
+        conceptConfig.put(BulletStormConfig.RESULT_METADATA_METRICS_NAME_KEY, key);
         metadataConfig.add(conceptConfig);
 
-        config.put(BulletConfig.RESULT_METADATA_ENABLE, true);
-        config.putIfAbsent(BulletConfig.RESULT_METADATA_METRICS, metadataConfig);
+        config.put(BulletStormConfig.RESULT_METADATA_ENABLE, true);
+        config.putIfAbsent(BulletStormConfig.RESULT_METADATA_METRICS, metadataConfig);
     }
 
     @BeforeMethod
@@ -255,7 +254,7 @@ public class JoinBoltTest {
     @Test
     public void testJoiningAfterTickout() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
@@ -296,7 +295,7 @@ public class JoinBoltTest {
     @Test
     public void testJoiningAfterLateArrivalBeforeTickout() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
@@ -342,7 +341,7 @@ public class JoinBoltTest {
     @Test
     public void testFailJoiningAfterLateArrivalSinceNoReturn() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
@@ -475,7 +474,7 @@ public class JoinBoltTest {
     @Test
     public void testErrorBufferingCustomNoTimeout() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, 10);
+        config.put(BulletStormConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, 10);
         setup(config, new JoinBolt());
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "garbage");
@@ -504,7 +503,7 @@ public class JoinBoltTest {
     @Test
     public void testErrorBufferingCustomTimeout() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, 10);
+        config.put(BulletStormConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, 10);
         setup(config, new JoinBolt());
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, "garbage");
@@ -802,7 +801,7 @@ public class JoinBoltTest {
     @Test
     public void testQueryCountingMetrics() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,
@@ -854,7 +853,7 @@ public class JoinBoltTest {
     @Test
     public void testImproperQueryCountingMetrics() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new JoinBolt());
 
         Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
@@ -873,11 +872,11 @@ public class JoinBoltTest {
     public void testCustomMetricEmitInterval() {
         Map<String, Object> config = new HashMap<>();
         Map<String, Number> mapping = new HashMap<>();
-        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
 
         mapping.put(JoinBolt.ACTIVE_QUERIES, 1);
         mapping.put(JoinBolt.DEFAULT_METRICS_INTERVAL_KEY, 10);
-        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, mapping);
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, mapping);
         setup(config, new ExpiringJoinBolt());
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L,

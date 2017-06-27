@@ -5,8 +5,6 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
-import com.yahoo.bullet.TestHelpers;
 import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
 import com.yahoo.bullet.operations.SerializerDeserializer;
 import com.yahoo.bullet.operations.aggregations.CountDistinct;
@@ -553,7 +551,7 @@ public class FilterBoltTest {
     @Test
     public void testMicroBatching() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, 3);
+        config.put(BulletStormConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, 3);
         // 5 Records will be consumed
         bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(5), collector);
 
@@ -742,7 +740,7 @@ public class FilterBoltTest {
     @Test
     public void testFilteringLatency() {
         Map<String, Object> config = new HashMap<>();
-        config.put(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new NeverExpiringFilterBolt());
 
         Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, 42L, makeFieldFilterQuery("bar"));

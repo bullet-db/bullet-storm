@@ -4,7 +4,7 @@
 
     <groupId>com.yahoo.bullet</groupId>
     <artifactId>bullet-storm-0.10</artifactId>
-    <version>0.4.4-SNAPSHOT</version>
+    <version>0.5.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>bullet-storm-0.10</name>
 
@@ -28,7 +28,7 @@
             </snapshots>
             <id>bintray-yahoo-maven</id>
             <name>bintray</name>
-            <url>http://dl.bintray.com/yahoo/maven</url>
+            <url>http://yahoo.bintray.com/maven</url>
         </repository>
     </repositories>
 
@@ -37,7 +37,8 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <storm.version>0.10.2</storm.version>
-        <bullet.record.version>0.1.1</bullet.record.version>
+        <bullet.record.version>0.1.2</bullet.record.version>
+        <bullet.core.version>0.1.2</bullet.core.version>
         <sketches.version>0.9.1</sketches.version>
     </properties>
 
@@ -54,6 +55,14 @@
             <version>1.10.19</version>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>com.yahoo.bullet</groupId>
+            <artifactId>bullet-core</artifactId>
+            <version>${bullet.core.version}</version>
+            <type>test-jar</type>
+            <scope>test</scope>
+        </dependency>
+
         <dependency>
             <groupId>log4j</groupId>
             <artifactId>log4j</artifactId>
@@ -83,6 +92,11 @@
             <groupId>com.yahoo.bullet</groupId>
             <artifactId>bullet-record</artifactId>
             <version>${bullet.record.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.yahoo.bullet</groupId>
+            <artifactId>bullet-core</artifactId>
+            <version>${bullet.core.version}</version>
         </dependency>
         <dependency>
             <groupId>com.yahoo.datasketches</groupId>
@@ -135,7 +149,7 @@
                             <goal>check</goal>
                         </goals>
                         <configuration>
-                            <excludes>java/Client.java,java/Topology.java</excludes>
+                            <excludes>java/Topology.java</excludes>
                             <includeTestSourceDirectory>true</includeTestSourceDirectory>
                             <configLocation>src/main/resources/checkstyle.xml</configLocation>
                         </configuration>
@@ -157,7 +171,6 @@
                 <configuration>
                     <licenseLocation>${user.home}/clover.license</licenseLocation>
                     <excludes>
-                        <exclude>**/Client.java</exclude>
                         <exclude>**/Topology.java</exclude>
                     </excludes>
                 </configuration>

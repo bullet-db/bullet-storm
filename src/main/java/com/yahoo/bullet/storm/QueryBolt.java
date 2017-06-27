@@ -5,7 +5,6 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.querying.AbstractQuery;
 import com.yahoo.bullet.result.Metadata;
 import lombok.extern.slf4j.Slf4j;
@@ -67,13 +66,13 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
             log.info("Metadata collection is enabled");
             log.info("Collecting metadata for these concepts:\n{}", metadataKeys);
             // Add all metadataKeys back to configuration for reuse so no need refetch them on every new query
-            configuration.put(BulletConfig.RESULT_METADATA_METRICS_MAPPING, metadataKeys);
+            configuration.put(BulletStormConfig.RESULT_METADATA_METRICS_MAPPING, metadataKeys);
         }
 
         // Enable built in metrics
-        metricsEnabled = (Boolean) configuration.getOrDefault(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE,
+        metricsEnabled = (Boolean) configuration.getOrDefault(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE,
                                                               DEFAULT_BUILT_IN_METRICS_ENABLE);
-        metricsIntervalMapping = (Map<String, Number>) configuration.getOrDefault(BulletConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING,
+        metricsIntervalMapping = (Map<String, Number>) configuration.getOrDefault(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING,
                                                                                   new HashMap<>());
         metricsIntervalMapping.putIfAbsent(DEFAULT_METRICS_INTERVAL_KEY, DEFAULT_BUILT_IN_METRICS_INTERVAL_SECS);
     }

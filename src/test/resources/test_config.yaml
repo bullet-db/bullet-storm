@@ -2,5 +2,7 @@
 bullet.topology.name: "test"
 # The function
 bullet.topology.function: "foo"
+# Overriding bullet core setting
+bullet.query.max.duration: 10000
 # Some random setting
-fake.setting: null
+fake.setting: "bar"
