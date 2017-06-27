@@ -6,7 +6,6 @@
 package com.yahoo.bullet.storm;
 
 import com.google.gson.JsonParseException;
-import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.parsing.ParsingException;
 import com.yahoo.bullet.querying.AggregationQuery;
@@ -77,12 +76,12 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
 
         activeReturns = new HashMap<>();
 
-        Number errorTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT,
+        Number errorTickoutNumber = (Number) configuration.getOrDefault(BulletStormConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT,
                                                                         DEFAULT_ERROR_TICKOUT);
         int errorTickout = errorTickoutNumber.intValue();
         bufferedErrors = new RotatingMap<>(errorTickout);
 
-        Number queryTickoutNumber = (Number) configuration.getOrDefault(BulletConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
+        Number queryTickoutNumber = (Number) configuration.getOrDefault(BulletStormConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
                                                                         DEFAULT_QUERY_TICKOUT);
         int queryTickout = queryTickoutNumber.intValue();
         bufferedQueries = new RotatingMap<>(queryTickout);

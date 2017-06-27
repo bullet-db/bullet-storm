@@ -3,8 +3,10 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet;
+package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
@@ -16,7 +18,7 @@ import java.util.Set;
 import static java.util.Arrays.asList;
 
 @Slf4j
-public class BulletConfig extends Config {
+public class BulletStormConfig extends BulletConfig {
     public static final String TOPOLOGY_SCHEDULER = "bullet.topology.scheduler";
     public static final String TOPOLOGY_FUNCTION = "bullet.topology.function";
     public static final String TOPOLOGY_NAME = "bullet.topology.name";
@@ -50,41 +52,6 @@ public class BulletConfig extends Config {
     public static final String RETURN_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.return.bolt.memory.off.heap.load";
     public static final String TICK_INTERVAL_SECS = "bullet.topology.tick.interval.secs";
 
-    public static final String SPECIFICATION_DEFAULT_DURATION = "bullet.query.default.duration";
-    public static final String SPECIFICATION_MAX_DURATION = "bullet.query.max.duration";
-    public static final String AGGREGATION_DEFAULT_SIZE = "bullet.query.aggregation.default.size";
-    public static final String AGGREGATION_MAX_SIZE = "bullet.query.aggregation.max.size";
-    public static final String AGGREGATION_COMPOSITE_FIELD_SEPARATOR = "bullet.query.aggregation.composite.field.separator";
-
-    public static final String RAW_AGGREGATION_MAX_SIZE = "bullet.query.aggregation.raw.max.size";
-    public static final String RAW_AGGREGATION_MICRO_BATCH_SIZE = "bullet.query.aggregation.raw.micro.batch.size";
-
-    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_ENTRIES = "bullet.query.aggregation.count.distinct.sketch.entries";
-    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_SAMPLING = "bullet.query.aggregation.count.distinct.sketch.sampling";
-    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_FAMILY = "bullet.query.aggregation.count.distinct.sketch.family";
-    public static final String COUNT_DISTINCT_AGGREGATION_SKETCH_RESIZE_FACTOR = "bullet.query.aggregation.count.distinct.sketch.resize.factor";
-
-    public static final String GROUP_AGGREGATION_SKETCH_ENTRIES = "bullet.query.aggregation.group.sketch.entries";
-    public static final String GROUP_AGGREGATION_SKETCH_SAMPLING = "bullet.query.aggregation.group.sketch.sampling";
-    public static final String GROUP_AGGREGATION_SKETCH_RESIZE_FACTOR = "bullet.query.aggregation.group.sketch.resize.factor";
-
-    public static final String DISTRIBUTION_AGGREGATION_SKETCH_ENTRIES = "bullet.query.aggregation.distribution.sketch.entries";
-    public static final String DISTRIBUTION_AGGREGATION_MAX_POINTS = "bullet.query.aggregation.distribution.max.points";
-    public static final String DISTRIBUTION_AGGREGATION_GENERATED_POINTS_ROUNDING = "bullet.query.aggregation.distribution.generated.points.rounding";
-
-    public static final String TOP_K_AGGREGATION_SKETCH_ENTRIES = "bullet.query.aggregation.top.k.sketch.entries";
-    public static final String TOP_K_AGGREGATION_SKETCH_ERROR_TYPE = "bullet.query.aggregation.top.k.sketch.error.type";
-
-    public static final String RECORD_INJECT_TIMESTAMP = "bullet.record.inject.timestamp.enable";
-    public static final String RECORD_INJECT_TIMESTAMP_KEY = "bullet.record.inject.timestamp.key";
-
-    public static final String RESULT_METADATA_ENABLE = "bullet.result.metadata.enable";
-    public static final String RESULT_METADATA_METRICS = "bullet.result.metadata.metrics";
-    public static final String RESULT_METADATA_METRICS_CONCEPT_KEY = "name";
-    public static final String RESULT_METADATA_METRICS_NAME_KEY = "key";
-
-    public static final String RESULT_METADATA_METRICS_MAPPING = "bullet.result.metadata.metrics.mapping";
-
     public static Set<String> TOPOLOGY_SUBMISSION_SETTINGS =
             new HashSet<>(asList(DRPC_SPOUT_PARALLELISM, DRPC_SPOUT_CPU_LOAD, DRPC_SPOUT_MEMORY_ON_HEAP_LOAD,
                                  DRPC_SPOUT_MEMORY_OFF_HEAP_LOAD, PREPARE_BOLT_PARALLELISM, PREPARE_BOLT_CPU_LOAD,
@@ -95,23 +62,23 @@ public class BulletConfig extends Config {
                                  RETURN_BOLT_PARALLELISM, RETURN_BOLT_CPU_LOAD, RETURN_BOLT_MEMORY_ON_HEAP_LOAD,
                                  RETURN_BOLT_MEMORY_OFF_HEAP_LOAD, TOPOLOGY_SCHEDULER, TOPOLOGY_FUNCTION,
                                  TOPOLOGY_NAME, TOPOLOGY_WORKERS, TOPOLOGY_DEBUG, TOPOLOGY_METRICS_ENABLE));
+
+    public static final String DEFAULT_STORM_CONFIGURATION = "bullet_storm_defaults.yaml";
+
     /**
      * Constructor that loads specific file augmented with defaults.
      *
      * @param file YAML file to load.
      * @throws IOException if an error occurred with the file loading.
      */
-    public BulletConfig(String file) throws IOException {
-        super(file);
-    }
-
-    /**
-     * Default constructor.
-     *
-     * @throws IOException if an error occurred with loading the default config.
-     */
-    public BulletConfig() throws IOException {
-        super();
+    public BulletStormConfig(String file) throws IOException {
+        // Load Bullet defaults
+        super(null);
+        // Load Bullet Storm settings
+        Config stormDefaults = new Config(file, DEFAULT_STORM_CONFIGURATION);
+        // Merge Storm settings onto Bullet defaults
+        merge(stormDefaults);
+        log.info("Bullet Storm merged settings:\n {}", getAll(Optional.empty()));
     }
 
     /**
