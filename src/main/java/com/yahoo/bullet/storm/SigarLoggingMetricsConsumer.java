@@ -1,6 +1,5 @@
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
 import org.apache.storm.Config;
 import org.apache.storm.metric.LoggingMetricsConsumer;
 
@@ -16,9 +15,9 @@ public class SigarLoggingMetricsConsumer extends LoggingMetricsConsumer {
      * Registers the Sigar CPUMetric and the LoggingMetricsConsumer with a parallelism of 1.
      *
      * @param stormConfig The Storm {@link Config} to add to.
-     * @param bulletConfig The Bullet {@link BulletConfig} to get information from.
+     * @param bulletStormConfig The Bullet {@link BulletStormConfig} to get information from.
      */
-    public static void register(Config stormConfig, BulletConfig bulletConfig) {
+    public static void register(Config stormConfig, BulletStormConfig bulletStormConfig) {
         stormConfig.registerMetricsConsumer(LoggingMetricsConsumer.class);
         Map<String, String> metrics = (Map<String, String>) stormConfig.getOrDefault(Config.TOPOLOGY_WORKER_METRICS, new HashMap<>());
         metrics.putAll(METRICS);

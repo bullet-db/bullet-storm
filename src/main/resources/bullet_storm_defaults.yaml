@@ -1,0 +1,102 @@
+# The name of the Storm DRPC function
+bullet.topology.function: "tracer"
+
+# The name of the Storm topology
+bullet.topology.name: "bullet-topology"
+
+# The number of topology workers to use. Applicable when the scheduler is not ras.
+bullet.topology.workers: 92
+
+# Enable Storm debug logging
+bullet.topology.debug: false
+
+# The scheduling strategy to use. Only "ras" is currently supported.
+bullet.topology.scheduler: "ras"
+
+# Enable metrics collection for the topology. The registered metrics classes under bullet.topology.metrics.classes are loaded.
+# This enables the default storm built-in metrics. See: http://storm.apache.org/releases/1.0.1/Metrics.html
+# Depending on your cluster configuration, things such as on/off heap usage, cpu usage, garbage collection time/types
+# send/receive queue sizes and overflows, execute/ack/fail counts and other such system metrics can be obtained.
+bullet.topology.metrics.enable: false
+
+# Enable the collection of the Bullet built-in metrics. These will be sent to your metrics classes. This is in addition
+# to the storm built-in metrics. Currently supported are:
+
+# Counting metrics: These behave like org.apache.storm.metric.api.CountMetric but do not reset their value when getValueAndReset()
+# is called. This custom metric is defined in com.yahoo.bullet.storm.AbsoluteCountMetric.
+#   1. bullet_active_queries : A metric that counts the number of queries active per JoinBolt. Note that this metric will
+#                              increase and decrease as queries come and go. Make sure to configure the emit period accordingly
+#                              otherwise short running queries may not be even counted.
+#   2. bullet_created_queries : A metric that counts the number of queries created per JoinBolt.
+#   3. bullet_improper_queries : A metric that counts the number of semantically incorrect queries created per JoinBolt.
+
+# Averaging metrics: These are org.apache.storm.metric.api.ReducedMetrics
+#   1. bullet_filter_latency: A metric that computes the average latency to filter a single record in the Filter Bolt. The latency is
+#                             subtracted from record tuple that the Filter Bolts receive from your Data Source component. If the
+#                             record tuple is of the format (record, timestamp), then Bullet WILL try to read your timestamp as a Long,
+#                             and subtract it from the time when it finishes filtering a record to compute the filtering latency. You
+#                             will get an RuntimeException if your tuple contains more than just the record but the second position
+#                             is not a Long.
+bullet.topology.metrics.built.in.enable: false
+# The time period mapping from metric name to seconds for emitting the metric. This is passed to Storm when the metrics are registered.
+# A default value for all metrics can also be set by using the "default" key.
+bullet.topology.metrics.built.in.emit.interval.mapping:
+   bullet_active_queries: 10
+   default: 10
+
+# You can list full package prefixed class path to your custom implementation. The class must extend
+# org.apache.storm.metric.api.IMetricsConsumer. Additionally, it must provide a static method with signature
+# public static void register(Config, BulletStormConfig), where  Config is of type org.apache.storm.Config and
+# BulletStormConfig is of type com.yahoo.bullet.BulletStormConfig.
+# Your register method is responsible for calling registerMetricsConsumer to add itself to the provided
+# Config. You can add settings such as your argument for the prepare method call, or your parallelism for the
+# IMetricsConsumer in this register method. Any custom metrics that you have should also be added to Config by
+# adding (not replacing) to the Config.TOPOLOGY_WORKER_METRICS map. For an example, see the implementation of
+# of the com.yahoo.bullet.storm.SigarLoggingMetricsConsumer.
+bullet.topology.metrics.classes:
+  # This uses the LoggingMetricsConsumer and collects a CPU metric using org.apache.storm.metrics.sigar.CPUMetric. It
+  # runs with a parallelism of 1. The CPU metric is a worker level metric.
+  - "com.yahoo.bullet.storm.SigarLoggingMetricsConsumer"
+
+# The following CPU loads and memory on and off heap control their respective component's CPU
+# and memory configuration. These settings are only used when scheduler is "ras"
+# The parallelism setting controls the number of executors used for each component.
+bullet.topology.drpc.spout.cpu.load: 20.0
+bullet.topology.drpc.spout.memory.on.heap.load: 256.0
+bullet.topology.drpc.spout.memory.off.heap.load: 160.0
+bullet.topology.drpc.spout.parallelism: 20
+bullet.topology.prepare.bolt.cpu.load: 20.0
+bullet.topology.prepare.bolt.memory.on.heap.load: 128.0
+bullet.topology.prepare.bolt.memory.off.heap.load: 160.0
+bullet.topology.prepare.bolt.parallelism: 5
+bullet.topology.return.bolt.cpu.load: 20.0
+bullet.topology.return.bolt.memory.on.heap.load: 128.0
+bullet.topology.return.bolt.memory.off.heap.load: 160.0
+bullet.topology.return.bolt.parallelism: 10
+bullet.topology.filter.bolt.cpu.load: 100.0
+bullet.topology.filter.bolt.memory.on.heap.load: 256.0
+bullet.topology.filter.bolt.memory.off.heap.load: 160.0
+bullet.topology.filter.bolt.parallelism: 35
+bullet.topology.join.bolt.cpu.load: 100.0
+bullet.topology.join.bolt.memory.on.heap.load: 512.0
+bullet.topology.join.bolt.memory.off.heap.load: 160.0
+bullet.topology.join.bolt.parallelism: 20
+
+# Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if queries
+# have expired) etc. This setting controls the how frequently a tick happens - number of seconds between ticks.
+bullet.topology.tick.interval.secs: 1
+
+# This is the number of ticks for which an error caused by receiving a bad query will be buffered if the
+# return information has not been received, will be buffered before being thrown away
+bullet.topology.join.bolt.error.tick.timeout: 3
+
+# This is the number of ticks for which a query will be buffered past its expiry in order to wait for
+# aggregations to trickle in from the Filter Bolts.
+bullet.topology.join.bolt.query.tick.timeout: 3
+
+########################################################################################################################
+########################################################################################################################
+## You can also configure the core Bullet settings here. For documentation and defaults for those settings, refer to:
+## https://github.com/yahoo/bullet-core/blob/master/src/main/resources/bullet_defaults.yaml
+########################################################################################################################
+########################################################################################################################
