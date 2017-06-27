@@ -60,7 +60,7 @@
             <groupId>com.yahoo.bullet</groupId>
             <artifactId>bullet-core</artifactId>
             <version>${bullet.core.version}</version>
-            <classifier>tests</classifier>
+            <type>test-jar</type>
             <scope>test</scope>
         </dependency>
 
