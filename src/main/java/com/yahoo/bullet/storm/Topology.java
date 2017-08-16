@@ -103,7 +103,6 @@ public class Topology {
         Objects.requireNonNull(builder);
 
         String name = (String) config.get(BulletStormConfig.TOPOLOGY_NAME);
-        String function = (String) config.get(BulletStormConfig.TOPOLOGY_FUNCTION);
 
         Number querySpoutParallelism = (Number) config.get(BulletStormConfig.QUERY_SPOUT_PARALLELISM);
         Number querySpoutCPULoad = (Number) config.get(BulletStormConfig.QUERY_SPOUT_CPU_LOAD);

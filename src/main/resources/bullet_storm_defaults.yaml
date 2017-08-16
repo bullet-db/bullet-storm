@@ -1,6 +1,3 @@
-# The name of the Storm DRPC function
-bullet.topology.function: "tracer"
-
 # The name of the Storm topology
 bullet.topology.name: "bullet-topology"
 

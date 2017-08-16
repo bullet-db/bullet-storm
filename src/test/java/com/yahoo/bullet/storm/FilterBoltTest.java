@@ -354,7 +354,7 @@ public class FilterBoltTest {
         bolt.execute(queryB);
 
         BulletRecord recordA = RecordBox.get().add("field", "b235gf23b").add("timestamp", 45L).getRecord();
-        BulletRecord recordB = RecordBox.get().add("field", "b235gf23b").add("timestamp", "42").getRecord();
+        BulletRecord recordB = RecordBox.get().add("field", "b235gf23b").add("timestamp", 42L).getRecord();
         Tuple matchingA = makeTuple(TupleType.Type.RECORD_TUPLE, recordA);
         Tuple matchingB = makeTuple(TupleType.Type.RECORD_TUPLE, recordB);
 

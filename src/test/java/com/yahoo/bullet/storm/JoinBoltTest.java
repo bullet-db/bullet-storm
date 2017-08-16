@@ -896,7 +896,7 @@ public class JoinBoltTest {
             bolt.execute(tick);
         }
 
-        List<BulletRecord> result = singletonList(RecordBox.get().add("cnt", "42").getRecord());
+        List<BulletRecord> result = singletonList(RecordBox.get().add("cnt", 42L).getRecord());
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, "42", Clip.of(result).asJSON(), METADATA);
         Assert.assertFalse(collector.wasTupleEmitted(expected));
 

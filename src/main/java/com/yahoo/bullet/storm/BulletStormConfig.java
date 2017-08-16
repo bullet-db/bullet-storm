@@ -20,7 +20,6 @@ import static java.util.Arrays.asList;
 @Slf4j
 public class BulletStormConfig extends BulletConfig {
     public static final String TOPOLOGY_SCHEDULER = "bullet.topology.scheduler";
-    public static final String TOPOLOGY_FUNCTION = "bullet.topology.function";
     public static final String TOPOLOGY_NAME = "bullet.topology.name";
     public static final String TOPOLOGY_WORKERS = "bullet.topology.workers";
     public static final String TOPOLOGY_DEBUG = "bullet.topology.debug";
@@ -32,10 +31,6 @@ public class BulletStormConfig extends BulletConfig {
     public static final String QUERY_SPOUT_CPU_LOAD = "bullet.topology.query.spout.cpu.load";
     public static final String QUERY_SPOUT_MEMORY_ON_HEAP_LOAD = "bullet.topology.query.spout.memory.on.heap.load";
     public static final String QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.query.spout.memory.off.heap.load";
-    public static final String PREPARE_BOLT_PARALLELISM = "bullet.topology.prepare.bolt.parallelism";
-    public static final String PREPARE_BOLT_CPU_LOAD = "bullet.topology.prepare.bolt.cpu.load";
-    public static final String PREPARE_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.prepare.bolt.memory.on.heap.load";
-    public static final String PREPARE_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.prepare.bolt.memory.off.heap.load";
     public static final String FILTER_BOLT_PARALLELISM = "bullet.topology.filter.bolt.parallelism";
     public static final String FILTER_BOLT_CPU_LOAD = "bullet.topology.filter.bolt.cpu.load";
     public static final String FILTER_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.filter.bolt.memory.on.heap.load";
@@ -54,14 +49,12 @@ public class BulletStormConfig extends BulletConfig {
 
     public static Set<String> TOPOLOGY_SUBMISSION_SETTINGS =
             new HashSet<>(asList(QUERY_SPOUT_PARALLELISM, QUERY_SPOUT_CPU_LOAD, QUERY_SPOUT_MEMORY_ON_HEAP_LOAD,
-                                 QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD, PREPARE_BOLT_PARALLELISM, PREPARE_BOLT_CPU_LOAD,
-                                 PREPARE_BOLT_MEMORY_ON_HEAP_LOAD, PREPARE_BOLT_MEMORY_OFF_HEAP_LOAD,
-                                 FILTER_BOLT_PARALLELISM, FILTER_BOLT_CPU_LOAD, FILTER_BOLT_MEMORY_ON_HEAP_LOAD,
-                                 FILTER_BOLT_MEMORY_OFF_HEAP_LOAD, JOIN_BOLT_PARALLELISM, JOIN_BOLT_CPU_LOAD,
-                                 JOIN_BOLT_MEMORY_ON_HEAP_LOAD, JOIN_BOLT_MEMORY_OFF_HEAP_LOAD, RESULT_BOLT_PARALLELISM,
-                                 RESULT_BOLT_CPU_LOAD, RESULT_BOLT_MEMORY_ON_HEAP_LOAD, RESULT_BOLT_MEMORY_OFF_HEAP_LOAD,
-                                 TOPOLOGY_SCHEDULER, TOPOLOGY_FUNCTION, TOPOLOGY_NAME, TOPOLOGY_WORKERS, TOPOLOGY_DEBUG,
-                                 TOPOLOGY_METRICS_ENABLE));
+                                 QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD, FILTER_BOLT_PARALLELISM, FILTER_BOLT_CPU_LOAD,
+                                 FILTER_BOLT_MEMORY_ON_HEAP_LOAD, FILTER_BOLT_MEMORY_OFF_HEAP_LOAD, JOIN_BOLT_PARALLELISM,
+                                 JOIN_BOLT_CPU_LOAD, JOIN_BOLT_MEMORY_ON_HEAP_LOAD, JOIN_BOLT_MEMORY_OFF_HEAP_LOAD,
+                                 RESULT_BOLT_PARALLELISM, RESULT_BOLT_CPU_LOAD, RESULT_BOLT_MEMORY_ON_HEAP_LOAD,
+                                 RESULT_BOLT_MEMORY_OFF_HEAP_LOAD, TOPOLOGY_SCHEDULER, TOPOLOGY_NAME, TOPOLOGY_WORKERS,
+                                 TOPOLOGY_DEBUG, TOPOLOGY_METRICS_ENABLE));
 
     public static final String DEFAULT_STORM_CONFIGURATION = "bullet_storm_defaults.yaml";
 

@@ -26,7 +26,6 @@ public class BulletStormConfigTest {
     public void testCustomConfig() throws IOException {
         BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_NAME), "test");
-        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_FUNCTION), "foo");
         Assert.assertEquals(config.get(BulletStormConfig.SPECIFICATION_MAX_DURATION), 10000L);
         Assert.assertEquals(config.get("fake.setting"), "bar");
 
