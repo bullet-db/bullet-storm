@@ -33,7 +33,7 @@ public class BulletStormConfigTest {
         // Defaulted
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_WORKERS), 92L);
         Assert.assertEquals(config.get(BulletStormConfig.AGGREGATION_MAX_SIZE), 512L);
-        Assert.assertEquals(config.get(BulletStormConfig.DRPC_SPOUT_CPU_LOAD), 20.0);
+        Assert.assertEquals(config.get(BulletStormConfig.QUERY_SPOUT_CPU_LOAD), 20.0);
     }
 
     @Test

@@ -61,18 +61,14 @@ bullet.topology.metrics.classes:
 # The following CPU loads and memory on and off heap control their respective component's CPU
 # and memory configuration. These settings are only used when scheduler is "ras"
 # The parallelism setting controls the number of executors used for each component.
-bullet.topology.drpc.spout.cpu.load: 20.0
-bullet.topology.drpc.spout.memory.on.heap.load: 256.0
-bullet.topology.drpc.spout.memory.off.heap.load: 160.0
-bullet.topology.drpc.spout.parallelism: 20
-bullet.topology.prepare.bolt.cpu.load: 20.0
-bullet.topology.prepare.bolt.memory.on.heap.load: 128.0
-bullet.topology.prepare.bolt.memory.off.heap.load: 160.0
-bullet.topology.prepare.bolt.parallelism: 5
-bullet.topology.return.bolt.cpu.load: 20.0
-bullet.topology.return.bolt.memory.on.heap.load: 128.0
-bullet.topology.return.bolt.memory.off.heap.load: 160.0
-bullet.topology.return.bolt.parallelism: 10
+bullet.topology.query.spout.cpu.load: 20.0
+bullet.topology.query.spout.memory.on.heap.load: 256.0
+bullet.topology.query.spout.memory.off.heap.load: 160.0
+bullet.topology.query.spout.parallelism: 20
+bullet.topology.result.bolt.cpu.load: 20.0
+bullet.topology.result.bolt.memory.on.heap.load: 128.0
+bullet.topology.result.bolt.memory.off.heap.load: 160.0
+bullet.topology.result.bolt.parallelism: 10
 bullet.topology.filter.bolt.cpu.load: 100.0
 bullet.topology.filter.bolt.memory.on.heap.load: 256.0
 bullet.topology.filter.bolt.memory.off.heap.load: 160.0
@@ -93,6 +89,9 @@ bullet.topology.join.bolt.error.tick.timeout: 3
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
 # aggregations to trickle in from the Filter Bolts.
 bullet.topology.join.bolt.query.tick.timeout: 3
+
+# This is the type of PubSub context to use
+bullet.pubsub.context.name: "QUERY_PROCESSING"
 
 ########################################################################################################################
 ########################################################################################################################
