@@ -19,7 +19,6 @@ import static java.util.Arrays.asList;
 
 @Slf4j
 public class BulletStormConfig extends BulletConfig {
-    public static final String TOPOLOGY_FUNCTION = "bullet.topology.function";
     public static final String TOPOLOGY_NAME = "bullet.topology.name";
     public static final String TOPOLOGY_WORKERS = "bullet.topology.workers";
     public static final String TOPOLOGY_DEBUG = "bullet.topology.debug";
@@ -27,18 +26,16 @@ public class BulletStormConfig extends BulletConfig {
     public static final String TOPOLOGY_METRICS_CLASSES = "bullet.topology.metrics.classes";
     public static final String TOPOLOGY_METRICS_BUILT_IN_ENABLE = "bullet.topology.metrics.built.in.enable";
     public static final String TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING = "bullet.topology.metrics.built.in.emit.interval.mapping";
-    public static final String DRPC_SPOUT_PARALLELISM = "bullet.topology.drpc.spout.parallelism";
-    public static final String PREPARE_BOLT_PARALLELISM = "bullet.topology.prepare.bolt.parallelism";
+    public static final String QUERY_SPOUT_PARALLELISM = "bullet.topology.query.spout.parallelism";
     public static final String FILTER_BOLT_PARALLELISM = "bullet.topology.filter.bolt.parallelism";
     public static final String JOIN_BOLT_PARALLELISM = "bullet.topology.join.bolt.parallelism";
     public static final String JOIN_BOLT_ERROR_TICK_TIMEOUT = "bullet.topology.join.bolt.error.tick.timeout";
     public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
-    public static final String RETURN_BOLT_PARALLELISM = "bullet.topology.return.bolt.parallelism";
+    public static final String RESULT_BOLT_PARALLELISM = "bullet.topology.result.bolt.parallelism";
     public static final String TICK_INTERVAL_SECS = "bullet.topology.tick.interval.secs";
 
     public static Set<String> TOPOLOGY_SUBMISSION_SETTINGS =
-            new HashSet<>(asList(DRPC_SPOUT_PARALLELISM, PREPARE_BOLT_PARALLELISM, FILTER_BOLT_PARALLELISM,
-                                 JOIN_BOLT_PARALLELISM, RETURN_BOLT_PARALLELISM, TOPOLOGY_FUNCTION,
+            new HashSet<>(asList(QUERY_SPOUT_PARALLELISM, FILTER_BOLT_PARALLELISM, JOIN_BOLT_PARALLELISM, RESULT_BOLT_PARALLELISM,
                                  TOPOLOGY_NAME, TOPOLOGY_WORKERS, TOPOLOGY_DEBUG));
 
     public static final String DEFAULT_STORM_CONFIGURATION = "bullet_storm_defaults.yaml";

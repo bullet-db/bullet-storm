@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 public class TupleUtils {
     public static Tuple makeIDTuple(Type type, Object... contents) {
         Tuple tuple = makeTuple(type, contents);
-        when(tuple.getLong(TopologyConstants.ID_POSITION)).thenReturn((Long) contents[TopologyConstants.ID_POSITION]);
+        when(tuple.getString(TopologyConstants.ID_POSITION)).thenReturn((String) contents[TopologyConstants.ID_POSITION]);
         return tuple;
     }
 
