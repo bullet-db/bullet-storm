@@ -24,7 +24,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
     public static final Integer DEFAULT_TICK_INTERVAL = 5;
 
     public static final boolean DEFAULT_BUILT_IN_METRICS_ENABLE = false;
-    public static final String DEFAULT_METRICS_INTERVAL_KEY = "default";
+    public static final String DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY = "default";
     public static final int DEFAULT_BUILT_IN_METRICS_INTERVAL_SECS = 60;
 
     protected boolean metricsEnabled;
@@ -35,7 +35,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
     protected Map<String, String> metadataKeys;
 
     // TODO consider a rotating map with multilevels and reinserts upon rotating instead for scalability
-    protected Map<Long, Q> queriesMap;
+    protected Map<String, Q> queriesMap;
 
     /**
      * Constructor that accepts the tick interval.
@@ -55,7 +55,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
     @SuppressWarnings("unchecked")
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-        // stormConf is not modifyable. Need to make a copy.
+        // stormConf is not modifiable. Need to make a copy.
         this.configuration = new HashMap<>(stormConf);
         this.collector = collector;
         queriesMap = new HashMap<>();
@@ -74,16 +74,16 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
                                                               DEFAULT_BUILT_IN_METRICS_ENABLE);
         metricsIntervalMapping = (Map<String, Number>) configuration.getOrDefault(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING,
                                                                                   new HashMap<>());
-        metricsIntervalMapping.putIfAbsent(DEFAULT_METRICS_INTERVAL_KEY, DEFAULT_BUILT_IN_METRICS_INTERVAL_SECS);
+        metricsIntervalMapping.putIfAbsent(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, DEFAULT_BUILT_IN_METRICS_INTERVAL_SECS);
     }
 
     /**
      * Retires queries that are active past the tick time.
      * @return The map of query ids to queries that were retired.
      */
-    protected Map<Long, Q> retireQueries() {
-        Map<Long, Q> retiredQueries = queriesMap.entrySet().stream().filter(e -> e.getValue().isExpired())
-                                            .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+    protected Map<String, Q> retireQueries() {
+        Map<String, Q> retiredQueries = queriesMap.entrySet().stream().filter(e -> e.getValue().isExpired())
+                                                                      .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
         queriesMap.keySet().removeAll(retiredQueries.keySet());
         if (retiredQueries.size() > 0) {
             log.info("Retired queries: {}. Active queries: {}.", retiredQueries.size(), queriesMap.size());
@@ -97,7 +97,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
      * @return The created query.
      */
     protected Q initializeQuery(Tuple tuple) {
-        Long id = tuple.getLong(TopologyConstants.ID_POSITION);
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
         String queryString = tuple.getString(TopologyConstants.QUERY_POSITION);
         Q query = getQuery(id, queryString);
         if (query == null) {
@@ -136,5 +136,5 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
      * @param queryString The String version of the AbstractQuery
      * @return The appropriate type of AbstractQuery to use for this Bolt.
      */
-    protected abstract Q getQuery(Long id, String queryString);
+    protected abstract Q getQuery(String id, String queryString);
 }

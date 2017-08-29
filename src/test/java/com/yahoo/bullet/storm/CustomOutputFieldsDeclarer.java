@@ -33,6 +33,10 @@ public class CustomOutputFieldsDeclarer implements OutputFieldsDeclarer {
         return areFieldsPresent(stream, fields) && directMap.get(stream) == direct;
     }
 
+    public boolean areFieldsDeclared() {
+        return !captured.isEmpty();
+    }
+
     @Override
     public void declare(Fields fields) {
         addAll(Utils.DEFAULT_STREAM_ID, fields, false);

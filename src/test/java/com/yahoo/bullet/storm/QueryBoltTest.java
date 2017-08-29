@@ -31,7 +31,7 @@ public class QueryBoltTest {
         }
 
         @Override
-        public AbstractQuery getQuery(Long id, String queryString) {
+        public AbstractQuery getQuery(String id, String queryString) {
             return null;
         }
 

@@ -5,13 +5,13 @@
  */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.pubsub.PubSub;
+import com.yahoo.bullet.pubsub.PubSubConfig;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
-import org.apache.storm.drpc.DRPCSpout;
-import org.apache.storm.drpc.ReturnResults;
 import org.apache.storm.metric.api.IMetricsConsumer;
 import org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy;
 import org.apache.storm.scheduler.resource.strategies.scheduling.IStrategy;
@@ -97,23 +97,17 @@ public class Topology {
      * @param builder The non-null {@link TopologyBuilder} that was used to create your topology.
      * @throws Exception if there were issues creating the topology.
      */
-    public static void submit(BulletStormConfig config, String recordComponent, TopologyBuilder builder) throws Exception {
+    public static void submit(BulletStormConfig config, PubSubConfig pubSubConfig, String recordComponent, TopologyBuilder builder) throws Exception {
         Objects.requireNonNull(config);
         Objects.requireNonNull(recordComponent);
         Objects.requireNonNull(builder);
 
         String name = (String) config.get(BulletStormConfig.TOPOLOGY_NAME);
-        String function = (String) config.get(BulletStormConfig.TOPOLOGY_FUNCTION);
 
-        Number drpcSpoutParallelism = (Number) config.get(BulletStormConfig.DRPC_SPOUT_PARALLELISM);
-        Number drpcSpoutCPULoad = (Number) config.get(BulletStormConfig.DRPC_SPOUT_CPU_LOAD);
-        Number drpcSpoutMemoryOnHeapLoad = (Number) config.get(BulletStormConfig.DRPC_SPOUT_MEMORY_ON_HEAP_LOAD);
-        Number drpcSpoutMemoryOffHeapLoad = (Number) config.get(BulletStormConfig.DRPC_SPOUT_MEMORY_OFF_HEAP_LOAD);
-
-        Number prepareBoltParallelism = (Number) config.get(BulletStormConfig.PREPARE_BOLT_PARALLELISM);
-        Number prepareBoltCPULoad = (Number) config.get(BulletStormConfig.PREPARE_BOLT_CPU_LOAD);
-        Number prepareBoltMemoryOnHeapLoad = (Number) config.get(BulletStormConfig.PREPARE_BOLT_MEMORY_ON_HEAP_LOAD);
-        Number prepareBoltMemoryOffHeapLoad = (Number) config.get(BulletStormConfig.PREPARE_BOLT_MEMORY_OFF_HEAP_LOAD);
+        Number querySpoutParallelism = (Number) config.get(BulletStormConfig.QUERY_SPOUT_PARALLELISM);
+        Number querySpoutCPULoad = (Number) config.get(BulletStormConfig.QUERY_SPOUT_CPU_LOAD);
+        Number querySpoutMemoryOnHeapLoad = (Number) config.get(BulletStormConfig.QUERY_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Number querySpoutMemoryOffHeapLoad = (Number) config.get(BulletStormConfig.QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD);
 
         Number filterBoltParallelism = (Number) config.get(BulletStormConfig.FILTER_BOLT_PARALLELISM);
         Number filterBoltCPULoad = (Number) config.get(BulletStormConfig.FILTER_BOLT_CPU_LOAD);
@@ -125,40 +119,37 @@ public class Topology {
         Number joinBoltMemoryOnHeapLoad = (Number) config.get(BulletStormConfig.JOIN_BOLT_MEMORY_ON_HEAP_LOAD);
         Number joinBoltMemoryOffHeapLoad = (Number) config.get(BulletStormConfig.JOIN_BOLT_MEMORY_OFF_HEAP_LOAD);
 
-        Number returnBoltParallelism = (Number) config.get(BulletStormConfig.RETURN_BOLT_PARALLELISM);
-        Number returnBoltCPULoad = (Number) config.get(BulletStormConfig.RETURN_BOLT_CPU_LOAD);
-        Number returnBoltMemoryOnHeapLoad = (Number) config.get(BulletStormConfig.RETURN_BOLT_MEMORY_ON_HEAP_LOAD);
-        Number returnBoltMemoryOffHeapLoad = (Number) config.get(BulletStormConfig.RETURN_BOLT_MEMORY_OFF_HEAP_LOAD);
+        Number resultBoltParallelism = (Number) config.get(BulletStormConfig.RESULT_BOLT_PARALLELISM);
+        Number resultBoltCPULoad = (Number) config.get(BulletStormConfig.RESULT_BOLT_CPU_LOAD);
+        Number resultBoltMemoryOnHeapLoad = (Number) config.get(BulletStormConfig.RESULT_BOLT_MEMORY_ON_HEAP_LOAD);
+        Number resultBoltMemoryOffHeapLoad = (Number) config.get(BulletStormConfig.RESULT_BOLT_MEMORY_OFF_HEAP_LOAD);
 
         Integer tickInterval = ((Number) config.get(BulletStormConfig.TICK_INTERVAL_SECS)).intValue();
 
-        builder.setSpout(TopologyConstants.DRPC_COMPONENT, new DRPCSpout(function), drpcSpoutParallelism)
-               .setCPULoad(drpcSpoutCPULoad)
-               .setMemoryLoad(drpcSpoutMemoryOnHeapLoad, drpcSpoutMemoryOffHeapLoad);
+        PubSub pubSub = PubSub.from(pubSubConfig);
 
-        builder.setBolt(TopologyConstants.PREPARE_COMPONENT, new PrepareRequestBolt(), prepareBoltParallelism)
-               .shuffleGrouping(TopologyConstants.DRPC_COMPONENT)
-               .setCPULoad(prepareBoltCPULoad)
-               .setMemoryLoad(prepareBoltMemoryOnHeapLoad, prepareBoltMemoryOffHeapLoad);
+        builder.setSpout(TopologyConstants.QUERY_COMPONENT, new QuerySpout(pubSub), querySpoutParallelism)
+               .setCPULoad(querySpoutCPULoad)
+               .setMemoryLoad(querySpoutMemoryOnHeapLoad, querySpoutMemoryOffHeapLoad);
 
         // Hook in the source of the BulletRecords
         builder.setBolt(TopologyConstants.FILTER_COMPONENT, new FilterBolt(recordComponent, tickInterval), filterBoltParallelism)
                .shuffleGrouping(recordComponent)
-               .allGrouping(TopologyConstants.PREPARE_COMPONENT, TopologyConstants.ARGS_STREAM)
+               .allGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.QUERY_STREAM)
                .setCPULoad(filterBoltCPULoad)
                .setMemoryLoad(filterBoltMemoryOnheapLoad, filterBoltMemoryOffHeapLoad);
 
         builder.setBolt(TopologyConstants.JOIN_COMPONENT, new JoinBolt(tickInterval), joinBoltParallelism)
-               .fieldsGrouping(TopologyConstants.PREPARE_COMPONENT, TopologyConstants.ARGS_STREAM, new Fields(TopologyConstants.ID_FIELD))
-               .fieldsGrouping(TopologyConstants.PREPARE_COMPONENT, TopologyConstants.RETURN_STREAM, new Fields(TopologyConstants.ID_FIELD))
+               .fieldsGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.QUERY_STREAM, new Fields(TopologyConstants.ID_FIELD))
+               .fieldsGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.METADATA_STREAM, new Fields(TopologyConstants.ID_FIELD))
                .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.FILTER_STREAM, new Fields(TopologyConstants.ID_FIELD))
                .setCPULoad(joinBoltCPULoad)
                .setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
 
-        builder.setBolt(TopologyConstants.RETURN_COMPONENT, new ReturnResults(), returnBoltParallelism)
+        builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(pubSub), resultBoltParallelism)
                .shuffleGrouping(TopologyConstants.JOIN_COMPONENT, TopologyConstants.JOIN_STREAM)
-               .setCPULoad(returnBoltCPULoad)
-               .setMemoryLoad(returnBoltMemoryOnHeapLoad, returnBoltMemoryOffHeapLoad);
+               .setCPULoad(resultBoltCPULoad)
+               .setMemoryLoad(resultBoltMemoryOnHeapLoad, resultBoltMemoryOffHeapLoad);
 
 
         Config stormConfig = new Config();
@@ -254,6 +245,7 @@ public class Topology {
         String configuration = (String) options.valueOf(CONFIGURATION_ARG);
 
         BulletStormConfig bulletStormConfig = new BulletStormConfig(configuration);
+        PubSubConfig pubSubConfig = new PubSubConfig(configuration);
         TopologyBuilder builder = new TopologyBuilder();
         builder.setSpout(TopologyConstants.RECORD_COMPONENT, getSpout(spoutClass, arguments), parallelism)
                .setCPULoad(cpuLoad)
@@ -261,7 +253,7 @@ public class Topology {
         log.info("Added spout " + spoutClass + " with parallelism " + parallelism + ", CPU load " + cpuLoad +
                  ", On-heap memory " + onHeapMemoryLoad + ", Off-heap memory " + offHeapMemoryLoad);
 
-        submit(bulletStormConfig, TopologyConstants.RECORD_COMPONENT, builder);
+        submit(bulletStormConfig, pubSubConfig, TopologyConstants.RECORD_COMPONENT, builder);
     }
 }
 
