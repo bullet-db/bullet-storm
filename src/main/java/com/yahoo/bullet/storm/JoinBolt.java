@@ -32,17 +32,18 @@ import java.util.function.Consumer;
 @Slf4j
 public class JoinBolt extends QueryBolt<AggregationQuery> {
     public static final String JOIN_STREAM = Utils.DEFAULT_STREAM_ID;
+    public static final String JOIN_FIELD = "result";
 
     /** This is the default number of ticks for which we will buffer an individual error message. */
     public static final int DEFAULT_ERROR_TICKOUT = 3;
-    /** This is the default number of ticks for which we will a query post expiry. */
+    /** This is the default number of ticks for which we will buffer a query. */
     public static final int DEFAULT_QUERY_TICKOUT = 3;
 
-    private Map<Long, Tuple> activeReturns;
-    // For doing a LEFT OUTER JOIN between Queries and ReturnInfo if the Query has validation issues
-    private RotatingMap<Long, Clip> bufferedErrors;
+    private Map<String, Tuple> bufferedMetadata;
+    // For doing a LEFT OUTER JOIN between Queries and Metadata if the Query has validation issues
+    private RotatingMap<String, Clip> bufferedErrors;
     // For doing a LEFT OUTER JOIN between Queries and intermediate aggregation, if the aggregations are lagging.
-    private RotatingMap<Long, AggregationQuery> bufferedQueries;
+    private RotatingMap<String, AggregationQuery> bufferedQueries;
 
     // Metrics
     public static final String ACTIVE_QUERIES = TopologyConstants.METRIC_PREFIX + "active_queries";
@@ -74,7 +75,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         super.prepare(stormConf, context, collector);
 
-        activeReturns = new HashMap<>();
+        bufferedMetadata = new HashMap<>();
 
         Number errorTickoutNumber = (Number) configuration.getOrDefault(BulletStormConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT,
                                                                         DEFAULT_ERROR_TICKOUT);
@@ -103,8 +104,8 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
             case QUERY_TUPLE:
                 handleQuery(tuple);
                 break;
-            case RETURN_TUPLE:
-                initializeReturn(tuple);
+            case METADATA_TUPLE:
+                initializeMetadata(tuple);
                 break;
             case FILTER_TUPLE:
                 emit(tuple);
@@ -119,11 +120,11 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields(TopologyConstants.JOIN_FIELD, TopologyConstants.RETURN_FIELD));
+        declarer.declare(new Fields(TopologyConstants.ID_FIELD, JOIN_FIELD, TopologyConstants.METADATA_FIELD));
     }
 
     @Override
-    protected AggregationQuery getQuery(Long id, String queryString) {
+    protected AggregationQuery getQuery(String id, String queryString) {
         try {
             return new AggregationQuery(queryString, configuration);
         } catch (JsonParseException jpe) {
@@ -137,16 +138,16 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         return null;
     }
 
-    private void initializeReturn(Tuple tuple) {
-        Long id = tuple.getLong(TopologyConstants.ID_POSITION);
+    private void initializeMetadata(Tuple tuple) {
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
         // Check if we have any buffered errors.
         Clip error = bufferedErrors.get(id);
         if (error != null) {
             emit(error, tuple);
             return;
         }
-        // Otherwise buffer the return information
-        activeReturns.put(id, tuple);
+        // Otherwise buffer the metadata
+        bufferedMetadata.put(id, tuple);
     }
 
     private void handleQuery(Tuple tuple) {
@@ -165,31 +166,31 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         bufferedErrors.rotate();
     }
 
-    private void emitError(Long id, Error... errors) {
+    private void emitError(String id, Error... errors) {
         emitError(id, Arrays.asList(errors));
     }
 
-    private void emitError(Long id, List<Error> errors) {
+    private void emitError(String id, List<Error> errors) {
         Metadata meta = Metadata.of(errors);
-        Clip returnValue = Clip.of(meta);
-        Tuple returnTuple = activeReturns.remove(id);
+        Clip clip = Clip.of(meta);
+        Tuple metadataTuple = bufferedMetadata.remove(id);
         updateCount(improperQueriesCount, 1L);
 
-        if (returnTuple != null) {
-            emit(returnValue, returnTuple);
+        if (metadataTuple != null) {
+            emit(clip, metadataTuple);
             return;
         }
         log.debug("Return information not present for sending error. Buffering it...");
-        bufferedErrors.put(id, returnValue);
+        bufferedErrors.put(id, clip);
     }
 
-    private void emitRetired(Map<Long, AggregationQuery> forceEmit) {
+    private void emitRetired(Map<String, AggregationQuery> forceEmit) {
         // Force emit everything that was asked to be emitted if we can. These are rotated out queries from bufferedQueries.
         long emitted = 0;
-        for (Map.Entry<Long, AggregationQuery> e : forceEmit.entrySet()) {
-            Long id = e.getKey();
+        for (Map.Entry<String, AggregationQuery> e : forceEmit.entrySet()) {
+            String id = e.getKey();
             AggregationQuery query = e.getValue();
-            Tuple returnTuple = activeReturns.remove(id);
+            Tuple returnTuple = bufferedMetadata.remove(id);
             if (canEmit(id, query, returnTuple)) {
                 emitted++;
                 emit(id, query, returnTuple);
@@ -202,7 +203,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         retireQueries().forEach(bufferedQueries::put);
     }
 
-    private boolean canEmit(Long id, AggregationQuery query, Tuple returnTuple) {
+    private boolean canEmit(String id, AggregationQuery query, Tuple returnTuple) {
         // Deliberately only doing joins if both query and return are here. Can do an OUTER join if needed later...
         if (query == null) {
             log.debug("Received tuples for request {} before query or too late. Skipping...", id);
@@ -216,7 +217,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     }
 
     private void emit(Tuple tuple) {
-        Long id = tuple.getLong(TopologyConstants.ID_POSITION);
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
         byte[] data = (byte[]) tuple.getValue(TopologyConstants.RECORD_POSITION);
 
         // We have two places we could have Queries in
@@ -225,44 +226,45 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
             query = bufferedQueries.get(id);
         }
 
-        emit(id, query, activeReturns.get(id), data);
+        emit(id, query, bufferedMetadata.get(id), data);
     }
 
-    private void emit(Long id, AggregationQuery query, Tuple returnTuple, byte[] data) {
-        if (!canEmit(id, query, returnTuple)) {
+    private void emit(String id, AggregationQuery query, Tuple metadataTuple, byte[] data) {
+        if (!canEmit(id, query, metadataTuple)) {
             return;
         }
         // If the query is not satisfied after consumption, we should not emit.
         if (!query.consume(data)) {
             return;
         }
-        emit(id, query, returnTuple);
+        emit(id, query, metadataTuple);
     }
 
-    private void emit(Long id, AggregationQuery query, Tuple returnTuple) {
+    private void emit(String id, AggregationQuery query, Tuple metadataTuple) {
         Objects.requireNonNull(id);
         Objects.requireNonNull(query);
-        Objects.requireNonNull(returnTuple);
+        Objects.requireNonNull(metadataTuple);
 
         Clip records = query.getData();
         records.add(getMetadata(id, query));
-        emit(records, returnTuple);
+        emit(records, metadataTuple);
         int emitted = records.getRecords().size();
         log.info("Query {} has been satisfied with {} records. Cleaning up...", id, emitted);
         queriesMap.remove(id);
         bufferedQueries.remove(id);
-        activeReturns.remove(id);
+        bufferedMetadata.remove(id);
         updateCount(activeQueriesCount, -1L);
     }
 
-    private void emit(Clip clip, Tuple returnTuple) {
+    private void emit(Clip clip, Tuple metadataTuple) {
         Objects.requireNonNull(clip);
-        Objects.requireNonNull(returnTuple);
-        Object returnInfo = returnTuple.getValue(TopologyConstants.RETURN_POSITION);
-        collector.emit(new Values(clip.asJSON(), returnInfo));
+        Objects.requireNonNull(metadataTuple);
+        String id = metadataTuple.getString(TopologyConstants.ID_POSITION);
+        com.yahoo.bullet.pubsub.Metadata metadata = (com.yahoo.bullet.pubsub.Metadata) metadataTuple.getValue(TopologyConstants.METADATA_POSITION);
+        collector.emit(new Values(id, clip.asJSON(), metadata));
     }
 
-    private Metadata getMetadata(Long id, AggregationQuery query) {
+    private Metadata getMetadata(String id, AggregationQuery query) {
         if (metadataKeys.isEmpty()) {
             return null;
         }
@@ -290,7 +292,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
 
     private AbsoluteCountMetric registerAbsoluteCountMetric(String name, TopologyContext context) {
         Number interval = metricsIntervalMapping.getOrDefault(name,
-                                                              metricsIntervalMapping.get(DEFAULT_METRICS_INTERVAL_KEY));
+                                                              metricsIntervalMapping.get(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY));
         log.info("Registered {} with interval {}", name, interval);
         return context.registerMetric(name, new AbsoluteCountMetric(), interval.intValue());
     }

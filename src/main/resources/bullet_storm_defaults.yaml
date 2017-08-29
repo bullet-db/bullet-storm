@@ -1,6 +1,3 @@
-# The name of the Storm DRPC function
-bullet.topology.function: "tracer"
-
 # The name of the Storm topology
 bullet.topology.name: "bullet-topology"
 
@@ -54,9 +51,8 @@ bullet.topology.metrics.classes:
   - "com.yahoo.bullet.storm.CustomLoggingMetricsConsumer"
 
 # The parallelism setting controls the number of executors used for each component.
-bullet.topology.drpc.spout.parallelism: 2
-bullet.topology.prepare.bolt.parallelism: 2
-bullet.topology.return.bolt.parallelism: 2
+bullet.topology.query.spout.parallelism: 2
+bullet.topology.result.bolt.parallelism: 2
 bullet.topology.filter.bolt.parallelism: 35
 bullet.topology.join.bolt.parallelism: 2
 
@@ -71,6 +67,9 @@ bullet.topology.join.bolt.error.tick.timeout: 3
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
 # aggregations to trickle in from the Filter Bolts.
 bullet.topology.join.bolt.query.tick.timeout: 3
+
+# This is the type of PubSub context to use
+bullet.pubsub.context.name: "QUERY_PROCESSING"
 
 ########################################################################################################################
 ########################################################################################################################

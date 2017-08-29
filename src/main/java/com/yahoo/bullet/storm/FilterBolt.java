@@ -24,9 +24,9 @@ import java.util.Map;
 @Slf4j
 public class FilterBolt extends QueryBolt<FilterQuery> {
     public static final String FILTER_STREAM = Utils.DEFAULT_STREAM_ID;
-    private String recordComponent;
-
     public static final String LATENCY_METRIC = TopologyConstants.METRIC_PREFIX + "filter_latency";
+
+    private String recordComponent;
     private transient ReducedMetric averageLatency;
 
     /**
@@ -95,7 +95,7 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
     }
 
     @Override
-    protected FilterQuery getQuery(Long id, String queryString) {
+    protected FilterQuery getQuery(String id, String queryString) {
         // No need to handle any errors here. The JoinBolt reports all errors.
         try {
             return new FilterQuery(queryString, configuration);
@@ -110,11 +110,11 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
         queriesMap.entrySet().stream().filter(e -> e.getValue().consume(record)).forEach(this::emitForQuery);
     }
 
-    private void emitForQueries(Map<Long, FilterQuery> entries) {
+    private void emitForQueries(Map<String, FilterQuery> entries) {
         entries.entrySet().stream().forEach(this::emitForQuery);
     }
 
-    private void emitForQuery(Map.Entry<Long, FilterQuery> pair) {
+    private void emitForQuery(Map.Entry<String, FilterQuery> pair) {
         // The FilterQuery will handle giving us the right data - a byte[] to emit
         byte[] data = pair.getValue().getData();
         if (data != null) {
@@ -132,7 +132,7 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
 
     private ReducedMetric registerAveragingMetric(String name, TopologyContext context) {
         Number interval = metricsIntervalMapping.getOrDefault(name,
-                                                              metricsIntervalMapping.get(DEFAULT_METRICS_INTERVAL_KEY));
+                                                              metricsIntervalMapping.get(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY));
         log.info("Registered {} with interval {}", name, interval);
         return context.registerMetric(name, new ReducedMetric(new MeanReducer()), interval.intValue());
     }

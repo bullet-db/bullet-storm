@@ -11,16 +11,15 @@ import backtype.storm.tuple.Tuple;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import static com.yahoo.bullet.storm.TopologyConstants.ARGS_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.QUERY_COMPONENT;
+import static com.yahoo.bullet.storm.TopologyConstants.QUERY_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.FILTER_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.FILTER_STREAM;
-import static com.yahoo.bullet.storm.TopologyConstants.ID_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.JOIN_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.JOIN_STREAM;
-import static com.yahoo.bullet.storm.TopologyConstants.PREPARE_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.RECORD_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.RECORD_STREAM;
-import static com.yahoo.bullet.storm.TopologyConstants.RETURN_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.TICK_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
 
@@ -33,9 +32,8 @@ public class TupleType {
     @Getter
     public enum Type {
         TICK_TUPLE(TICK_COMPONENT, TICK_STREAM),
-        QUERY_TUPLE(PREPARE_COMPONENT, ARGS_STREAM),
-        RETURN_TUPLE(PREPARE_COMPONENT, RETURN_STREAM),
-        ID_TUPLE(PREPARE_COMPONENT, ID_STREAM),
+        QUERY_TUPLE(QUERY_COMPONENT, QUERY_STREAM),
+        METADATA_TUPLE(QUERY_COMPONENT, METADATA_STREAM),
         FILTER_TUPLE(FILTER_COMPONENT, FILTER_STREAM),
         RECORD_TUPLE(RECORD_COMPONENT, RECORD_STREAM),
         JOIN_TUPLE(JOIN_COMPONENT, JOIN_STREAM);
