@@ -1,5 +1,6 @@
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import backtype.storm.tuple.Fields;
@@ -29,8 +30,8 @@ public class QuerySpoutTest {
     @Test
     public void nextTupleMessagesAreReceivedAndTuplesAreEmittedTest() {
         // Add messages to be received from subscriber
-        PubSubMessage messageA = new PubSubMessage("42", "This is a PubSubMessage");
-        PubSubMessage messageB = new PubSubMessage("43", "This is also a PubSubMessage");
+        PubSubMessage messageA = new PubSubMessage("42", "This is a PubSubMessage", new Metadata());
+        PubSubMessage messageB = new PubSubMessage("43", "This is also a PubSubMessage", new Metadata());
         subscriber.addMessages(messageA, messageB);
 
         Assert.assertEquals(subscriber.getReceived().size(), 0);
@@ -134,5 +135,11 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getFailed().get(0), "42");
         Assert.assertEquals(subscriber.getFailed().get(1), "43");
         Assert.assertEquals(subscriber.getFailed().get(2), "44");
+    }
+
+    @Test
+    public void closeCallsSubscriberCloseTest() {
+        spout.close();
+        Assert.assertTrue(subscriber.isClosed());
     }
 }

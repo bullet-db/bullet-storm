@@ -13,7 +13,6 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
 import com.yahoo.bullet.pubsub.PubSub;
-import com.yahoo.bullet.pubsub.PubSubConfig;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.extern.slf4j.Slf4j;
@@ -74,7 +73,7 @@ public class Topology {
      * @param builder The non-null {@link TopologyBuilder} that was used to create your topology.
      * @throws Exception if there were issues creating the topology.
      */
-    public static void submit(BulletStormConfig config, PubSubConfig pubSubConfig, String recordComponent, TopologyBuilder builder) throws Exception {
+    public static void submit(BulletStormConfig config, String recordComponent, TopologyBuilder builder) throws Exception {
         Objects.requireNonNull(config);
         Objects.requireNonNull(recordComponent);
         Objects.requireNonNull(builder);
@@ -91,7 +90,7 @@ public class Topology {
 
         Integer tickInterval = ((Number) config.get(BulletStormConfig.TICK_INTERVAL_SECS)).intValue();
 
-        PubSub pubSub = PubSub.from(pubSubConfig);
+        PubSub pubSub = PubSub.from(config);
 
         builder.setSpout(TopologyConstants.QUERY_COMPONENT, new QuerySpout(pubSub), querySpoutParallelism);
 
@@ -184,13 +183,12 @@ public class Topology {
         Integer parallelism = (Integer) options.valueOf(PARALLELISM_ARG);
         String configuration = (String) options.valueOf(CONFIGURATION_ARG);
 
-        BulletStormConfig bulletConfig = new BulletStormConfig(configuration);
-        PubSubConfig pubSubConfig = new PubSubConfig(configuration);
+        BulletStormConfig bulletStormConfig = new BulletStormConfig(configuration);
         TopologyBuilder builder = new TopologyBuilder();
         builder.setSpout(TopologyConstants.RECORD_COMPONENT, getSpout(spoutClass, arguments), parallelism);
 
         log.info("Added spout " + spoutClass + " with parallelism " + parallelism);
 
-        submit(bulletConfig, pubSubConfig, TopologyConstants.RECORD_COMPONENT, builder);
+        submit(bulletStormConfig, TopologyConstants.RECORD_COMPONENT, builder);
     }
 }

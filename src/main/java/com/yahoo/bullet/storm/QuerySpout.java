@@ -54,7 +54,7 @@ public class QuerySpout extends BaseRichSpout {
             collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent()), message.getId());
             collector.emit(METADATA_STREAM, new Values(message.getId(), message.getMetadata()));
         } else {
-            sleep(1);
+            Utils.sleep(1);
         }
     }
 
@@ -77,13 +77,5 @@ public class QuerySpout extends BaseRichSpout {
     @Override
     public void close() {
         subscriber.close();
-    }
-
-    private static void sleep(long millis) {
-        try {
-            Thread.sleep(millis);
-        } catch (InterruptedException e) {
-            log.error(e.getMessage());
-        }
     }
 }
