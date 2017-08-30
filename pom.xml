@@ -39,7 +39,7 @@
         <storm.version>1.0.2</storm.version>
         <storm.metrics.version>1.0.2</storm.metrics.version>
         <bullet.record.version>0.1.2</bullet.record.version>
-        <bullet.core.version>0.2.0</bullet.core.version>
+        <bullet.core.version>0.2.2</bullet.core.version>
         <sketches.version>0.9.1</sketches.version>
     </properties>
 
