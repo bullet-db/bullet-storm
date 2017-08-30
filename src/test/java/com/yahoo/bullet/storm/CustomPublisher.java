@@ -15,7 +15,7 @@ public class CustomPublisher implements Publisher {
 
     @Override
     public void send(PubSubMessage message) throws PubSubException {
-        if (message.getMetadata() == null) {
+        if (closed) {
             throw new PubSubException("");
         }
         sent.add(message);
