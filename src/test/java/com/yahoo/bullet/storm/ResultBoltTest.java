@@ -1,5 +1,6 @@
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
@@ -33,9 +34,9 @@ public class ResultBoltTest {
 
     @Test
     public void executeMessagesAreSentTest() throws PubSubException {
-        List<PubSubMessage> expected = Arrays.asList(new PubSubMessage("42", "This is a PubSubMessage"),
-                                                     new PubSubMessage("43", "This is also a PubSubMessage"),
-                                                     new PubSubMessage("44", "This is still a PubSubMessage"));
+        List<PubSubMessage> expected = Arrays.asList(new PubSubMessage("42", "This is a PubSubMessage", new Metadata()),
+                                                     new PubSubMessage("43", "This is also a PubSubMessage", new Metadata()),
+                                                     new PubSubMessage("44", "This is still a PubSubMessage", new Metadata()));
         List<Tuple> tuples = new ArrayList<>();
         expected.forEach(pubSubMessage -> {
                 tuples.add(TupleUtils.makeTuple(pubSubMessage.getId(), pubSubMessage.getContent(), pubSubMessage.getMetadata()));
@@ -58,10 +59,11 @@ public class ResultBoltTest {
     @Test
     public void executeStillAcksWhenPublisherThrowsTest() throws PubSubException {
         // Execute a few tuples
-        // null metadata will cause CustomPublisher to throw
-        bolt.execute(TupleUtils.makeTuple("42", "This is a PubSubMessage"));
-        bolt.execute(TupleUtils.makeTuple("43", "This is also a PubSubMessage"));
-        bolt.execute(TupleUtils.makeTuple("44", "This is still a PubSubMessage"));
+        // Closing the publisher will cause CustomPublisher to throw
+        publisher.close();
+        bolt.execute(TupleUtils.makeTuple("42", "This is a PubSubMessage", new Metadata()));
+        bolt.execute(TupleUtils.makeTuple("43", "This is also a PubSubMessage", new Metadata()));
+        bolt.execute(TupleUtils.makeTuple("44", "This is still a PubSubMessage", new Metadata()));
 
         // Assert that no tuples were sent, committed, or acked
         Assert.assertTrue(publisher.getSent().isEmpty());
