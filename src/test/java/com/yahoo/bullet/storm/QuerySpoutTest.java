@@ -1,15 +1,20 @@
+/*
+ *  Copyright 2017, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.mock;
+
+import java.io.IOException;
 
 public class QuerySpoutTest {
     private CustomEmitter emitter;
@@ -17,14 +22,12 @@ public class QuerySpoutTest {
     private CustomSubscriber subscriber;
 
     @BeforeMethod
-    public void setup() {
-        subscriber = new CustomSubscriber();
-
-        PubSub mockPubSub = mock(PubSub.class);
-        when(mockPubSub.getSubscriber()).thenReturn(subscriber);
-
+    public void setup() throws IOException {
         emitter = new CustomEmitter();
-        spout = ComponentUtils.open(new QuerySpout(mockPubSub), emitter);
+        BulletConfig config = new BulletConfig("src/test/resources/test_config.yaml");
+        QuerySpout querySpout = new QuerySpout(config);
+        spout = ComponentUtils.open(querySpout, emitter);
+        subscriber = (CustomSubscriber) spout.getPubSub().getSubscriber();
     }
 
     @Test

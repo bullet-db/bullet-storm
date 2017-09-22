@@ -1,7 +1,12 @@
+/*
+ *  Copyright 2017, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import org.apache.storm.tuple.Tuple;
@@ -9,12 +14,10 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class ResultBoltTest {
     private CustomCollector collector;
@@ -22,14 +25,12 @@ public class ResultBoltTest {
     private CustomPublisher publisher;
 
     @BeforeMethod
-    public void setup() {
-        publisher = new CustomPublisher();
-
-        PubSub mockPubSub = mock(PubSub.class);
-        when(mockPubSub.getPublisher()).thenReturn(publisher);
-
+    public void setup() throws IOException {
+        BulletConfig config = new BulletConfig("src/test/resources/test_config.yaml");
+        ResultBolt resultBolt = new ResultBolt(config);
         collector = new CustomCollector();
-        bolt = ComponentUtils.prepare(new ResultBolt(mockPubSub), collector);
+        bolt = ComponentUtils.prepare(resultBolt, collector);
+        publisher = (CustomPublisher) resultBolt.getPublisher();
     }
 
     @Test

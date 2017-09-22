@@ -20,6 +20,7 @@ import static java.util.Arrays.asList;
 @Slf4j
 public class BulletStormConfig extends BulletConfig {
     public static final String TOPOLOGY_SCHEDULER = "bullet.topology.scheduler";
+    public static final String TOPOLOGY_FUNCTION = "bullet.topology.function";
     public static final String TOPOLOGY_NAME = "bullet.topology.name";
     public static final String TOPOLOGY_WORKERS = "bullet.topology.workers";
     public static final String TOPOLOGY_DEBUG = "bullet.topology.debug";

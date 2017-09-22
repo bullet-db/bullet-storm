@@ -41,6 +41,7 @@
         <bullet.record.version>0.1.2</bullet.record.version>
         <bullet.core.version>0.2.2</bullet.core.version>
         <sketches.version>0.9.1</sketches.version>
+        <jersey-version>2.22</jersey-version>
     </properties>
 
     <dependencies>
@@ -128,6 +129,11 @@
             <groupId>net.java.dev</groupId>
             <artifactId>jvyaml</artifactId>
             <version>0.2.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
+            <version>${jersey-version}</version>
         </dependency>
     </dependencies>
 

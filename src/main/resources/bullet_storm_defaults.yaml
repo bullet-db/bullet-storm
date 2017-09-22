@@ -90,6 +90,27 @@ bullet.topology.join.bolt.query.tick.timeout: 3
 # This is the type of PubSub context to use
 bullet.pubsub.context.name: "QUERY_PROCESSING"
 
+# This is the name of the concrete implementation of PubSub to use. By default, this is the DRPC implementation of
+# PubSub that comes with bullet-storm.
+bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
+
+### The following are defaults for the DRPC implementation of PubSub for the QUERY_PROCESSING end.
+
+# This is the size of the thread pool that submits queries to the DRPC servers.
+bullet.pubsub.drpc.thread.pool.size: 10
+
+# The timeout for connection attempts to DRPC servers.
+bullet.pubsub.drpc.connect.timeout: 10
+
+# The number of tries to connect to DRPC servers before giving up.
+bullet.pubsub.drpc.connect.retry.limit: 5
+
+# The size of the request queue for DRPCPubSub.
+bullet.pubsub.drpc.request.queue.size: 100
+
+# The size of the response queue for DRPCPubSub.
+bullet.pubsub.drpc.response.queue.size: 100
+
 ########################################################################################################################
 ########################################################################################################################
 ## You can also configure the core Bullet settings here. For documentation and defaults for those settings, refer to:

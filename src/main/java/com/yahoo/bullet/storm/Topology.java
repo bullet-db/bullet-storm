@@ -5,7 +5,6 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.pubsub.PubSub;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.extern.slf4j.Slf4j;
@@ -125,9 +124,7 @@ public class Topology {
 
         Integer tickInterval = ((Number) config.get(BulletStormConfig.TICK_INTERVAL_SECS)).intValue();
 
-        PubSub pubSub = PubSub.from(config);
-
-        builder.setSpout(TopologyConstants.QUERY_COMPONENT, new QuerySpout(pubSub), querySpoutParallelism)
+        builder.setSpout(TopologyConstants.QUERY_COMPONENT, new QuerySpout(config), querySpoutParallelism)
                .setCPULoad(querySpoutCPULoad)
                .setMemoryLoad(querySpoutMemoryOnHeapLoad, querySpoutMemoryOffHeapLoad);
 
@@ -145,7 +142,7 @@ public class Topology {
                .setCPULoad(joinBoltCPULoad)
                .setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
 
-        builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(pubSub), resultBoltParallelism)
+        builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(config), resultBoltParallelism)
                .shuffleGrouping(TopologyConstants.JOIN_COMPONENT, TopologyConstants.JOIN_STREAM)
                .setCPULoad(resultBoltCPULoad)
                .setMemoryLoad(resultBoltMemoryOnHeapLoad, resultBoltMemoryOffHeapLoad);
