@@ -6,9 +6,10 @@
 package com.yahoo.bullet.storm.drpc.utils;
 
 import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.RandomPool;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.storm.drpc.BulletDRPCConfig;
+import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import lombok.Getter;
 import lombok.NonNull;
 import lombok.Setter;
@@ -42,18 +43,18 @@ public class DRPCClient {
     private static final String TEMPLATE = PROTOCOL_PREFIX + "%1$s" + PORT_PREFIX + "%2$s" + PATH_SEPARATOR + "%3$s";
 
     /**
-     * Constructor that takes in a {@link BulletDRPCConfig} containing all the relevant settings.
+     * Constructor that takes in a {@link DRPCConfig} containing all the relevant settings.
      *
-     * @param config The {@link BulletDRPCConfig} containing all settings.
+     * @param config The {@link DRPCConfig} containing all settings.
      *
      */
     public DRPCClient(BulletConfig config) {
-        connectTimeout = Objects.requireNonNull(Utils.getInt(config.get(BulletDRPCConfig.DRPC_CONNECT_TIMEOUT)));
-        retryLimit = Objects.requireNonNull(Utils.getInt(config.get(BulletDRPCConfig.DRPC_CONNECT_RETRY_LIMIT)));
-        List<String> urls = Objects.requireNonNull((List<String>) config.get(BulletDRPCConfig.DRPC_SERVERS));
-        String port = Objects.requireNonNull(config.get(BulletDRPCConfig.DRPC_HTTP_PORT).toString());
-        String path = Objects.requireNonNull(config.get(BulletDRPCConfig.DRPC_PATH).toString());
-        this.urls = new RandomPool(getURLs(urls, port, path));
+        connectTimeout = Objects.requireNonNull(Utils.getInt(config.get(DRPCConfig.DRPC_CONNECT_TIMEOUT)));
+        retryLimit = Objects.requireNonNull(Utils.getInt(config.get(DRPCConfig.DRPC_CONNECT_RETRY_LIMIT)));
+        List<String> urls = Objects.requireNonNull((List<String>) config.get(DRPCConfig.DRPC_SERVERS));
+        String port = Objects.requireNonNull(config.get(DRPCConfig.DRPC_HTTP_PORT).toString());
+        String path = Objects.requireNonNull(config.get(DRPCConfig.DRPC_HTTP_PATH).toString());
+        this.urls = new RandomPool<>(getURLs(urls, port, path));
     }
 
     private List<String> getURLs(@NonNull List<String> urls, @NonNull String port, @NonNull String path) {

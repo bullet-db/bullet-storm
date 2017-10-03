@@ -10,7 +10,7 @@ import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storm.BulletStormConfig;
-import com.yahoo.bullet.storm.drpc.BulletDRPCConfig;
+import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.drpc.DRPCInvocationsClient;
@@ -74,7 +74,7 @@ public class DRPCRequestHandler {
      */
     public DRPCRequestHandler(BulletConfig config) {
         function = config.get(BulletStormConfig.TOPOLOGY_FUNCTION).toString();
-        int queueSize = Utils.getInt(config.get(BulletDRPCConfig.DRPC_REQUEST_QUEUE_SIZE));
+        int queueSize = Utils.getInt(config.get(DRPCConfig.DRPC_REQUEST_QUEUE_SIZE));
         requests = new ArrayBlockingQueue<>(queueSize);
         isClosed = false;
         open(config);
@@ -141,10 +141,10 @@ public class DRPCRequestHandler {
                     new SynchronousQueue<Runnable>());
         futures = new LinkedList<>();
 
-        int port = Utils.getInt(conf.get(BulletDRPCConfig.DRPC_INVOCATIONS_PORT));
-        List<String> servers = (List<String>) conf.get(BulletDRPCConfig.DRPC_SERVERS);
+        int port = Utils.getInt(conf.get(DRPCConfig.DRPC_INVOCATIONS_PORT));
+        List<String> servers = (List<String>) conf.get(DRPCConfig.DRPC_SERVERS);
         int numTasks = Utils.getInt(conf.get(BulletStormConfig.QUERY_SPOUT_PARALLELISM));
-        int index = Utils.getInt(conf.get(BulletDRPCConfig.DRPC_INSTANCE_INDEX));
+        int index = Utils.getInt(conf.get(DRPCConfig.DRPC_INSTANCE_INDEX));
 
         if (servers == null || servers.isEmpty()) {
             throw new RuntimeException("No DRPC servers configured for topology");

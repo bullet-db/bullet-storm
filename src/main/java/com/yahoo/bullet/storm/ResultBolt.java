@@ -11,7 +11,7 @@ import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.storm.drpc.BulletDRPCConfig;
+import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
@@ -43,14 +43,14 @@ public class ResultBolt extends BaseRichBolt {
     public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
         // Merge supplied configs with the cluster defaults.
         conf.forEach((key, value) -> config.set(key.toString(), value));
-        config.set(BulletDRPCConfig.DRPC_INSTANCE_INDEX, Objects.isNull(context.getThisComponentId()) ? -1 : context.getThisComponentId());
+        config.set(DRPCConfig.DRPC_INSTANCE_INDEX, Objects.isNull(context.getThisComponentId()) ? -1 : context.getThisComponentId());
         try {
             this.pubSub = PubSub.from(config);
+            this.publisher = pubSub.getPublisher();
         } catch (PubSubException e) {
             throw new RuntimeException("Cannot create PubSub.", e);
         }
         this.collector = collector;
-        this.publisher = pubSub.getPublisher();
     }
 
     @Override

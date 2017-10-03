@@ -10,7 +10,7 @@ import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Subscriber;
-import com.yahoo.bullet.storm.drpc.BulletDRPCConfig;
+import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.spout.SpoutOutputCollector;
@@ -50,14 +50,14 @@ public class QuerySpout extends BaseRichSpout {
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         // Merge supplied configs with the cluster defaults.
         conf.forEach((key, value) -> config.set(key.toString(), config.getOrDefault(key.toString(), value)));
-        config.set(BulletDRPCConfig.DRPC_INSTANCE_INDEX, Objects.isNull(context.getThisComponentId()) ? -1 : context.getThisComponentId());
+        config.set(DRPCConfig.DRPC_INSTANCE_INDEX, Objects.isNull(context.getThisComponentId()) ? -1 : context.getThisComponentId());
         try {
             this.pubSub = PubSub.from(config);
+            this.subscriber = pubSub.getSubscriber();
         } catch (PubSubException e) {
             throw new RuntimeException("Cannot create PubSub.", e);
         }
         this.collector = collector;
-        this.subscriber = pubSub.getSubscriber();
     }
 
     @Override

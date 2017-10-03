@@ -6,7 +6,7 @@
 package com.yahoo.bullet.storm.drpc.utils;
 
 import com.yahoo.bullet.BulletConfig;
-import com.yahoo.bullet.storm.drpc.BulletDRPCConfig;
+import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.drpc.DRPCInvocationsClient;
@@ -43,7 +43,7 @@ public class DRPCResponseHandler {
     public DRPCResponseHandler(DRPCRequestHandler drpcRequestHandler, BulletConfig clientConfiguration) {
         this.drpcRequestHandler = drpcRequestHandler;
         this.clientConfiguration = clientConfiguration.getAll(Optional.empty());
-        maxRetries = Utils.getInt(clientConfiguration.getOrDefault(BulletDRPCConfig.DRPC_CONNECT_RETRY_LIMIT, 1));
+        maxRetries = Utils.getInt(clientConfiguration.getOrDefault(DRPCConfig.DRPC_CONNECT_RETRY_LIMIT, 1));
     }
 
     /**

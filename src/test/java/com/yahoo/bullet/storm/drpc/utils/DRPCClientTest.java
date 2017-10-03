@@ -9,7 +9,7 @@ import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.storm.BulletStormConfig;
-import com.yahoo.bullet.storm.drpc.BulletDRPCConfig;
+import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import org.mockito.Mockito;
 import org.mockito.stubbing.Answer;
 import org.mockito.stubbing.Stubber;
@@ -89,7 +89,7 @@ public class DRPCClientTest {
     @Test(expectedExceptions = NullPointerException.class)
     public void testBadInitialization() throws IOException {
         BulletConfig config = new BulletConfig(testConfig);
-        config.set(BulletDRPCConfig.DRPC_SERVERS, null);
+        config.set(DRPCConfig.DRPC_SERVERS, null);
         new DRPCClient(config);
     }
 
@@ -120,8 +120,8 @@ public class DRPCClientTest {
     @Test
     public void testConfiguredInvocation() throws IOException {
         BulletConfig config = new BulletConfig(testConfig);
-        config.set(BulletDRPCConfig.DRPC_CONNECT_RETRY_LIMIT, 1);
-        config.set(BulletDRPCConfig.DRPC_CONNECT_TIMEOUT, 1);
+        config.set(DRPCConfig.DRPC_CONNECT_RETRY_LIMIT, 1);
+        config.set(DRPCConfig.DRPC_CONNECT_TIMEOUT, 1);
         DRPCClient drpcClient = new DRPCClient(config);
         String response = drpcClient.exeuteQuery("ignored");
 
