@@ -26,9 +26,10 @@ public class DRPCPubSub extends PubSub {
     private int maxUncommittedMessages;
 
     /**
-     * Create a DRPCPubSub using a {@link DRPCConfig}.
+     * Create a DRPCPubSub using a {@link BulletConfig}.
      *
-     * @param config The BulletConfig containing settings to create new DRPCPubSub.
+     * @param config The BulletConfig containing settings to create a new DRPCPubSub.
+     * @throws PubSubException if there were errors in creating an instance.
      */
     public DRPCPubSub(BulletConfig config) throws PubSubException {
         super(config);

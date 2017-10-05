@@ -41,7 +41,7 @@ public class DRPCOutputCollector implements ISpoutOutputCollector, IOutputCollec
         }
         List<List<Object>> toReturn = tuples;
         // Reset the processing
-        tuples.clear();
+        tuples = new ArrayList<>();
         acked = false;
         failed = false;
         return toReturn;

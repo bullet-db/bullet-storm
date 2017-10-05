@@ -6,16 +6,16 @@
 package com.yahoo.bullet.storm.drpc.utils;
 
 import lombok.Getter;
-import lombok.Setter;
 
-@Getter @Setter
 public class DRPCError {
     public static final String GENERIC_RESOLUTION = "Please try again later";
     public static final String GENERIC_ERROR = "Cannot reach the DRPC server";
     public static final DRPCError CANNOT_REACH_DRPC = new DRPCError(GENERIC_ERROR, GENERIC_RESOLUTION);
     public static final DRPCError RETRY_LIMIT_EXCEEDED = new DRPCError("Retry limit exceeded.", GENERIC_RESOLUTION);
 
+    @Getter
     private String error;
+    @Getter
     private String resolution;
 
     /**

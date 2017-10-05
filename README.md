@@ -4,7 +4,7 @@
 
 ## Introduction
 
-This project implements Bullet on [Storm](http://storm.apache.org).
+This project implements Bullet on [Storm](http://storm.apache.org). It also includes the PubSub implementation that uses Storm DRPC as the PubSub.
 
 ## Documentation
 
