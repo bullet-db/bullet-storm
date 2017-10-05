@@ -48,7 +48,7 @@ public class DRPCOutputCollector implements ISpoutOutputCollector, IOutputCollec
     }
 
     /**
-     * Returns true if we added any output since the last {@link #reset()}
+     * Returns true if we added any output since the last {@link #reset()}.
      *
      * @return A boolean denoting if we have output.
      */
