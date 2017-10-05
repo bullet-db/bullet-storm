@@ -5,46 +5,49 @@
  */
 package com.yahoo.bullet.storm.drpc;
 
+import com.yahoo.bullet.Config;
 import com.yahoo.bullet.storm.BulletStormConfig;
 
-import java.io.IOException;
-
 public class DRPCConfig extends BulletStormConfig {
-    // The next three parameters must be tuned depending on the volume of requests and the distribution of the duration
-    // of queries for the best performance. If the thread pool or queues are full, DRPC PubSub sends will block.
-    public static final String DRPC_THREAD_POOL_SIZE = "bullet.pubsub.drpc.thread.pool.size";
-    public static final String DRPC_REQUEST_QUEUE_SIZE = "bullet.pubsub.drpc.request.queue.size";
-    public static final String DRPC_RESPONSE_QUEUE_SIZE = "bullet.pubsub.drpc.response.queue.size";
-    // The timeout and retry limits for connections to DRPC servers.
-    public static final String DRPC_CONNECT_TIMEOUT = "bullet.pubsub.drpc.connect.timeout";
-    public static final String DRPC_CONNECT_RETRY_LIMIT = "bullet.pubsub.drpc.connect.retry.limit";
+    public static final String PREFIX = "bullet.pubsub.storm.drpc.";
 
     // The location of DRPC servers.
-    public static final String DRPC_SERVERS = "drpc.servers";
-    // This is the HTTP protocol to use when submitting to the DRPC server.
-    public static final String DRPC_HTTP_PROTOCOL = "drpc.http.protocol";
-    // This is the port that the QUERY_SUBMISSION end talks to. This overrides a variable with the same name and setting from Config.
-    public static final String DRPC_HTTP_PORT = "drpc.http.port";
-    // The path that queries must be POSTed to.
-    public static final String DRPC_HTTP_PATH = "bullet.pubsub.drpc.path";
-    // The index of the current instance
-    public static final String DRPC_INSTANCE_INDEX = "bullet.pubsub.drpc.index";
-    // This is the port that the QUERY_PROCESSING end talks to. This overrides a variable with the same name and setting
-    // from Config.
-    public static final String DRPC_INVOCATIONS_PORT = "drpc.invocations.port";
-    // The interval at which request are fetched from the DRPC server.
-    public static final String DRPC_REQUEST_FETCH_INTERVAL_MS = "bullet.pubsub.drpc.request.fetch.ms";
+    public static final String DRPC_SERVERS = PREFIX + "servers";
 
-    public static final String DEFAULT_DRPC_CONFIGURATION = "bullet_storm_defaults.yaml";
+    // The timeout and retry limits for HTTP connections to DRPC servers.
+    public static final String DRPC_CONNECT_TIMEOUT = PREFIX + "connect.timeout";
+    public static final String DRPC_CONNECT_RETRY_LIMIT = PREFIX + "connect.retry.limit";
+
+    // This is the HTTP protocol to use when submitting to the DRPC server.
+    public static final String DRPC_HTTP_PROTOCOL = PREFIX + "http.protocol";
+    // This is the port that the QUERY_SUBMISSION end talks to.
+    public static final String DRPC_HTTP_PORT = PREFIX + "http.port";
+    // The path that queries must be POSTed to. This generally is "drpc"
+    public static final String DRPC_HTTP_PATH = PREFIX + "http.path";
+
+    // This is the name of the DRPC function used to register with the DRPC servers
+    public static final String DRPC_FUNCTION = PREFIX + "function";
+
+    // This is the maximum number of pending queries that can be read by a single subscriber in QUERY_PROCESSING
+    // before a commit is needed.
+    public static final String DRPC_MAX_UNCOMMITED_MESSAGES = PREFIX + "max.uncommitted.messages";
 
     /**
      * Create a new DRPCConfig by reading in a file.
      *
      * @param file The file containing DRPC settings.
-     * @throws IOException if the input file is malformed or DRPC defaults could not be loaded.
      */
-    public DRPCConfig(String file) throws IOException {
+    public DRPCConfig(String file) {
         // Load and merge with default bullet-storm settings. Storm defaults also contain the DRPC settings.
-        super(file);
+        this(new BulletStormConfig(file));
+    }
+
+    /**
+     * Creates a new DRPCConfig wrapping the given config.
+     *
+     * @param config The config to wrap.
+     */
+    public DRPCConfig(Config config) {
+        super(config);
     }
 }

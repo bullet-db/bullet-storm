@@ -10,62 +10,78 @@ import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
-import com.yahoo.bullet.storm.drpc.utils.DRPCClient;
-import com.yahoo.bullet.storm.drpc.utils.DRPCRequestHandler;
-import com.yahoo.bullet.storm.drpc.utils.DRPCResponseHandler;
-import com.yahoo.bullet.storm.drpc.utils.QueuedThreadPoolDRPCClient;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.storm.utils.Utils;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+
+import static com.yahoo.bullet.pubsub.PubSub.Context.QUERY_SUBMISSION;
 
 @Slf4j
 public class DRPCPubSub extends PubSub {
-    private BulletConfig config;
-    private QueuedThreadPoolDRPCClient client;
-    private DRPCRequestHandler drpcRequestHandler;
-    private DRPCResponseHandler drpcResponseHandler;
-    private int fetchIntervalMs;
+    // This is so that in QUERY_SUBMISSION, the same publisher and subscriber instances are handed out.
+    private List<DRPCQueryResultPubscriber> commonPool = new ArrayList<>();
+    private int maxUncommittedMessages;
+
     /**
      * Create a DRPCPubSub using a {@link DRPCConfig}.
      *
-     * @param config The DRPCConfig containing settings to create new DRPCPubSub.
+     * @param config The BulletConfig containing settings to create new DRPCPubSub.
      */
     public DRPCPubSub(BulletConfig config) throws PubSubException {
         super(config);
-        this.config = config;
-        log.info("DRPC PubSub started with config: " + config.toString());
-        DRPCClient drpcClient = new DRPCClient(config);
-        int requestQueueSize = Utils.getInt(config.get(DRPCConfig.DRPC_REQUEST_QUEUE_SIZE));
-        int responseQueueSize = Utils.getInt(config.get(DRPCConfig.DRPC_RESPONSE_QUEUE_SIZE));
-        int threadPoolSize = Utils.getInt(config.get(DRPCConfig.DRPC_THREAD_POOL_SIZE));
-        client = new QueuedThreadPoolDRPCClient(drpcClient, requestQueueSize, responseQueueSize, threadPoolSize);
-        fetchIntervalMs = Utils.getInt(config.get(DRPCConfig.DRPC_REQUEST_FETCH_INTERVAL_MS));
-
-        drpcRequestHandler = new DRPCRequestHandler(config);
-        drpcResponseHandler = new DRPCResponseHandler(drpcRequestHandler, config);
+        this.config = new DRPCConfig(config);
+        maxUncommittedMessages = getRequiredConfig(Number.class, DRPCConfig.DRPC_MAX_UNCOMMITED_MESSAGES).intValue();
     }
 
     @Override
-    public Subscriber getSubscriber() {
-        return context == Context.QUERY_SUBMISSION ? new DRPCResponseSubscriber(client) :
-                new DRPCRequestSubscriber(drpcRequestHandler, fetchIntervalMs);
+    public Subscriber getSubscriber() throws PubSubException {
+        return context == QUERY_SUBMISSION ? getPubscriber() : new DRPCQuerySubscriber(config, maxUncommittedMessages);
     }
 
     @Override
-    public Publisher getPublisher() {
-        return context == Context.QUERY_SUBMISSION ? new DRPCRequestPublisher(client) :
-                new DRPCResponsePublisher(drpcResponseHandler);
+    public Publisher getPublisher() throws PubSubException {
+        return context == QUERY_SUBMISSION ? getPubscriber() : new DRPCResultPublisher(config);
     }
 
     @Override
-    public List<Subscriber> getSubscribers(int n) {
-        return Collections.nCopies(n, getSubscriber());
+    public List<Subscriber> getSubscribers(int n) throws PubSubException {
+        if (context == QUERY_SUBMISSION) {
+            return getPubscribers(n).stream().map(p -> (Subscriber) p).collect(Collectors.toList());
+        }
+        return IntStream.range(0, n).mapToObj(i -> new DRPCQuerySubscriber(config, maxUncommittedMessages))
+                                    .collect(Collectors.toList());
+
     }
 
     @Override
-    public List<Publisher> getPublishers(int n) {
-        return Collections.nCopies(n, getPublisher());
+    public List<Publisher> getPublishers(int n) throws PubSubException {
+        if (context == QUERY_SUBMISSION) {
+            return getPubscribers(n).stream().map(p -> (Publisher) p).collect(Collectors.toList());
+        }
+        return IntStream.range(0, n).mapToObj(i -> new DRPCResultPublisher(config)).collect(Collectors.toList());
+    }
+
+    private DRPCQueryResultPubscriber getPubscriber() {
+        return getPubscribers(1).get(0);
+    }
+
+    private List<DRPCQueryResultPubscriber> getPubscribers(int n) {
+        if (commonPool.isEmpty()) {
+            createPubscribers(n);
+        }
+        int size = commonPool.size();
+        if (size != n) {
+            log.warn("DRPCPubSub in QUERY_SUBMISSION MUST have the same publishers and subscribers. You asked for {} " +
+                     "publishers or subscribers but had already created {} publishers or subscribers. Giving you the " +
+                     "{} instances that you had already created.", n, size, size);
+        }
+        return commonPool;
+    }
+
+    private void createPubscribers(int amount) {
+        IntStream.range(0, amount).forEach(i -> commonPool.add(new DRPCQueryResultPubscriber(config)));
     }
 }

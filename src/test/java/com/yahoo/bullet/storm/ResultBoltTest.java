@@ -5,7 +5,6 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
@@ -14,10 +13,11 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+
+import static com.yahoo.bullet.storm.TupleUtils.makeTuple;
+import static java.util.Arrays.asList;
 
 public class ResultBoltTest {
     private CustomCollector collector;
@@ -25,8 +25,8 @@ public class ResultBoltTest {
     private CustomPublisher publisher;
 
     @BeforeMethod
-    public void setup() throws IOException {
-        BulletConfig config = new BulletConfig("src/test/resources/test_config.yaml");
+    public void setup() {
+        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
         ResultBolt resultBolt = new ResultBolt(config);
         collector = new CustomCollector();
         bolt = ComponentUtils.prepare(resultBolt, collector);
@@ -35,13 +35,11 @@ public class ResultBoltTest {
 
     @Test
     public void executeMessagesAreSentTest() throws PubSubException {
-        List<PubSubMessage> expected = Arrays.asList(new PubSubMessage("42", "This is a PubSubMessage", new Metadata()),
-                                                     new PubSubMessage("43", "This is also a PubSubMessage", new Metadata()),
-                                                     new PubSubMessage("44", "This is still a PubSubMessage", new Metadata()));
+        List<PubSubMessage> expected = asList(new PubSubMessage("42", "This is a PubSubMessage", new Metadata()),
+                                              new PubSubMessage("43", "This is also a PubSubMessage", new Metadata()),
+                                              new PubSubMessage("44", "This is still a PubSubMessage", new Metadata()));
         List<Tuple> tuples = new ArrayList<>();
-        expected.forEach(pubSubMessage -> {
-                tuples.add(TupleUtils.makeTuple(pubSubMessage.getId(), pubSubMessage.getContent(), pubSubMessage.getMetadata()));
-            }
+        expected.forEach(m -> tuples.add(makeTuple(m.getId(), m.getContent(), m.getMetadata()))
         );
 
         for (int i = 0; i < tuples.size(); i++) {
@@ -62,9 +60,9 @@ public class ResultBoltTest {
         // Execute a few tuples
         // Closing the publisher will cause CustomPublisher to throw
         publisher.close();
-        bolt.execute(TupleUtils.makeTuple("42", "This is a PubSubMessage", new Metadata()));
-        bolt.execute(TupleUtils.makeTuple("43", "This is also a PubSubMessage", new Metadata()));
-        bolt.execute(TupleUtils.makeTuple("44", "This is still a PubSubMessage", new Metadata()));
+        bolt.execute(makeTuple("42", "This is a PubSubMessage", new Metadata()));
+        bolt.execute(makeTuple("43", "This is also a PubSubMessage", new Metadata()));
+        bolt.execute(makeTuple("44", "This is still a PubSubMessage", new Metadata()));
 
         // Assert that no tuples were sent, committed, or acked
         Assert.assertTrue(publisher.getSent().isEmpty());

@@ -5,13 +5,11 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
-import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
@@ -21,34 +19,34 @@ import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
 
 import java.util.Map;
-import java.util.Objects;
 
 @Slf4j @Getter
 public class ResultBolt extends BaseRichBolt {
     private PubSub pubSub;
     private Publisher publisher;
     private OutputCollector collector;
-    private BulletConfig config;
+    private BulletStormConfig config;
 
     /**
-     * Creates a ResultBolt and passes in a {@link BulletConfig}.
+     * Creates a ResultBolt and passes in a {@link BulletStormConfig}.
      *
-     * @param config BulletConfig to create PubSub from.
+     * @param config The BulletStormConfig to create PubSub from.
      */
-    public ResultBolt(BulletConfig config) {
+    public ResultBolt(BulletStormConfig config) {
         this.config = config;
     }
 
     @Override
     public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
-        // Merge supplied configs with the cluster defaults.
-        conf.forEach((key, value) -> config.set(key.toString(), value));
-        config.set(DRPCConfig.DRPC_INSTANCE_INDEX, Objects.isNull(context.getThisComponentId()) ? -1 : context.getThisComponentId());
+        // Add the Storm Config and the context as is, in case any PubSubs need it.
+        config.set(BulletStormConfig.STORM_CONFIG, conf);
+        config.set(BulletStormConfig.STORM_CONTEXT, context);
+
         try {
             this.pubSub = PubSub.from(config);
             this.publisher = pubSub.getPublisher();
         } catch (PubSubException e) {
-            throw new RuntimeException("Cannot create PubSub.", e);
+            throw new RuntimeException("Cannot create a PubSub instance or a Publisher for it.", e);
         }
         this.collector = collector;
     }

@@ -5,8 +5,8 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
@@ -14,17 +14,15 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
-
 public class QuerySpoutTest {
     private CustomEmitter emitter;
     private QuerySpout spout;
     private CustomSubscriber subscriber;
 
     @BeforeMethod
-    public void setup() throws IOException {
+    public void setup() throws PubSubException {
         emitter = new CustomEmitter();
-        BulletConfig config = new BulletConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
         QuerySpout querySpout = new QuerySpout(config);
         spout = ComponentUtils.open(querySpout, emitter);
         subscriber = (CustomSubscriber) spout.getPubSub().getSubscriber();

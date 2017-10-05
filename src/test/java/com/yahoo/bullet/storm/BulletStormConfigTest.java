@@ -5,6 +5,7 @@
  */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.Config;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -14,7 +15,7 @@ import java.util.Map;
 public class BulletStormConfigTest {
     @Test
     public void testNoFiles() throws IOException {
-        BulletStormConfig config = new BulletStormConfig(null);
+        BulletStormConfig config = new BulletStormConfig((String) null);
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_NAME), "bullet-topology");
         Assert.assertEquals(config.get(BulletStormConfig.SPECIFICATION_MAX_DURATION), 120000L);
         Assert.assertEquals(config.get(BulletStormConfig.AGGREGATION_MAX_SIZE), 512L);
@@ -37,7 +38,7 @@ public class BulletStormConfigTest {
 
     @Test
     public void testGettingNonStormSettingsOnly() throws IOException {
-        BulletStormConfig config = new BulletStormConfig(null);
+        BulletStormConfig config = new BulletStormConfig((Config) null);
         Map<String, Object> settings = config.getNonTopologySubmissionSettings();
         BulletStormConfig.TOPOLOGY_SUBMISSION_SETTINGS.stream().forEach(s -> Assert.assertFalse(settings.containsKey(s)));
         Assert.assertTrue(settings.size() > 0);

@@ -291,8 +291,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     }
 
     private AbsoluteCountMetric registerAbsoluteCountMetric(String name, TopologyContext context) {
-        Number interval = metricsIntervalMapping.getOrDefault(name,
-                                                              metricsIntervalMapping.get(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY));
+        Number interval = metricsIntervalMapping.getOrDefault(name, metricsIntervalMapping.get(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY));
         log.info("Registered {} with interval {}", name, interval);
         return context.registerMetric(name, new AbsoluteCountMetric(), interval.intValue());
     }

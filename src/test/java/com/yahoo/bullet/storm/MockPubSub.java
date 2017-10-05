@@ -7,6 +7,7 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.PubSub;
+import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
 
@@ -16,7 +17,7 @@ public class MockPubSub extends PubSub {
     Publisher publisher = new CustomPublisher();
     Subscriber subscriber = new CustomSubscriber();
 
-    public MockPubSub(BulletConfig config) {
+    public MockPubSub(BulletConfig config) throws PubSubException {
         super(config);
     }
 

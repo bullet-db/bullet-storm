@@ -5,12 +5,10 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Subscriber;
-import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.spout.SpoutOutputCollector;
@@ -22,7 +20,6 @@ import org.apache.storm.tuple.Values;
 import org.apache.storm.utils.Utils;
 
 import java.util.Map;
-import java.util.Objects;
 
 @Slf4j @Getter
 public class QuerySpout extends BaseRichSpout {
@@ -32,30 +29,31 @@ public class QuerySpout extends BaseRichSpout {
     public static final String QUERY_FIELD = "query";
     public static final String METADATA_FIELD = "metadata";
 
-    private BulletConfig config;
+    private BulletStormConfig config;
     private PubSub pubSub;
     private Subscriber subscriber;
     private SpoutOutputCollector collector;
 
     /**
-     * Creates a QuerySpout and passes in a {@link BulletConfig}.
+     * Creates a QuerySpout with a passed in {@link BulletStormConfig}.
      *
-     * @param config BulletConfig to create PubSub from.
+     * @param config The BulletStormConfig to create the PubSub from.
      */
-    public QuerySpout(BulletConfig config) {
+    public QuerySpout(BulletStormConfig config) {
         this.config = config;
     }
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
-        // Merge supplied configs with the cluster defaults.
-        conf.forEach((key, value) -> config.set(key.toString(), config.getOrDefault(key.toString(), value)));
-        config.set(DRPCConfig.DRPC_INSTANCE_INDEX, Objects.isNull(context.getThisComponentId()) ? -1 : context.getThisComponentId());
+        // Add the Storm Config and the context as is, in case any PubSubs need it.
+        config.set(BulletStormConfig.STORM_CONFIG, conf);
+        config.set(BulletStormConfig.STORM_CONTEXT, context);
+
         try {
             this.pubSub = PubSub.from(config);
             this.subscriber = pubSub.getSubscriber();
         } catch (PubSubException e) {
-            throw new RuntimeException("Cannot create PubSub.", e);
+            throw new RuntimeException("Cannot create PubSub instance or a Subscriber for it.", e);
         }
         this.collector = collector;
     }
@@ -69,6 +67,7 @@ public class QuerySpout extends BaseRichSpout {
             log.error(e.getMessage());
         }
         if (message != null) {
+            // TODO: No need for two streams. Just send a unified Query stream. JoinBolt needs to not do that join.
             collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent()), message.getId());
             collector.emit(METADATA_STREAM, new Values(message.getId(), message.getMetadata()), message.getId());
         } else {

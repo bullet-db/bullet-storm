@@ -1,5 +1,11 @@
+/*
+ *  Copyright 2017, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm.drpc;
 
+import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.RandomPool;
 import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.pubsub.PubSubException;
@@ -22,12 +28,11 @@ import java.util.Objects;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
- * This class is both a query {@link Publisher} and a result {@link Subscriber} because it uses HTTP to do a request-
- * response call where the request is the Bullet query and the response is the result from the backend.
+ * This class is both a query {@link Publisher} and a result {@link Subscriber}. It uses HTTP to do a request- response
+ * call where the request is the Bullet query and the response is the result from the backend.
  */
 @Slf4j
 public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
@@ -36,32 +41,31 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     private Queue<PubSubMessage> responses;
 
     public static final int NO_TIMEOUT = -1;
-
     public static final int OK_200 = 200;
-
-    public static final String PATH_SEPARATOR = "/";
-    public static final String PORT_PREFIX = ":";
-    public static final String PROTOCOL_SUFFIX = "://";
-    private static final String TEMPLATE = "%1$s" + PROTOCOL_SUFFIX + "%2$s" + PORT_PREFIX + "%3$s" + PATH_SEPARATOR + "%4$s";
+    // PROTOCOL://URL:PORT/DRPC_PATH/DRPC_FUNCTION
+    private static final String URL_TEMPLATE = "%1$s://%2$s:%3$s/%4$s/%5$s";
 
     /**
-     * Create an instance from a given {@link DRPCConfig}. Requires {@link DRPCConfig#DRPC_CONNECT_TIMEOUT},
+     * Create an instance from a given {@link BulletConfig}. Requires {@link DRPCConfig#DRPC_CONNECT_TIMEOUT},
      * {@link DRPCConfig#DRPC_CONNECT_RETRY_LIMIT}, {@link DRPCConfig#DRPC_SERVERS}, {@link DRPCConfig#DRPC_HTTP_PORT},
      * and {@link DRPCConfig#DRPC_HTTP_PATH} to be set. To be used in PubSub.Context#QUERY_SUBMISSION mode.
      *
      * @param config A non-null config that contains the required settings.
      */
-    public DRPCQueryResultPubscriber(DRPCConfig config) {
+    public DRPCQueryResultPubscriber(BulletConfig config) {
         Objects.requireNonNull(config);
 
-        Number connectTimeout = get(config, DRPCConfig.DRPC_CONNECT_TIMEOUT);
-        Number retryLimit = get(config, DRPCConfig.DRPC_CONNECT_RETRY_LIMIT);
-        List<String> urls = get(config, DRPCConfig.DRPC_SERVERS);
-        String protocol = get(config, DRPCConfig.DRPC_HTTP_PROTOCOL).toString();
-        String port = get(config, DRPCConfig.DRPC_HTTP_PORT).toString();
-        String path = get(config, DRPCConfig.DRPC_HTTP_PATH).toString();
+        Number connectTimeout = config.getRequiredConfigAs(DRPCConfig.DRPC_CONNECT_TIMEOUT, Number.class);
+        Number retryLimit = config.getRequiredConfigAs(DRPCConfig.DRPC_CONNECT_RETRY_LIMIT, Number.class);
+        List<String> urls = (List<String>) config.getRequiredConfigAs(DRPCConfig.DRPC_SERVERS, List.class);
+        String protocol = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PROTOCOL, String.class);
+        String port = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PORT, String.class);
+        String path = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PATH, String.class);
+        String function = config.getRequiredConfigAs(DRPCConfig.DRPC_FUNCTION, String.class);
 
-        this.urls = new RandomPool<>(getURLs(protocol, urls, port, path));
+        List<String> endpoints = urls.stream().map(url -> String.format(URL_TEMPLATE, protocol, url, port, path, function))
+                                              .collect(Collectors.toList());
+        this.urls = new RandomPool<>(endpoints);
         AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
                                                     .setConnectTimeout(connectTimeout.intValue())
                                                     .setMaxRequestRetry(retryLimit.intValue())
@@ -76,11 +80,11 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     public void send(PubSubMessage message) throws PubSubException {
         String url = urls.get();
         String id = message.getId();
-        String json = DRPCMessage.toJSON(message);
-        log.info("Posting to {}: with \n {}", url, json);
-        client.preparePost(url).setBody(json).execute()
-              .toCompletableFuture()
-              .exceptionally(createErrorResponse(id))
+        String json = message.asJSON();
+        log.info("Posting to {} for id {}", url, id);
+        log.debug("Posting to {} with body {}", url, json);
+        client.preparePost(url).setBody(json).execute().toCompletableFuture()
+              .exceptionally(this::handleException)
               .thenAcceptAsync(createResponseConsumer(id));
     }
 
@@ -116,14 +120,9 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
         return response -> handleResponse(id, response);
     }
 
-    private Function<Throwable, Response> createErrorResponse(String id) {
-        return throwable -> handleException(id, throwable);
-
-    }
-
-    private Response handleException(String id, Throwable throwable) {
-        log.error("Received error", throwable);
-        log.error("Creating error response for {}", id);
+    private Response handleException(Throwable throwable) {
+        // Just for logging
+        log.error("Received error while posting query", throwable);
         return null;
     }
 
@@ -133,23 +132,15 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
             responses.offer(new PubSubMessage(id, getErrorMessage(DRPCError.CANNOT_REACH_DRPC)));
             return;
         }
-        log.info("Received status {}: {}", response.getStatusCode(), response.getStatusText());
+        log.info("Received status {} for id {}: {}", response.getStatusCode(), id, response.getStatusText());
         String body = response.getResponseBody();
-        PubSubMessage message = DRPCMessage.fromJSON(body);
-        log.info("Received content for {} with:\n{}", message.getId(), message.getContent());
+        PubSubMessage message = PubSubMessage.fromJSON(body);
+        log.debug("Received content for {} with:\n{}", message.getId(), message.getContent());
         responses.offer(message);
     }
 
     private static String getErrorMessage(DRPCError cause) {
         Clip responseEntity = Clip.of(Metadata.of(Error.makeError(cause.getError(), cause.getResolution())));
         return responseEntity.asJSON();
-    }
-
-    private static <T> T get(DRPCConfig config, String key) {
-        return (T) Objects.requireNonNull(config.get(key), key + " not found in config");
-    }
-
-    private static List<String> getURLs(String protocol, List<String> urls, String port, String path) {
-        return urls.stream().map(s -> String.format(TEMPLATE, protocol, s, port, path)).collect(Collectors.toList());
     }
 }

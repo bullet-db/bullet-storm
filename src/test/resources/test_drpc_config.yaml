@@ -8,14 +8,7 @@ fake.setting: "bar"
 ## Topology settings that are needed for DRPC PubSub to work.
 bullet.topology.function: "query"
 bullet.topology.query.spout.parallelism: 20
-bullet.pubsub.drpc.index: 1
 bullet.topology.tick.interval.secs: 1
-storm.cluster.mode: "remote"
-storm.thrift.transport: "org.apache.storm.security.auth.SimpleTransportPlugin"
-storm.thrift.socket.timeout.ms: 600000
-storm.nimbus.retry.times: 5
-storm.nimbus.retry.interval.millis: 2000
-storm.nimbus.retry.intervalceiling.millis: 60000
 
 ## DRPC Setting that are supplied externally.
 bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
@@ -30,6 +23,12 @@ bullet.pubsub.drpc.index: 1
 bullet.pubsub.drpc.request.fetch.ms: 100
 
 ## DRPC Settings that should be received from the cluster.
+storm.cluster.mode: "remote"
+storm.thrift.transport: "org.apache.storm.security.auth.SimpleTransportPlugin"
+storm.thrift.socket.timeout.ms: 600000
+storm.nimbus.retry.times: 5
+storm.nimbus.retry.interval.millis: 2000
+storm.nimbus.retry.intervalceiling.millis: 60000
 drpc.servers:
 - "host"
 drpc.port: 3772
@@ -45,5 +44,5 @@ drpc.https.port: -1
 drpc.https.keystore.password: ""
 drpc.https.keystore.type: "JKS"
 drpc.http.creds.plugin: org.apache.storm.security.auth.DefaultHttpCredentialsPlugin
-drpc.authorizer.acl.filename: "drpc-auth-acl.yaml"
+drpc.authorizer.acl.filename: "pubsub-auth-acl.yaml"
 drpc.authorizer.acl.strict: false
