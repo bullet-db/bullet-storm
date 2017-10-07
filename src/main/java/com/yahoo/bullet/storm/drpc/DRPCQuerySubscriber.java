@@ -11,6 +11,8 @@ import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
+import lombok.AccessLevel;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -32,6 +34,7 @@ import java.util.Map;
  */
 @Slf4j
 public class DRPCQuerySubscriber extends BufferingSubscriber {
+    @Setter(AccessLevel.PACKAGE)
     private DRPCSpout spout;
     private DRPCOutputCollector collector;
 
@@ -65,7 +68,7 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
         // Get the DRPC function we should subscribe to
         String function = config.getRequiredConfigAs(DRPCConfig.DRPC_FUNCTION, String.class);
 
-        spout = getSpout(function);
+        spout = new DRPCSpout(function);
         spout.open(stormConfig, context, spoutOutputCollector);
     }
 
@@ -112,15 +115,5 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
         emittedIDs.values().forEach(spout::fail);
         log.info("Closing spout...");
         spout.close();
-    }
-
-    /**
-     * Exposed for testing only.
-     *
-     * @param function The string function to listen to DRPC invocations.
-     * @return An instance of a {@link DRPCSpout}.
-     */
-    DRPCSpout getSpout(String function) {
-        return new DRPCSpout(function);
     }
 }

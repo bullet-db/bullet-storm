@@ -12,6 +12,8 @@ import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
 import com.yahoo.bullet.storm.drpc.utils.DRPCTuple;
+import lombok.AccessLevel;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.drpc.ReturnResults;
 import org.apache.storm.task.OutputCollector;
@@ -26,6 +28,7 @@ import java.util.Map;
  */
 @Slf4j
 public class DRPCResultPublisher implements Publisher {
+    @Setter(AccessLevel.PACKAGE)
     private ReturnResults bolt;
     private DRPCOutputCollector collector;
 
@@ -43,7 +46,7 @@ public class DRPCResultPublisher implements Publisher {
         // Wrap the collector in a OutputCollector (it just delegates to the underlying DRPCOutputCollector)
         OutputCollector boltOutputCollector = new OutputCollector(collector);
 
-        bolt = getBolt();
+        bolt = new ReturnResults();
         // No need for a TopologyContext
         bolt.prepare(stormConfig, null, boltOutputCollector);
     }
@@ -72,14 +75,5 @@ public class DRPCResultPublisher implements Publisher {
     @Override
     public void close() {
         bolt.cleanup();
-    }
-
-    /**
-     * Exposed for testing only.
-     *
-     * @return An instance of a {@link ReturnResults}.
-     */
-    ReturnResults getBolt() {
-        return new ReturnResults();
     }
 }

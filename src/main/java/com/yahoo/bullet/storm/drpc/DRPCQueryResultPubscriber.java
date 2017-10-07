@@ -7,14 +7,13 @@ package com.yahoo.bullet.storm.drpc;
 
 import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.RandomPool;
-import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
-import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.storm.drpc.utils.DRPCError;
+import lombok.AccessLevel;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.AsyncHttpClientConfig;
@@ -26,7 +25,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -38,8 +36,9 @@ import java.util.stream.Collectors;
 @Slf4j
 public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     private RandomPool<String> urls;
-    private AsyncHttpClient client;
     private Queue<PubSubMessage> responses;
+    @Setter(AccessLevel.PACKAGE)
+    private AsyncHttpClient client;
 
     public static final int NO_TIMEOUT = -1;
     public static final int OK_200 = 200;
@@ -73,7 +72,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
                                                     .setReadTimeout(NO_TIMEOUT)
                                                     .setRequestTimeout(NO_TIMEOUT)
                                                     .build();
-        client = getClient(clientConfig);
+        client = new DefaultAsyncHttpClient(clientConfig);
         responses = new ConcurrentLinkedQueue<>();
     }
 
@@ -87,7 +86,6 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
         client.preparePost(url).setBody(json).execute().toCompletableFuture()
               .exceptionally(this::handleException)
               .thenAcceptAsync(createResponseConsumer(id));
-        log.warn("Send done");
     }
 
     @Override
@@ -118,16 +116,6 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
         }
     }
 
-    /**
-     * Exposed for testing only.
-     *
-     * @param config The {@link AsyncHttpClientConfig} to use to create the client.
-     * @return A {@link AsyncHttpClient}configured with the provided config.
-     */
-    AsyncHttpClient getClient(AsyncHttpClientConfig config) {
-        return new DefaultAsyncHttpClient(config);
-    }
-
     private Consumer<Response> createResponseConsumer(String id) {
         return response -> handleResponse(id, response);
     }
@@ -141,7 +129,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     private void handleResponse(String id, Response response) {
         if (response == null || response.getStatusCode() != OK_200) {
             log.error("Handling error response for {}", id);
-            responses.offer(new PubSubMessage(id, getErrorMessage(DRPCError.CANNOT_REACH_DRPC)));
+            responses.offer(new PubSubMessage(id, DRPCError.CANNOT_REACH_DRPC.asJSON()));
             return;
         }
         log.info("Received status {} for id {}: {}", response.getStatusCode(), id, response.getStatusText());
@@ -149,10 +137,5 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
         PubSubMessage message = PubSubMessage.fromJSON(body);
         log.debug("Received content for {} with:\n{}", message.getId(), message.getContent());
         responses.offer(message);
-    }
-
-    private static String getErrorMessage(DRPCError cause) {
-        Clip responseEntity = Clip.of(Metadata.of(Error.makeError(cause.getError(), cause.getResolution())));
-        return responseEntity.asJSON();
     }
 }

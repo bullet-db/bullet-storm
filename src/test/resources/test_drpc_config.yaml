@@ -1,4 +1,4 @@
 bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
 bullet.pubsub.context.name: "QUERY_PROCESSING"
-bullet.pubsub.storm.drpc.http.connect.timeout.ms: 1000
-bullet.pubsub.storm.drpc.http.connect.retry.limit: 2
+bullet.pubsub.storm.drpc.http.connect.timeout.ms: 100
+bullet.pubsub.storm.drpc.http.connect.retry.limit: 1
