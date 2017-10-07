@@ -13,20 +13,20 @@ public class DRPCConfig extends BulletStormConfig {
 
     // The location of DRPC servers.
     public static final String DRPC_SERVERS = PREFIX + "servers";
+    // This is the name of the DRPC function used to register with the DRPC servers
+    public static final String DRPC_FUNCTION = PREFIX + "function";
 
+    // HTTP configuration
     // The timeout and retry limits for HTTP connections to DRPC servers.
-    public static final String DRPC_CONNECT_TIMEOUT = PREFIX + "connect.timeout";
-    public static final String DRPC_CONNECT_RETRY_LIMIT = PREFIX + "connect.retry.limit";
-
+    public static final String DRPC_HTTP_CONNECT_TIMEOUT_MS = PREFIX + "http.connect.timeout.ms";
+    public static final String DRPC_HTTP_CONNECT_RETRY_LIMIT = PREFIX + "http.connect.retry.limit";
     // This is the HTTP protocol to use when submitting to the DRPC server.
     public static final String DRPC_HTTP_PROTOCOL = PREFIX + "http.protocol";
     // This is the port that the QUERY_SUBMISSION end talks to.
     public static final String DRPC_HTTP_PORT = PREFIX + "http.port";
-    // The path that queries must be POSTed to. This generally is "drpc"
+    // The path that queries must be POSTed to. This generally is "drpc".
     public static final String DRPC_HTTP_PATH = PREFIX + "http.path";
 
-    // This is the name of the DRPC function used to register with the DRPC servers
-    public static final String DRPC_FUNCTION = PREFIX + "function";
 
     // This is the maximum number of pending queries that can be read by a single subscriber in QUERY_PROCESSING
     // before a commit is needed.

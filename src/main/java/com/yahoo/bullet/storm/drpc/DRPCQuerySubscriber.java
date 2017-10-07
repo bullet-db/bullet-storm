@@ -24,8 +24,8 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * This class wraps a {@link DRPCSpout} and uses it to read messages from DRPC in Storm. It needs
- * all the Storm config to be able to connect to and read from the DRPC servers using Thrift.
+ * This class wraps a {@link DRPCSpout} and uses it to read messages from Storm DRPC. It needs all the Storm config to
+ * be able to connect to and read from the DRPC servers using Thrift.
  *
  * It buffers read queries in memory upto a specified limit (and stops till further commits are received) and can
  * re-emit failed queries. However, it is not resilient if the Subscriber is closed or reinitialized elsewhere.

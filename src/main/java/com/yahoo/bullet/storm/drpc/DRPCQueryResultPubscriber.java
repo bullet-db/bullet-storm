@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
@@ -46,8 +47,8 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     private static final String URL_TEMPLATE = "%1$s://%2$s:%3$s/%4$s/%5$s";
 
     /**
-     * Create an instance from a given {@link BulletConfig}. Requires {@link DRPCConfig#DRPC_CONNECT_TIMEOUT},
-     * {@link DRPCConfig#DRPC_CONNECT_RETRY_LIMIT}, {@link DRPCConfig#DRPC_SERVERS}, {@link DRPCConfig#DRPC_HTTP_PORT},
+     * Create an instance from a given {@link BulletConfig}. Requires {@link DRPCConfig#DRPC_HTTP_CONNECT_TIMEOUT_MS},
+     * {@link DRPCConfig#DRPC_HTTP_CONNECT_RETRY_LIMIT}, {@link DRPCConfig#DRPC_SERVERS}, {@link DRPCConfig#DRPC_HTTP_PORT},
      * and {@link DRPCConfig#DRPC_HTTP_PATH} to be set. To be used in PubSub.Context#QUERY_SUBMISSION mode.
      *
      * @param config A non-null config that contains the required settings.
@@ -55,8 +56,8 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     public DRPCQueryResultPubscriber(BulletConfig config) {
         Objects.requireNonNull(config);
 
-        Number connectTimeout = config.getRequiredConfigAs(DRPCConfig.DRPC_CONNECT_TIMEOUT, Number.class);
-        Number retryLimit = config.getRequiredConfigAs(DRPCConfig.DRPC_CONNECT_RETRY_LIMIT, Number.class);
+        Number connectTimeout = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_CONNECT_TIMEOUT_MS, Number.class);
+        Number retryLimit = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_CONNECT_RETRY_LIMIT, Number.class);
         List<String> urls = (List<String>) config.getRequiredConfigAs(DRPCConfig.DRPC_SERVERS, List.class);
         String protocol = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PROTOCOL, String.class);
         String port = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PORT, String.class);
@@ -72,7 +73,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
                                                     .setReadTimeout(NO_TIMEOUT)
                                                     .setRequestTimeout(NO_TIMEOUT)
                                                     .build();
-        client = new DefaultAsyncHttpClient(clientConfig);
+        client = getClient(clientConfig);
         responses = new ConcurrentLinkedQueue<>();
     }
 
@@ -86,6 +87,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
         client.preparePost(url).setBody(json).execute().toCompletableFuture()
               .exceptionally(this::handleException)
               .thenAcceptAsync(createResponseConsumer(id));
+        log.warn("Send done");
     }
 
     @Override
@@ -114,6 +116,16 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
         } catch (IOException ioe) {
             log.error("Error while closing AsyncHTTPClient", ioe);
         }
+    }
+
+    /**
+     * Exposed for testing only.
+     *
+     * @param config The {@link AsyncHttpClientConfig} to use to create the client.
+     * @return A {@link AsyncHttpClient}configured with the provided config.
+     */
+    AsyncHttpClient getClient(AsyncHttpClientConfig config) {
+        return new DefaultAsyncHttpClient(config);
     }
 
     private Consumer<Response> createResponseConsumer(String id) {

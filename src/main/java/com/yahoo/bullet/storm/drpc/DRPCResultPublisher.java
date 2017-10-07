@@ -20,10 +20,9 @@ import org.apache.storm.tuple.Values;
 
 import java.util.Map;
 
-
 /**
- * This class wraps a {@link ReturnResults} bolt and uses it to send messages to DRPC in Storm. It needs
- * all the Storm config to be able to connect to and write to the DRPC servers using Thrift.
+ * This class wraps a {@link ReturnResults} bolt and uses it to send messages to Storm DRPC. It needs all the Storm
+ * config to be able to connect to and write to the DRPC servers using Thrift.
  */
 @Slf4j
 public class DRPCResultPublisher implements Publisher {
@@ -44,7 +43,7 @@ public class DRPCResultPublisher implements Publisher {
         // Wrap the collector in a OutputCollector (it just delegates to the underlying DRPCOutputCollector)
         OutputCollector boltOutputCollector = new OutputCollector(collector);
 
-        bolt = new ReturnResults();
+        bolt = getBolt();
         // No need for a TopologyContext
         bolt.prepare(stormConfig, null, boltOutputCollector);
     }
@@ -73,5 +72,14 @@ public class DRPCResultPublisher implements Publisher {
     @Override
     public void close() {
         bolt.cleanup();
+    }
+
+    /**
+     * Exposed for testing only.
+     *
+     * @return An instance of a {@link ReturnResults}.
+     */
+    ReturnResults getBolt() {
+        return new ReturnResults();
     }
 }

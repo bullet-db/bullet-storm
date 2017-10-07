@@ -80,6 +80,36 @@ public class DRPCOutputCollectorTest {
         Assert.assertFalse(collector.isFailed());
     }
 
+    @Test
+    public void testingMultipleResetsWithoutEmitting() {
+        Assert.assertFalse(collector.haveOutput());
+        Assert.assertFalse(collector.isAcked());
+        Assert.assertFalse(collector.isFailed());
+
+        Assert.assertNull(collector.emit("foo", new Values("bar", 1), "id1"));
+
+        Assert.assertTrue(collector.haveOutput());
+        Assert.assertFalse(collector.isAcked());
+        Assert.assertFalse(collector.isFailed());
+
+        List<List<Object>> tuples = collector.reset();
+        // All other resets are null
+        Assert.assertNull(collector.reset());
+        Assert.assertNull(collector.reset());
+
+        // Check that our returned list was not reset
+        Assert.assertNotNull(tuples);
+        Assert.assertEquals(tuples.size(), 1);
+
+        List<Object> tuple = tuples.get(0);
+        Assert.assertEquals(tuple.get(0), asList("bar", 1));
+        Assert.assertEquals(tuple.get(1), "id1");
+
+        Assert.assertFalse(collector.haveOutput());
+        Assert.assertFalse(collector.isAcked());
+        Assert.assertFalse(collector.isFailed());
+    }
+
     // Unimplemented methods
 
     @Test(expectedExceptions = UnsupportedOperationException.class)
