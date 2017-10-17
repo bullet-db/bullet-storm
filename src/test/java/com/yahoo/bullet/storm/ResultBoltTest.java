@@ -5,6 +5,7 @@
  */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
@@ -33,8 +34,15 @@ public class ResultBoltTest {
         publisher = (CustomPublisher) resultBolt.getPublisher();
     }
 
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Cannot create PubSub.*")
+    public void testFailingToCreatePubSub() {
+        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletConfig.PUBSUB_CLASS_NAME, "fake.class");
+        ComponentUtils.prepare(new ResultBolt(config), collector);
+    }
+
     @Test
-    public void executeMessagesAreSentTest() throws PubSubException {
+    public void testExecuteMessagesAreSent() throws PubSubException {
         List<PubSubMessage> expected = asList(new PubSubMessage("42", "This is a PubSubMessage", new Metadata()),
                                               new PubSubMessage("43", "This is also a PubSubMessage", new Metadata()),
                                               new PubSubMessage("44", "This is still a PubSubMessage", new Metadata()));
@@ -56,7 +64,7 @@ public class ResultBoltTest {
     }
 
     @Test
-    public void executeStillAcksWhenPublisherThrowsTest() throws PubSubException {
+    public void testExecuteStillAcksWhenPublisherThrows() throws PubSubException {
         // Execute a few tuples
         // Closing the publisher will cause CustomPublisher to throw
         publisher.close();
@@ -70,14 +78,14 @@ public class ResultBoltTest {
     }
 
     @Test
-    public void cleanupClosesPublisherTest() {
+    public void testCleanupClosesPublisher() {
         Assert.assertFalse(publisher.isClosed());
         bolt.cleanup();
         Assert.assertTrue(publisher.isClosed());
     }
 
     @Test
-    public void declareOutputFieldsTest() {
+    public void testDeclareOutputFields() {
         CustomOutputFieldsDeclarer declarer = new CustomOutputFieldsDeclarer();
         bolt.declareOutputFields(declarer);
         Assert.assertTrue(!declarer.areFieldsDeclared());

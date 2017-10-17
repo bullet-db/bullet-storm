@@ -23,7 +23,6 @@ import java.util.Map;
 
 @Slf4j
 public class ResultBolt extends BaseRichBolt {
-    private PubSub pubSub;
     private OutputCollector collector;
     private BulletStormConfig config;
 
@@ -47,10 +46,10 @@ public class ResultBolt extends BaseRichBolt {
         config.set(BulletStormConfig.STORM_CONTEXT, context);
 
         try {
-            this.pubSub = PubSub.from(config);
+            PubSub pubSub = PubSub.from(config);
             this.publisher = pubSub.getPublisher();
         } catch (PubSubException e) {
-            throw new RuntimeException("Cannot create a PubSub instance or a Publisher for it.", e);
+            throw new RuntimeException("Cannot create PubSub instance or a Publisher for it.", e);
         }
         this.collector = collector;
     }

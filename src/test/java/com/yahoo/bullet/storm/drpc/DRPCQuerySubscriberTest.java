@@ -1,3 +1,8 @@
+/*
+ *  Copyright 2017, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm.drpc;
 
 import com.yahoo.bullet.Config;
@@ -9,10 +14,8 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -22,7 +25,6 @@ import static com.yahoo.bullet.storm.drpc.MockDRPCSpout.makeReturnInfo;
 import static java.util.Arrays.asList;
 
 public class DRPCQuerySubscriberTest {
-    private DRPCOutputCollector collector;
     private DRPCQuerySubscriber subscriber;
     private MockDRPCSpout injectedMockSpout;
 
@@ -38,8 +40,7 @@ public class DRPCQuerySubscriberTest {
         config.set(DRPCConfig.STORM_CONFIG, stormConfig);
 
         subscriber = new DRPCQuerySubscriber(config, 5);
-        collector = subscriber.getCollector();
-
+        DRPCOutputCollector collector = subscriber.getCollector();
         // Override the DRPCSpout with our own that emits using our collector.
         injectedMockSpout = new MockDRPCSpout("foo", collector);
         subscriber.setSpout(injectedMockSpout);
@@ -65,7 +66,7 @@ public class DRPCQuerySubscriberTest {
         Assert.assertFalse(actual.hasSignal());
         Assert.assertTrue(actual.hasMetadata());
         Metadata metadata = actual.getMetadata();
-        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakefoo", "testHost", "0"));
+        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakefoo", "testHost", 0));
 
         actual = subscriber.receive();
         Assert.assertEquals(actual.getId(), "foo");
@@ -74,7 +75,7 @@ public class DRPCQuerySubscriberTest {
         Assert.assertFalse(actual.hasSignal());
         Assert.assertTrue(actual.hasMetadata());
         metadata = actual.getMetadata();
-        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakefoo", "testHost", "1"));
+        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakefoo", "testHost", 1));
 
         actual = subscriber.receive();
         Assert.assertEquals(actual.getId(), "bar");
@@ -83,7 +84,7 @@ public class DRPCQuerySubscriberTest {
         Assert.assertFalse(actual.hasSignal());
         Assert.assertTrue(actual.hasMetadata());
         metadata = actual.getMetadata();
-        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakebar", "testHost", "2"));
+        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakebar", "testHost", 2));
     }
 
     @Test

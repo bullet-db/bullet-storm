@@ -251,4 +251,3 @@ public class Topology {
         submit(bulletStormConfig, TopologyConstants.RECORD_COMPONENT, builder);
     }
 }
-

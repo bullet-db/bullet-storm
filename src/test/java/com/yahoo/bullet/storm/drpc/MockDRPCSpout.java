@@ -1,3 +1,8 @@
+/*
+ *  Copyright 2017, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm.drpc;
 
 import com.yahoo.bullet.pubsub.PubSubMessage;
@@ -52,7 +57,7 @@ public class MockDRPCSpout extends DRPCSpout {
         int index = size;
         for (String content : contents) {
             List<Object> tuple = makeTuple(makeMessage(id, content, index - size),
-                                           makeReturnInfo("fake" + id, "testHost", "" + index));
+                                           makeReturnInfo("fake" + id, "testHost", index));
             tuples.offer(tuple);
             Object messageID = makeMessageID(id, index);
             messageIDs.offer(messageID);
@@ -64,7 +69,7 @@ public class MockDRPCSpout extends DRPCSpout {
         return asList(pubSubMessage, returnInfo);
     }
 
-    public static String makeReturnInfo(String drpcID, String host, String port) {
+    public static String makeReturnInfo(String drpcID, String host, int port) {
         return JSONFormatter.asJSON(zipToJSON(asList("id", "host", "port"), asList(drpcID, host, port)));
     }
 
