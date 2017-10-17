@@ -9,7 +9,6 @@ import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.Config;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Optional;
@@ -34,6 +33,12 @@ public class BulletStormConfig extends BulletConfig {
     public static final String RESULT_BOLT_PARALLELISM = "bullet.topology.result.bolt.parallelism";
     public static final String TICK_INTERVAL_SECS = "bullet.topology.tick.interval.secs";
 
+    // Used automatically by the Storm code. Not for user setting.
+    // This is the key to place the Storm configuration as
+    public static final String STORM_CONFIG = "bullet.topology.storm.config";
+    // This is the key to place the TopologyContext as
+    public static final String STORM_CONTEXT = "bullet.topology.storm.context";
+
     public static Set<String> TOPOLOGY_SUBMISSION_SETTINGS =
             new HashSet<>(asList(QUERY_SPOUT_PARALLELISM, FILTER_BOLT_PARALLELISM, JOIN_BOLT_PARALLELISM, RESULT_BOLT_PARALLELISM,
                                  TOPOLOGY_NAME, TOPOLOGY_WORKERS, TOPOLOGY_DEBUG));
@@ -44,16 +49,21 @@ public class BulletStormConfig extends BulletConfig {
      * Constructor that loads specific file augmented with defaults.
      *
      * @param file YAML file to load.
-     * @throws IOException if an error occurred with the file loading.
      */
-    public BulletStormConfig(String file) throws IOException {
-        // Load Bullet defaults
-        super(null);
-        // Load Bullet Storm settings
-        Config stormDefaults = new Config(file, DEFAULT_STORM_CONFIGURATION);
-        // Merge Storm settings onto Bullet defaults
-        merge(stormDefaults);
-        log.info("Bullet Storm merged settings:\n {}", getAll(Optional.empty()));
+    public BulletStormConfig(String file) {
+        this(new Config(file));
+    }
+
+    /**
+     * Constructor that loads the defaults and augments it with defaults.
+     *
+     * @param other The other config to wrap.
+     */
+    public BulletStormConfig(Config other) {
+        // Load Bullet and Storm defaults. Then merge the other.
+        super(DEFAULT_STORM_CONFIGURATION);
+        merge(other);
+        log.info("Merged settings:\n {}", getAll(Optional.empty()));
     }
 
     /**

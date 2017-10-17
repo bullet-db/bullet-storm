@@ -4,3 +4,7 @@ bullet.topology.name: "test"
 bullet.query.max.duration: 10000
 # Some random setting
 fake.setting: "bar"
+# Point to the Mock PubSub implementation.
+bullet.pubsub.class.name: "com.yahoo.bullet.storm.MockPubSub"
+# This is the type of PubSub context to use
+bullet.pubsub.context.name: "QUERY_PROCESSING"

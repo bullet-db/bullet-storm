@@ -1,0 +1,5 @@
+# DRPC Settings that should be received from the cluster.
+storm.cluster.mode: "remote"
+drpc.servers:
+- "host"
+drpc.invocations.port: 3773
