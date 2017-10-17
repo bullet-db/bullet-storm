@@ -57,14 +57,15 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
 
         Number connectTimeout = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_CONNECT_TIMEOUT_MS, Number.class);
         Number retryLimit = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_CONNECT_RETRY_LIMIT, Number.class);
-        List<String> urls = (List<String>) config.getRequiredConfigAs(DRPCConfig.DRPC_SERVERS, List.class);
+        List<String> servers = (List<String>) config.getRequiredConfigAs(DRPCConfig.DRPC_SERVERS, List.class);
         String protocol = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PROTOCOL, String.class);
         String port = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PORT, String.class);
         String path = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PATH, String.class);
         String function = config.getRequiredConfigAs(DRPCConfig.DRPC_FUNCTION, String.class);
 
-        List<String> endpoints = urls.stream().map(url -> String.format(URL_TEMPLATE, protocol, url, port, path, function))
-                                              .collect(Collectors.toList());
+        List<String> endpoints = servers.stream()
+                                        .map(url -> String.format(URL_TEMPLATE, protocol, url, port, path, function))
+                                        .collect(Collectors.toList());
         this.urls = new RandomPool<>(endpoints);
         AsyncHttpClientConfig clientConfig = new DefaultAsyncHttpClientConfig.Builder()
                                                     .setConnectTimeout(connectTimeout.intValue())
