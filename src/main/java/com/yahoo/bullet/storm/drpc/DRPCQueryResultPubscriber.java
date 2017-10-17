@@ -72,6 +72,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
                                                     .setReadTimeout(NO_TIMEOUT)
                                                     .setRequestTimeout(NO_TIMEOUT)
                                                     .build();
+        // This is thread safe
         client = new DefaultAsyncHttpClient(clientConfig);
         responses = new ConcurrentLinkedQueue<>();
     }
@@ -117,6 +118,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     }
 
     private Consumer<Response> createResponseConsumer(String id) {
+        // Create a closure with id
         return response -> handleResponse(id, response);
     }
 
@@ -128,14 +130,14 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
 
     private void handleResponse(String id, Response response) {
         if (response == null || response.getStatusCode() != OK_200) {
-            log.error("Handling error response for {}", id);
+            log.error("Handling error for id {} with response {}", id, response);
             responses.offer(new PubSubMessage(id, DRPCError.CANNOT_REACH_DRPC.asJSON()));
             return;
         }
-        log.info("Received status {} for id {}: {}", response.getStatusCode(), id, response.getStatusText());
+        log.info("Received for id {}: {} {}", response.getStatusCode(), id, response.getStatusText());
         String body = response.getResponseBody();
         PubSubMessage message = PubSubMessage.fromJSON(body);
-        log.debug("Received content for {} with:\n{}", message.getId(), message.getContent());
+        log.debug("Received for id {}:\n{}", message.getId(), message.getContent());
         responses.offer(message);
     }
 }

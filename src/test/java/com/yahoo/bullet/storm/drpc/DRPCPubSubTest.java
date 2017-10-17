@@ -14,7 +14,7 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,12 +27,12 @@ public class DRPCPubSubTest {
     public void setup() throws Exception {
         config = new DRPCConfig("src/test/resources/test_drpc_config.yaml");
 
-        Map stormConfig = new Config("src/test/resources/test_storm_config.yaml").getAll(Optional.empty());
         // 1 task for the component named "foo" with task index 0
-        CustomTopologyContext context = new CustomTopologyContext(Arrays.asList(1), "foo", 0);
-
-        config.set(DRPCConfig.STORM_CONFIG, stormConfig);
+        CustomTopologyContext context = new CustomTopologyContext(Collections.singletonList(1), "foo", 0);
         config.set(DRPCConfig.STORM_CONTEXT, context);
+
+        Map stormConfig = new Config("src/test/resources/test_storm_config.yaml").getAll(Optional.empty());
+        config.set(DRPCConfig.STORM_CONFIG, stormConfig);
     }
 
     @Test

@@ -10,6 +10,7 @@ import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
@@ -20,12 +21,15 @@ import org.apache.storm.tuple.Tuple;
 
 import java.util.Map;
 
-@Slf4j @Getter
+@Slf4j
 public class ResultBolt extends BaseRichBolt {
     private PubSub pubSub;
-    private Publisher publisher;
     private OutputCollector collector;
     private BulletStormConfig config;
+
+    /** Exposed for testing only. */
+    @Getter(AccessLevel.PACKAGE)
+    private Publisher publisher;
 
     /**
      * Creates a ResultBolt and passes in a {@link BulletStormConfig}.

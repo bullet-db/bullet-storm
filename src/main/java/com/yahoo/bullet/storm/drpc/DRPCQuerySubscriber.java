@@ -12,6 +12,7 @@ import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.tuple.ImmutablePair;
@@ -34,8 +35,12 @@ import java.util.Map;
  */
 @Slf4j
 public class DRPCQuerySubscriber extends BufferingSubscriber {
+    /** Exposed for testing only. */
     @Setter(AccessLevel.PACKAGE)
     private DRPCSpout spout;
+
+    /** Exposed for testing only. */
+    @Getter(AccessLevel.PACKAGE)
     private DRPCOutputCollector collector;
 
     // PubSubMessage id + sequence to DRPCMessageIds. For failing requests if the subscriber is closed.

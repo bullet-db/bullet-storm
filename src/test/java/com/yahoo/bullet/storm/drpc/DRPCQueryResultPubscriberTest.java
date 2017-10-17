@@ -166,14 +166,14 @@ public class DRPCQueryResultPubscriberTest {
     }
 
     @Test
-    public void testCommit() {
+    public void testCommiting() {
         AsyncHttpClient mockClient = mock(AsyncHttpClient.class);
         pubscriber.commit("foo", -1);
         verifyZeroInteractions(mockClient);
     }
 
     @Test
-    public void tesFail() {
+    public void testFailing() {
         AsyncHttpClient mockClient = mock(AsyncHttpClient.class);
         pubscriber.fail("foo", -1);
         verifyZeroInteractions(mockClient);

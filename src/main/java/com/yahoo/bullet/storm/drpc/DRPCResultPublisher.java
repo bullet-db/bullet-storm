@@ -13,6 +13,7 @@ import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
 import com.yahoo.bullet.storm.drpc.utils.DRPCTuple;
 import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.drpc.ReturnResults;
@@ -28,8 +29,12 @@ import java.util.Map;
  */
 @Slf4j
 public class DRPCResultPublisher implements Publisher {
+    /** Exposed for testing only. */
     @Setter(AccessLevel.PACKAGE)
     private ReturnResults bolt;
+
+    /** Exposed for testing only. */
+    @Getter(AccessLevel.PACKAGE)
     private DRPCOutputCollector collector;
 
      /**
