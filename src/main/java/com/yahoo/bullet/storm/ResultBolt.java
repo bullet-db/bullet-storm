@@ -45,13 +45,14 @@ public class ResultBolt extends BaseRichBolt {
         config.set(BulletStormConfig.STORM_CONFIG, conf);
         config.set(BulletStormConfig.STORM_CONTEXT, context);
 
+        this.collector = collector;
         try {
             PubSub pubSub = PubSub.from(config);
-            this.publisher = pubSub.getPublisher();
+            publisher = pubSub.getPublisher();
+            log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
         } catch (PubSubException e) {
             throw new RuntimeException("Cannot create PubSub instance or a Publisher for it.", e);
         }
-        this.collector = collector;
     }
 
     @Override
