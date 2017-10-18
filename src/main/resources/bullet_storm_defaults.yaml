@@ -61,19 +61,19 @@ bullet.topology.metrics.classes:
 bullet.topology.query.spout.cpu.load: 20.0
 bullet.topology.query.spout.memory.on.heap.load: 256.0
 bullet.topology.query.spout.memory.off.heap.load: 160.0
-bullet.topology.query.spout.parallelism: 20
+bullet.topology.query.spout.parallelism: 3
 bullet.topology.result.bolt.cpu.load: 20.0
 bullet.topology.result.bolt.memory.on.heap.load: 128.0
 bullet.topology.result.bolt.memory.off.heap.load: 160.0
-bullet.topology.result.bolt.parallelism: 10
+bullet.topology.result.bolt.parallelism: 3
 bullet.topology.filter.bolt.cpu.load: 100.0
 bullet.topology.filter.bolt.memory.on.heap.load: 256.0
 bullet.topology.filter.bolt.memory.off.heap.load: 160.0
-bullet.topology.filter.bolt.parallelism: 35
+bullet.topology.filter.bolt.parallelism: 32
 bullet.topology.join.bolt.cpu.load: 100.0
 bullet.topology.join.bolt.memory.on.heap.load: 512.0
 bullet.topology.join.bolt.memory.off.heap.load: 160.0
-bullet.topology.join.bolt.parallelism: 20
+bullet.topology.join.bolt.parallelism: 2
 
 # Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if queries
 # have expired) etc. This setting controls the how frequently a tick happens - number of seconds between ticks.
@@ -87,8 +87,39 @@ bullet.topology.join.bolt.error.tick.timeout: 3
 # aggregations to trickle in from the Filter Bolts.
 bullet.topology.join.bolt.query.tick.timeout: 3
 
+########################################################################################################################
+######################################### PubSub and PubSub Storm DRPC defaults ########################################
+########################################################################################################################
 # This is the type of PubSub context to use
 bullet.pubsub.context.name: "QUERY_PROCESSING"
+# This is the name of the concrete implementation of PubSub to use. By default, this is the DRPC implementation of PubSub that comes with bullet-storm.
+bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
+
+# Common DRPC PubSub Settings
+
+# This is your DRPC servers' hostnames.
+bullet.pubsub.storm.drpc.servers:
+  - "127.0.0.1"
+# This is your DRPC function name (a namespace since DRPC is shared) to use. Queries and Results will be sent to and received from here.
+bullet.pubsub.storm.drpc.function: "bullet-query"
+
+# QUERY_SUBMISSION DRPC PubSub Settings
+
+# The following settings form the URL to send the queries to. If you have multiple servers defined for
+# bullet.pubsub.storm.drpc.servers, a query will be randomly POSTed to one of them. The URL will be of the form:
+# ${drpc.http.protocol}://${random.server}:${drpc.http.port}/${drpc.http.path}/${drpc.function}
+bullet.pubsub.storm.drpc.http.protocol: "http"
+bullet.pubsub.storm.drpc.http.port: "3774"
+bullet.pubsub.storm.drpc.http.path: "drpc"
+# This is the timeout in ms for connecting to the DRPC server to send a query.
+bullet.pubsub.storm.drpc.http.connect.timeout.ms: 5000
+# This is number of times to retry when connecting to the DRPC server to send a query.
+bullet.pubsub.storm.drpc.http.connect.retry.limit: 3
+
+# QUERY_PROCESSING DRPC PubSub Settings
+
+# This is the maximum number of pending queries that can be read by a subscriber (QuerySpout) before an ack is needed.
+bullet.pubsub.storm.drpc.max.uncommitted.messages: 50
 
 ########################################################################################################################
 ########################################################################################################################

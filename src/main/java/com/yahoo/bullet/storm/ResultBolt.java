@@ -1,10 +1,17 @@
+/*
+ *  Copyright 2017, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
-import com.yahoo.bullet.pubsub.Metadata;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -16,23 +23,36 @@ import java.util.Map;
 
 @Slf4j
 public class ResultBolt extends BaseRichBolt {
-    private PubSub pubSub;
-    private Publisher publisher;
     private OutputCollector collector;
+    private BulletStormConfig config;
+
+    /** Exposed for testing only. */
+    @Getter(AccessLevel.PACKAGE)
+    private Publisher publisher;
 
     /**
-     * Creates a ResultBolt and passes in a {@link PubSub}.
+     * Creates a ResultBolt and passes in a {@link BulletStormConfig}.
      *
-     * @param pubSub PubSub to get a {@link Publisher} from
+     * @param config The BulletStormConfig to create PubSub from.
      */
-    public ResultBolt(PubSub pubSub) {
-        this.pubSub = pubSub;
+    public ResultBolt(BulletStormConfig config) {
+        this.config = config;
     }
 
     @Override
     public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
+        // Add the Storm Config and the context as is, in case any PubSubs need it.
+        config.set(BulletStormConfig.STORM_CONFIG, conf);
+        config.set(BulletStormConfig.STORM_CONTEXT, context);
+
         this.collector = collector;
-        this.publisher = pubSub.getPublisher();
+        try {
+            PubSub pubSub = PubSub.from(config);
+            publisher = pubSub.getPublisher();
+            log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
+        } catch (PubSubException e) {
+            throw new RuntimeException("Cannot create PubSub instance or a Publisher for it.", e);
+        }
     }
 
     @Override

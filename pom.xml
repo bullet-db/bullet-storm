@@ -39,7 +39,7 @@
         <storm.version>1.0.2</storm.version>
         <storm.metrics.version>1.0.2</storm.metrics.version>
         <bullet.record.version>0.1.2</bullet.record.version>
-        <bullet.core.version>0.2.2</bullet.core.version>
+        <bullet.core.version>0.2.5</bullet.core.version>
         <sketches.version>0.9.1</sketches.version>
     </properties>
 
@@ -110,6 +110,11 @@
             <version>${sketches.version}</version>
         </dependency>
         <dependency>
+            <groupId>org.asynchttpclient</groupId>
+            <artifactId>async-http-client</artifactId>
+            <version>2.0.37</version>
+        </dependency>
+        <dependency>
             <groupId>net.sf.jopt-simple</groupId>
             <artifactId>jopt-simple</artifactId>
             <version>4.6</version>
@@ -123,11 +128,6 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.7</version>
-        </dependency>
-        <dependency>
-            <groupId>net.java.dev</groupId>
-            <artifactId>jvyaml</artifactId>
-            <version>0.2.1</version>
         </dependency>
     </dependencies>
 

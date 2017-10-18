@@ -1,15 +1,19 @@
+/*
+ *  Copyright 2017, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.pubsub.PubSub;
+import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-import static org.mockito.Mockito.when;
-import static org.mockito.Mockito.mock;
 
 public class QuerySpoutTest {
     private CustomEmitter emitter;
@@ -17,18 +21,22 @@ public class QuerySpoutTest {
     private CustomSubscriber subscriber;
 
     @BeforeMethod
-    public void setup() {
-        subscriber = new CustomSubscriber();
-
-        PubSub mockPubSub = mock(PubSub.class);
-        when(mockPubSub.getSubscriber()).thenReturn(subscriber);
-
+    public void setup() throws PubSubException {
         emitter = new CustomEmitter();
-        spout = ComponentUtils.open(new QuerySpout(mockPubSub), emitter);
+        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        spout = ComponentUtils.open(new QuerySpout(config), emitter);
+        subscriber = (CustomSubscriber) spout.getPubSub().getSubscriber();
+    }
+
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Cannot create PubSub.*")
+    public void testFailingToCreatePubSub() {
+        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletConfig.PUBSUB_CLASS_NAME, "fake.class");
+        ComponentUtils.open(new QuerySpout(config), emitter);
     }
 
     @Test
-    public void nextTupleMessagesAreReceivedAndTuplesAreEmittedTest() {
+    public void testNextTupleMessagesAreReceivedAndTuplesAreEmitted() {
         // Add messages to be received from subscriber
         PubSubMessage messageA = new PubSubMessage("42", "This is a PubSubMessage", new Metadata());
         PubSubMessage messageB = new PubSubMessage("43", "This is also a PubSubMessage", new Metadata());
@@ -66,7 +74,7 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void nextTupleDoesNothingWhenSubscriberReceivesNullTest() {
+    public void testNextTupleDoesNothingWhenSubscriberReceivesNull() {
         // Add null messages to be received from subscriber
         subscriber.addMessages(null, null);
 
@@ -87,7 +95,7 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void nextTupleDoesNothingWhenSubscriberThrowsTest() {
+    public void testNextTupleDoesNothingWhenSubscriberThrows() {
         // No messages to be received from subscriber
         Assert.assertEquals(subscriber.getReceived().size(), 0);
         Assert.assertEquals(emitter.getEmitted().size(), 0);
@@ -106,7 +114,7 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void declareOutputFieldsTest() {
+    public void testDeclareOutputFields() {
         CustomOutputFieldsDeclarer declarer = new CustomOutputFieldsDeclarer();
         spout.declareOutputFields(declarer);
         Fields expectedQueryFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.QUERY_FIELD);
@@ -116,7 +124,7 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void ackCallsSubscriberCommitTest() {
+    public void testAckCallsSubscriberCommit() {
         spout.ack("42");
         spout.ack("43");
         spout.ack("44");
@@ -127,7 +135,7 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void failCallsSubscriberFailTest() {
+    public void testFailCallsSubscriberFail() {
         spout.fail("42");
         spout.fail("43");
         spout.fail("44");
@@ -138,7 +146,7 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void closeCallsSubscriberCloseTest() {
+    public void testCloseCallsSubscriberClose() {
         spout.close();
         Assert.assertTrue(subscriber.isClosed());
     }

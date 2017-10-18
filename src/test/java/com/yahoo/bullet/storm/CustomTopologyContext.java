@@ -1,3 +1,8 @@
+/*
+ *  Copyright 2017, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm;
 
 import org.apache.storm.metric.api.IMetric;
@@ -5,15 +10,26 @@ import org.apache.storm.task.TopologyContext;
 
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 public class CustomTopologyContext extends TopologyContext {
     private Map<Integer, Map<String, IMetric>> registeredMetrics;
+    private List<Integer> componentTasks;
+    private String componentID;
+    private int taskIndex;
 
-    public CustomTopologyContext() {
+    public CustomTopologyContext(List<Integer> componentTasks, String componentID, int taskIndex) {
         super(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         registeredMetrics = new HashMap<>();
+        this.componentTasks = componentTasks;
+        this.componentID = componentID;
+        this.taskIndex = taskIndex;
+    }
+
+    public CustomTopologyContext() {
+        this(null, null, 0);
     }
 
     @Override
@@ -59,6 +75,21 @@ public class CustomTopologyContext extends TopologyContext {
 
     public Long getLongMetric(Integer timeBucket, String name) {
         return (Long) fetchResult(getRegisteredMetricInTimeBucket(timeBucket, name));
+    }
+
+    @Override
+    public List<Integer> getComponentTasks(String componentID) {
+        return componentTasks;
+    }
+
+    @Override
+    public String getThisComponentId() {
+        return componentID;
+    }
+
+    @Override
+    public int getThisTaskIndex() {
+        return taskIndex;
     }
 }
 
