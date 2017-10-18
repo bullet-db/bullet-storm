@@ -53,13 +53,14 @@ public class QuerySpout extends BaseRichSpout {
         config.set(BulletStormConfig.STORM_CONFIG, conf);
         config.set(BulletStormConfig.STORM_CONTEXT, context);
 
+        this.collector = collector;
         try {
-            this.pubSub = PubSub.from(config);
-            this.subscriber = pubSub.getSubscriber();
+            pubSub = PubSub.from(config);
+            subscriber = pubSub.getSubscriber();
+            log.info("Setup PubSub: {} with Subscriber: {}", pubSub, subscriber);
         } catch (PubSubException e) {
             throw new RuntimeException("Cannot create PubSub instance or a Subscriber for it.", e);
         }
-        this.collector = collector;
     }
 
     @Override
