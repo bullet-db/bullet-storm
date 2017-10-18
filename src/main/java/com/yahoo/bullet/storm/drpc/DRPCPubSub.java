@@ -54,7 +54,6 @@ public class DRPCPubSub extends PubSub {
         }
         return IntStream.range(0, n).mapToObj(i -> new DRPCQuerySubscriber(config, maxUncommittedMessages))
                                     .collect(Collectors.toList());
-
     }
 
     @Override

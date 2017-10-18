@@ -95,7 +95,7 @@ public class DRPCQuerySubscriberTest {
     }
 
     @Test
-    public void testClosingFailsPendingMessages() throws Exception {
+    public void testClosingFailsPendingDRPCRequests() throws Exception {
         injectedMockSpout.addMessageParts("foo", "{}", "{'duration': 2000}");
         injectedMockSpout.addMessageParts("bar", "{}");
 
@@ -103,6 +103,50 @@ public class DRPCQuerySubscriberTest {
         subscriber.receive();
         subscriber.receive();
         // 3 uncommitted messages
+        Assert.assertFalse(injectedMockSpout.isClosed());
+        subscriber.close();
+        Assert.assertTrue(injectedMockSpout.isClosed());
+        Set<Object> actual = new HashSet<>(injectedMockSpout.getFailed());
+        Set<Object> expected = new HashSet<>(asList(makeMessageID("foo", 0), makeMessageID("foo", 1),
+                                                    makeMessageID("bar", 2)));
+        Assert.assertEquals(actual, expected);
+    }
+
+    @Test
+    public void testCommitingRemovesPendingDRPCRequests() throws Exception {
+        injectedMockSpout.addMessageParts("foo", "{}", "{'duration': 2000}");
+        injectedMockSpout.addMessageParts("bar", "{}");
+
+        subscriber.receive();
+        subscriber.receive();
+        subscriber.receive();
+
+        // 3 uncommitted messages. Commit the second one
+        subscriber.commit("foo", 1);
+
+        Assert.assertFalse(injectedMockSpout.isClosed());
+        subscriber.close();
+        Assert.assertTrue(injectedMockSpout.isClosed());
+        Set<Object> actual = new HashSet<>(injectedMockSpout.getFailed());
+        Set<Object> expected = new HashSet<>(asList(makeMessageID("foo", 0), makeMessageID("bar", 2)));
+        Assert.assertEquals(actual, expected);
+    }
+
+    @Test
+    public void testFailingDoesNotRemovePendingDRPCRequests() throws Exception {
+        injectedMockSpout.addMessageParts("foo", "{}", "{'duration': 2000}");
+        injectedMockSpout.addMessageParts("bar", "{}");
+
+        subscriber.receive();
+        subscriber.receive();
+        subscriber.receive();
+
+        Assert.assertTrue(injectedMockSpout.getFailed().isEmpty());
+        // 3 uncommitted messages. Fail the second one
+        subscriber.fail("foo", 1);
+        Assert.assertTrue(injectedMockSpout.getFailed().isEmpty());
+
+        // We should fail all messages included the failed one
         Assert.assertFalse(injectedMockSpout.isClosed());
         subscriber.close();
         Assert.assertTrue(injectedMockSpout.isClosed());
