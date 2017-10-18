@@ -7,12 +7,10 @@ package com.yahoo.bullet.storm;
 
 import backtype.storm.Config;
 import backtype.storm.StormSubmitter;
-import backtype.storm.drpc.ReturnResults;
 import backtype.storm.metric.api.IMetricsConsumer;
 import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.TopologyBuilder;
 import backtype.storm.tuple.Fields;
-import com.yahoo.bullet.pubsub.PubSub;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.extern.slf4j.Slf4j;
@@ -90,9 +88,7 @@ public class Topology {
 
         Integer tickInterval = ((Number) config.get(BulletStormConfig.TICK_INTERVAL_SECS)).intValue();
 
-        PubSub pubSub = PubSub.from(config);
-
-        builder.setSpout(TopologyConstants.QUERY_COMPONENT, new QuerySpout(pubSub), querySpoutParallelism);
+        builder.setSpout(TopologyConstants.QUERY_COMPONENT, new QuerySpout(config), querySpoutParallelism);
 
         // Hook in the source of the BulletRecords
         builder.setBolt(TopologyConstants.FILTER_COMPONENT, new FilterBolt(recordComponent, tickInterval), filterBoltParallelism)
@@ -104,7 +100,7 @@ public class Topology {
                .fieldsGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.METADATA_STREAM, new Fields(TopologyConstants.ID_FIELD))
                .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.FILTER_STREAM, new Fields(TopologyConstants.ID_FIELD));
 
-        builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ReturnResults(), resultBoltParallelism)
+        builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(config), resultBoltParallelism)
                .shuffleGrouping(TopologyConstants.JOIN_COMPONENT, TopologyConstants.JOIN_STREAM);
 
 

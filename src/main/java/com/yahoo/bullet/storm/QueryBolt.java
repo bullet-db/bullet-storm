@@ -39,6 +39,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
 
     /**
      * Constructor that accepts the tick interval.
+     *
      * @param tickInterval The tick interval in seconds.
      */
     public QueryBolt(Integer tickInterval) {
@@ -79,6 +80,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
 
     /**
      * Retires queries that are active past the tick time.
+     *
      * @return The map of query ids to queries that were retired.
      */
     protected Map<String, Q> retireQueries() {
@@ -93,6 +95,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
 
     /**
      * Initializes a query from a query tuple.
+     *
      * @param tuple The query tuple with the query to initialize.
      * @return The created query.
      */
@@ -111,6 +114,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
 
     /**
      * Gets the default tick configuration to be used.
+     *
      * @return A Map configuration containing the default tick configuration.
      */
     public Map<String, Object> getDefaultTickConfiguration() {
