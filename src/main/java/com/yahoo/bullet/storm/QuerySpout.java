@@ -72,7 +72,7 @@ public class QuerySpout extends BaseRichSpout {
             log.error(e.getMessage());
         }
         if (message != null) {
-            // TODO: No need for two streams. Just send a unified Query stream. JoinBolt needs to not do that join.
+            // TODO: No need for two streams. Just send a unified Query stream. JoinBolt need not do that join.
             collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent()), message.getId());
             collector.emit(METADATA_STREAM, new Values(message.getId(), message.getMetadata()), message.getId());
         } else {

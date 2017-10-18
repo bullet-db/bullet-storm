@@ -27,7 +27,6 @@ public class DRPCConfig extends BulletStormConfig {
     // The path that queries must be POSTed to. This generally is "drpc".
     public static final String DRPC_HTTP_PATH = PREFIX + "http.path";
 
-
     // This is the maximum number of pending queries that can be read by a single subscriber in QUERY_PROCESSING
     // before a commit is needed.
     public static final String DRPC_MAX_UNCOMMITED_MESSAGES = PREFIX + "max.uncommitted.messages";

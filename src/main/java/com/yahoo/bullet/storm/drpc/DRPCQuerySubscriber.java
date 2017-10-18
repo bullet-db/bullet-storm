@@ -115,6 +115,19 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
     }
 
     @Override
+    public void commit(String id, int sequence) {
+        super.commit(id, sequence);
+        emittedIDs.remove(ImmutablePair.of(id, sequence));
+    }
+
+    /*
+     * Not overriding fail to remove the (id, sequence) from emittedIDs because the message will be re-emitted by
+     * super.fail and re-added back to emittedIDs. It is actually a bug to remove the id from emittedIDs in fail because
+     * if the request is failed, then close is called before receive is called to re-add it back, the request will
+     * NOT be closed and will remain on the DRPC servers till the global timeout.
+     */
+
+    @Override
     public void close() {
         log.warn("Failing all pending requests: {}", emittedIDs);
         emittedIDs.values().forEach(spout::fail);
