@@ -68,7 +68,7 @@ public class QuerySpout extends BaseRichSpout {
         PubSubMessage message = null;
         try {
             message = subscriber.receive();
-        } catch (PubSubException e) {
+        } catch (Exception e) {
             log.error(e.getMessage());
         }
         if (message != null) {
