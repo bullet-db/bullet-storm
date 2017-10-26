@@ -25,7 +25,6 @@ import java.util.Map;
 @Slf4j
 public class QuerySpout extends BaseRichSpout {
     public static final String QUERY_STREAM = Utils.DEFAULT_STREAM_ID;
-    public static final String METADATA_STREAM = "meta";
     public static final String ID_FIELD = "id";
     public static final String QUERY_FIELD = "query";
     public static final String METADATA_FIELD = "metadata";
@@ -72,9 +71,7 @@ public class QuerySpout extends BaseRichSpout {
             log.error(e.getMessage());
         }
         if (message != null) {
-            // TODO: No need for two streams. Just send a unified Query stream. JoinBolt need not do that join.
-            collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent()), message.getId());
-            collector.emit(METADATA_STREAM, new Values(message.getId(), message.getMetadata()), message.getId());
+            collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent(), message.getMetadata()), message.getId());
         } else {
             Utils.sleep(1);
         }
@@ -82,8 +79,7 @@ public class QuerySpout extends BaseRichSpout {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declareStream(QUERY_STREAM, new Fields(ID_FIELD, QUERY_FIELD));
-        declarer.declareStream(METADATA_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
+        declarer.declareStream(QUERY_STREAM, new Fields(ID_FIELD, QUERY_FIELD, METADATA_FIELD));
     }
 
     @Override

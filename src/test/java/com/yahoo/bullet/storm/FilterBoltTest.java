@@ -193,7 +193,7 @@ public class FilterBoltTest {
 
     @Test
     public void testUnknownTuple() {
-        Tuple query = TupleUtils.makeTuple(TupleType.Type.METADATA_TUPLE, "", "");
+        Tuple query = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, "", "");
         bolt.execute(query);
         Assert.assertFalse(collector.wasAcked(query));
     }
