@@ -40,8 +40,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     public static final int DEFAULT_QUERY_TICKOUT = 3;
 
     private Map<String, Tuple> bufferedMetadata;
-    // For doing a LEFT OUTER JOIN between Queries and Metadata if the Query has validation issues
-    private RotatingMap<String, Clip> bufferedErrors;
     // For doing a LEFT OUTER JOIN between Queries and intermediate aggregation, if the aggregations are lagging.
     private RotatingMap<String, AggregationQuery> bufferedQueries;
 
@@ -76,11 +74,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         super.prepare(stormConf, context, collector);
 
         bufferedMetadata = new HashMap<>();
-
-        Number errorTickoutNumber = (Number) configuration.getOrDefault(BulletStormConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT,
-                                                                        DEFAULT_ERROR_TICKOUT);
-        int errorTickout = errorTickoutNumber.intValue();
-        bufferedErrors = new RotatingMap<>(errorTickout);
 
         Number queryTickoutNumber = (Number) configuration.getOrDefault(BulletStormConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
                                                                         DEFAULT_QUERY_TICKOUT);
@@ -135,20 +128,8 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         return null;
     }
 
-    private void initializeMetadata(Tuple tuple) {
-        String id = tuple.getString(TopologyConstants.ID_POSITION);
-        // Check if we have any buffered errors.
-        Clip error = bufferedErrors.get(id);
-        if (error != null) {
-            emit(error, tuple);
-            return;
-        }
-        // Otherwise buffer the metadata
-        bufferedMetadata.put(id, tuple);
-    }
-
     private void handleQuery(Tuple tuple) {
-        initializeMetadata(tuple);
+        bufferedMetadata.put(tuple.getString(TopologyConstants.ID_POSITION), tuple);
         AggregationQuery query = initializeQuery(tuple);
         if (query != null) {
             updateCount(createdQueriesCount, 1L);
@@ -160,8 +141,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         // Buffer whatever we're retiring now and forceEmit all the bufferedQueries that are being rotated out.
         // Whatever we're retiring now MUST not have been satisfied since we emit Queries when FILTER_TUPLES satisfy them.
         emitRetired(bufferedQueries.rotate());
-        // We'll just rotate and lose any buffered errors (if rotated enough times) as designed.
-        bufferedErrors.rotate();
     }
 
     private void emitError(String id, Error... errors) {
@@ -173,13 +152,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         Clip clip = Clip.of(meta);
         Tuple queryTuple = bufferedMetadata.remove(id);
         updateCount(improperQueriesCount, 1L);
-
-        if (queryTuple != null) {
-            emit(clip, queryTuple);
-            return;
-        }
-        log.debug("Return information not present for sending error. Buffering it...");
-        bufferedErrors.put(id, clip);
+        emit(clip, queryTuple);
     }
 
     private void emitRetired(Map<String, AggregationQuery> forceEmit) {
