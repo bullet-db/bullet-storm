@@ -75,6 +75,7 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
                 emitForQueries(retireQueries());
                 break;
             case QUERY_TUPLE:
+                log.info("got query_tuple in FilterBolt");  // <--- REMOVE THIS
                 initializeQuery(tuple);
                 break;
             case RECORD_TUPLE:
