@@ -603,7 +603,7 @@ public class FilterBoltTest {
 
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
                                .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
-                .forEach(bolt::execute);
+                               .forEach(bolt::execute);
 
         Assert.assertEquals(collector.getEmittedCount(), 0);
 
@@ -715,14 +715,14 @@ public class FilterBoltTest {
         bolt.execute(query);
 
         IntStream.range(0, 8).mapToObj(i -> RecordBox.get().add("A", i).getRecord())
-                .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
-                .forEach(bolt::execute);
+                             .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                             .forEach(bolt::execute);
         IntStream.range(0, 6).mapToObj(i -> RecordBox.get().add("A", 0).getRecord())
                              .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
-                .forEach(bolt::execute);
+                             .forEach(bolt::execute);
         IntStream.range(0, 2).mapToObj(i -> RecordBox.get().add("A", 3).getRecord())
                              .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
-                .forEach(bolt::execute);
+                             .forEach(bolt::execute);
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
