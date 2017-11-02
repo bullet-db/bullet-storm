@@ -95,11 +95,9 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
                 handleTick();
                 break;
             case QUERY_TUPLE:
-                log.info("got query_tuple in joinBolt");  // <--- REMOVE THIS
                 handleQuery(tuple);
                 break;
             case FILTER_TUPLE:
-                log.info("got filter_tuple in joinBolt");  // <--- REMOVE THIS
                 emit(tuple);
                 break;
             default:
@@ -180,15 +178,12 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         // Deliberately only doing joins if both query and return are here. Can do an OUTER join if needed later...
         if (query == null) {
             log.debug("Received tuples for request {} before query or too late. Skipping...", id);
-            log.info("Received tuples for request {} before query or too late. Skipping...", id); // <--- REMOVE THIS
             return false;
         }
         if (queryTuple == null) {
             log.debug("Received tuples for request {} before return information. Skipping...", id);
-            log.info("Received tuples for request {} before return information. Skipping...", id); // <--- REMOVE THIS
             return false;
         }
-        log.info("in canEmit - returning true");  // <--- REMOVE THIS
         return true;
     }
 

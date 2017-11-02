@@ -97,6 +97,7 @@ public class Topology {
 
         builder.setBolt(TopologyConstants.JOIN_COMPONENT, new JoinBolt(tickInterval), joinBoltParallelism)
                .fieldsGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.QUERY_STREAM, new Fields(TopologyConstants.ID_FIELD))
+               .fieldsGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.METADATA_STREAM, new Fields(TopologyConstants.ID_FIELD))
                .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.FILTER_STREAM, new Fields(TopologyConstants.ID_FIELD));
 
         builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(config), resultBoltParallelism)
