@@ -275,7 +275,7 @@ public class FilterBoltTest {
 
     @Test
     public void testFilteringUsingProjectedName() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",,
+        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
                                   makeProjectionFilterQuery("mid", singletonList("123"), EQUALS,
                                           Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
                                   METADATA);
@@ -754,7 +754,7 @@ public class FilterBoltTest {
     public void testFilteringLatency() {
         Map<String, Object> config = new HashMap<>();
         config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        setup(config, new NeverExpiringFilterBolt());,
+        setup(config, new NeverExpiringFilterBolt());
 
         Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("bar"), METADATA);
         bolt.execute(query);
