@@ -57,6 +57,7 @@ public class ResultBolt extends BaseRichBolt {
 
     @Override
     public void execute(Tuple tuple) {
+        log.info("Got a tuple in ResultBolt");  // <--- REMOVE THIS
         PubSubMessage message = new PubSubMessage(tuple.getString(0), tuple.getString(1), (Metadata) tuple.getValue(2));
         try {
             publisher.send(message);
