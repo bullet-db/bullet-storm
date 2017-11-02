@@ -36,7 +36,7 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void testNextTupleMessagesAreReceivedAndTupleIsEmitted() {
+    public void testNextTupleMessagesAreReceivedAndTuplesAreEmitted() {
         // Add messages to be received from subscriber
         PubSubMessage messageA = new PubSubMessage("42", "This is a PubSubMessage", new Metadata());
         PubSubMessage messageB = new PubSubMessage("43", "This is also a PubSubMessage", new Metadata());
@@ -51,9 +51,11 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getReceived().size(), 1);
         Assert.assertEquals(subscriber.getReceived().get(0), messageA);
 
-        Tuple emittedFirst = TupleUtils.makeTuple(TupleType.Type.QUERY_TUPLE, messageA.getId(), messageA.getContent(), messageA.getMetadata());
-        Assert.assertEquals(emitter.getEmitted().size(), 1);
+        Tuple emittedFirst = TupleUtils.makeTuple(TupleType.Type.QUERY_TUPLE, messageA.getId(), messageA.getContent());
+        Tuple emittedSecond = TupleUtils.makeTuple(TupleType.Type.METADATA_TUPLE, messageA.getId(), messageA.getMetadata());
+        Assert.assertEquals(emitter.getEmitted().size(), 2);
         Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
+        Assert.assertTrue(emitter.wasNthEmitted(emittedSecond, 2));
 
         // subscriber.receive() -> messageB
         spout.nextTuple();
@@ -62,10 +64,13 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getReceived().get(0), messageA);
         Assert.assertEquals(subscriber.getReceived().get(1), messageB);
 
-        Tuple emittedSecond = TupleUtils.makeTuple(TupleType.Type.QUERY_TUPLE, messageB.getId(), messageB.getContent(), messageB.getMetadata());
-        Assert.assertEquals(emitter.getEmitted().size(), 2);
+        Tuple emittedThird = TupleUtils.makeTuple(TupleType.Type.QUERY_TUPLE, messageB.getId(), messageB.getContent());
+        Tuple emittedFourth = TupleUtils.makeTuple(TupleType.Type.METADATA_TUPLE, messageB.getId(), messageB.getMetadata());
+        Assert.assertEquals(emitter.getEmitted().size(), 4);
         Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
         Assert.assertTrue(emitter.wasNthEmitted(emittedSecond, 2));
+        Assert.assertTrue(emitter.wasNthEmitted(emittedThird, 3));
+        Assert.assertTrue(emitter.wasNthEmitted(emittedFourth, 4));
     }
 
     @Test
@@ -112,8 +117,10 @@ public class QuerySpoutTest {
     public void testDeclareOutputFields() {
         CustomOutputFieldsDeclarer declarer = new CustomOutputFieldsDeclarer();
         spout.declareOutputFields(declarer);
-        Fields expectedQueryFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.QUERY_FIELD, TopologyConstants.METADATA_FIELD);
+        Fields expectedQueryFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.QUERY_FIELD);
+        Fields expectedMetadataFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.METADATA_FIELD);
         Assert.assertTrue(declarer.areFieldsPresent(QuerySpout.QUERY_STREAM, false, expectedQueryFields));
+        Assert.assertTrue(declarer.areFieldsPresent(QuerySpout.METADATA_STREAM, false, expectedMetadataFields));
     }
 
     @Test

@@ -175,8 +175,11 @@ public class JoinBoltTest {
 
     @Test
     public void testJoining() {
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}");
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
@@ -190,8 +193,11 @@ public class JoinBoltTest {
     public void testQueryExpiry() {
         bolt = ComponentUtils.prepare(new ExpiringJoinBolt(), collector);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}");
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
         bolt.execute(tick);
@@ -214,15 +220,27 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testEmit() {
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}", METADATA);
+    public void testFailJoiningForNoQuery() {
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
+
+        List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
+
+        Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
+        Assert.assertFalse(collector.wasNthEmitted(expected, 1));
+        Assert.assertEquals(collector.getAllEmitted().count(), 0);
+    }
+
+    @Test
+    public void testFailJoiningForNoReturn() {
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}");
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
-        Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, "42", Clip.of(sent).asJSON());
+        Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
         Assert.assertFalse(collector.wasNthEmitted(expected, 1));
-        Assert.assertEquals(collector.getAllEmitted().count(), 1);
+        Assert.assertEquals(collector.getAllEmitted().count(), 0);
     }
 
     @Test
@@ -240,11 +258,14 @@ public class JoinBoltTest {
         config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3), METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3));
         bolt.execute(query);
 
         Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
         Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 2);
 
@@ -277,13 +298,17 @@ public class JoinBoltTest {
         config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         setup(config, new ExpiringJoinBolt());
 
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3), METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3));
         bolt.execute(query);
 
         Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
         Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
 
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
+
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 2);
+
 
         // If we tick twice, the Query will be expired due to the ExpiringJoinBolt and put into bufferedQueries
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
@@ -313,14 +338,53 @@ public class JoinBoltTest {
     }
 
     @Test
+    public void testFailJoiningAfterLateArrivalSinceNoReturn() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        setup(config, new ExpiringJoinBolt());
+
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3));
+        bolt.execute(query);
+
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        // No metadata
+
+        List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 2);
+
+        // If we tick twice, the Query will be expired due to the ExpiringJoinBolt and put into bufferedQueries
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+
+        Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
+
+        // Even if the aggregation has data, rotation does not cause its emission since we have no metadata
+        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT; ++i) {
+            bolt.execute(tick);
+            Assert.assertFalse(collector.wasTupleEmitted(expected));
+        }
+        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+    }
+
+    @Test
     public void testMultiJoining() {
         bolt = ComponentUtils.prepare(new ExpiringJoinBolt(), collector);
 
-        Tuple queryA = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple queryA = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}");
         bolt.execute(queryA);
 
-        Tuple queryB = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "43", "{}", METADATA);
+        Tuple queryB = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "43", "{}");
         bolt.execute(queryB);
+
+        Tuple metadataTupleOne = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTupleOne);
+
+        Tuple metadataTupleTwo = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "43", METADATA);
+        bolt.execute(metadataTupleTwo);
 
         Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
 
@@ -347,7 +411,9 @@ public class JoinBoltTest {
 
     @Test
     public void testErrorImmediate() {
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "garbage", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "garbage");
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
         bolt.execute(query);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
@@ -362,9 +428,65 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testErrorEmittedProperly() {
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "garbage", METADATA);
+    public void testErrorBuffering() {
+        String queryString = "{filters : }";
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", queryString);
         bolt.execute(query);
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        for (int i = 0; i < JoinBolt.DEFAULT_ERROR_TICKOUT - 1; ++i) {
+            bolt.execute(tick);
+        }
+
+        Assert.assertEquals(collector.getAllEmitted().count(), 0);
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
+
+        Assert.assertEquals(collector.getAllEmitted().count(), 1);
+
+        String error = Error.GENERIC_JSON_ERROR + ":\n" + queryString + "\n" +
+                       "MalformedJsonException: Expected value at line 1 column 12 path $.filters";
+        Error expectedError = Error.of(error, singletonList(Error.GENERIC_JSON_RESOLUTION));
+        Metadata expectedMetadata = Metadata.of(expectedError);
+        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), METADATA).getValues();
+        List<Object> actual = collector.getNthTupleEmittedTo(JoinBolt.JOIN_STREAM, 1).get();
+        Assert.assertEquals(actual, expected);
+    }
+
+    @Test
+    public void testErrorBufferingTimeout() {
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "garbage");
+        bolt.execute(query);
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        for (int i = 0; i < JoinBolt.DEFAULT_ERROR_TICKOUT; ++i) {
+            bolt.execute(tick);
+        }
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
+
+        Assert.assertEquals(collector.getAllEmitted().count(), 0);
+    }
+
+    @Test
+    public void testErrorBufferingCustomNoTimeout() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(BulletStormConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, 10);
+        setup(config, new JoinBolt());
+
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "garbage");
+        bolt.execute(query);
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        for (int i = 0; i < 9; ++i) {
+            bolt.execute(tick);
+        }
+
+        Assert.assertEquals(collector.getAllEmitted().count(), 0);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 
@@ -375,6 +497,26 @@ public class JoinBoltTest {
         List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), METADATA).getValues();
         List<Object> actual = collector.getNthTupleEmittedTo(JoinBolt.JOIN_STREAM, 1).get();
         Assert.assertEquals(actual, expected);
+    }
+
+    @Test
+    public void testErrorBufferingCustomTimeout() {
+        Map<String, Object> config = new HashMap<>();
+        config.put(BulletStormConfig.JOIN_BOLT_ERROR_TICK_TIMEOUT, 10);
+        setup(config, new JoinBolt());
+
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "garbage");
+        bolt.execute(query);
+
+        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        for (int i = 0; i < 10; ++i) {
+            bolt.execute(tick);
+        }
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
+
+        Assert.assertEquals(collector.getAllEmitted().count(), 0);
     }
 
     @Test
@@ -383,8 +525,11 @@ public class JoinBoltTest {
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         setup(config, new JoinBolt());
 
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}");
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
@@ -402,8 +547,11 @@ public class JoinBoltTest {
         enableMetadataInConfig(config, "foo", "bar");
         setup(config, new JoinBolt());
 
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}");
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
@@ -425,8 +573,11 @@ public class JoinBoltTest {
 
         long startTime = System.currentTimeMillis();
 
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{}");
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         sendRawRecordTuplesTo(bolt, "42");
 
@@ -456,8 +607,10 @@ public class JoinBoltTest {
     @Test
     public void testUnsupportedAggregation() {
         // "TOP_K" aggregation type not currently supported - error should be emitted
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(TOP_K, 5), METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(TOP_K, 5));
         bolt.execute(query);
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
 
@@ -465,8 +618,10 @@ public class JoinBoltTest {
     public void testUnknownAggregation() {
         // Lowercase "top" is not valid and will not be parsed since there is no enum for it
         // In this case aggregation type should be set to null and an error should be emitted
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{\"aggregation\": {\"type\": \"garbage\"}}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "{\"aggregation\": {\"type\": \"garbage\"}}");
         bolt.execute(query);
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
         Error expectedError = Aggregation.TYPE_NOT_SUPPORTED_ERROR;
@@ -480,8 +635,10 @@ public class JoinBoltTest {
     public void testUnhandledExceptionErrorEmitted() {
         // An empty query should throw an null-pointer exception which should be caught in JoinBolt
         // and an error should be emitted
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "");
         bolt.execute(query);
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         sendRawRecordTuplesTo(bolt, "42");
 
@@ -501,8 +658,11 @@ public class JoinBoltTest {
 
         String filterQuery = makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
                                                   singletonList(new GroupOperation(COUNT, null, "cnt")));
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", filterQuery, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", filterQuery);
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         // Send 5 GroupData with counts 1, 2, 3, 4, 5 to the JoinBolt
         IntStream.range(1, 6).forEach(i -> sendRawByteTuplesTo(bolt, "42", singletonList(getGroupDataWithCount("cnt", i))));
@@ -529,8 +689,11 @@ public class JoinBoltTest {
 
     @Test
     public void testRawMicroBatchSizeGreaterThanOne() {
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 5), METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 5));
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         // This will send 2 batches of 3 records each (total of 6 records).
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 5, 3);
@@ -560,9 +723,10 @@ public class JoinBoltTest {
         bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
-                                             makeAggregationQuery(COUNT_DISTINCT, 1, null, Pair.of("field", "field")),
-                                             METADATA);
+                                             makeAggregationQuery(COUNT_DISTINCT, 1, null, Pair.of("field", "field")));
         bolt.execute(query);
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
 
@@ -612,8 +776,11 @@ public class JoinBoltTest {
         String queryString = makeGroupFilterQuery("ts", singletonList("1"), EQUALS, GROUP, entries, operations,
                                                   Pair.of("fieldA", "A"));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", queryString, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", queryString);
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
 
@@ -637,7 +804,7 @@ public class JoinBoltTest {
 
         String filterQuery = makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
                                                   singletonList(new GroupOperation(COUNT, null, "cnt")));
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", filterQuery, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", filterQuery);
 
         Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
         Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
@@ -646,6 +813,9 @@ public class JoinBoltTest {
         bolt.execute(query);
         Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
         Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+        bolt.execute(metadataTuple);
 
         sendRawByteTuplesTo(bolt, "42", singletonList(getGroupDataWithCount("cnt", 21)));
         sendRawByteTuplesTo(bolt, "42", singletonList(getGroupDataWithCount("cnt", 21)));
@@ -709,7 +879,7 @@ public class JoinBoltTest {
 
         String filterQuery = makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
                                                   singletonList(new GroupOperation(COUNT, null, "cnt")));
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", filterQuery, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", filterQuery);
 
         Assert.assertEquals(context.getLongMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(0));
         Assert.assertEquals(context.getLongMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
@@ -759,9 +929,12 @@ public class JoinBoltTest {
 
         Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
                                              makeAggregationQuery(DISTRIBUTION, 10, DistributionType.PMF, "field",
-                                                                  null, null, null, null, 3),
-                                             METADATA);
+                                                                  null, null, null, null, 3));
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+
+        bolt.execute(metadataTuple);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
 
@@ -816,8 +989,12 @@ public class JoinBoltTest {
         bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
 
         String aggregationQuery = makeAggregationQuery(TOP_K, 2, 5L, "cnt", Pair.of("A", ""), Pair.of("B", "foo"));
-        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", aggregationQuery, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", aggregationQuery);
         bolt.execute(query);
+
+        Tuple metadataTuple = TupleUtils.makeIDTuple(TupleType.Type.METADATA_TUPLE, "42", METADATA);
+
+        bolt.execute(metadataTuple);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
 

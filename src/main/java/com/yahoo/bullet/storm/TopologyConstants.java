@@ -17,7 +17,7 @@ public class TopologyConstants {
 
     public static final int ID_POSITION = 0;
     public static final int QUERY_POSITION = 1;
-    public static final int METADATA_POSITION = 2;
+    public static final int METADATA_POSITION = 1;
     public static final int RECORD_POSITION = 1;
 
     public static final String RECORD_COMPONENT = "DataSource";
@@ -32,6 +32,7 @@ public class TopologyConstants {
     public static final String FILTER_STREAM = FilterBolt.FILTER_STREAM;
     public static final String JOIN_STREAM = JoinBolt.JOIN_STREAM;
     public static final String QUERY_STREAM = QuerySpout.QUERY_STREAM;
+    public static final String METADATA_STREAM = QuerySpout.METADATA_STREAM;
 
     public static final String METRIC_PREFIX = "bullet_";
 }
