@@ -143,7 +143,8 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     private void handleQuery(Tuple tuple) {
         AggregationQuery query = initializeQuery(tuple);
         if (query != null) {
-            bufferedTuples.put(tuple.getString(TopologyConstants.ID_POSITION), tuple);
+            bufferedTuples.put(tuple.getString(TopologyConstants.ID_POSITION), tuple); // REMOVE THIS
+            //bufferedTuples.put(tuple.getString(TopologyConstants.ID_POSITION), tuple);
             updateCount(createdQueriesCount, 1L);
             updateCount(activeQueriesCount, 1L);
         }
@@ -227,7 +228,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         Objects.requireNonNull(clip);
         Objects.requireNonNull(queryTuple);
         String id = queryTuple.getString(TopologyConstants.ID_POSITION);
-        com.yahoo.bullet.pubsub.Metadata metadata = (com.yahoo.bullet.pubsub.Metadata) queryTuple.getValue(TopologyConstants.METADATA_POSITION);
+        com.yahoo.bullet.pubsub.Metadata metadata = getMetadata(queryTuple);
         collector.emit(new Values(id, clip.asJSON(), metadata));
     }
 
@@ -261,5 +262,9 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         Number interval = metricsIntervalMapping.getOrDefault(name, metricsIntervalMapping.get(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY));
         log.info("Registered {} with interval {}", name, interval);
         return context.registerMetric(name, new AbsoluteCountMetric(), interval.intValue());
+    }
+
+    private com.yahoo.bullet.pubsub.Metadata getMetadata(Tuple queryTuple) {
+        return (com.yahoo.bullet.pubsub.Metadata) queryTuple.getValue(TopologyConstants.METADATA_POSITION);
     }
 }
