@@ -79,15 +79,15 @@ public class FilterBoltTest {
 
     private class NoQueryFilterBolt extends FilterBolt {
         @Override
-        protected FilterQuery getQuery(String id, String queryString) {
+        protected FilterQuery createQuery(Tuple queryTuple) {
             return null;
         }
     }
 
     private class NeverExpiringFilterBolt extends FilterBolt {
         @Override
-        protected FilterQuery getQuery(String id, String queryString) {
-            FilterQuery original = super.getQuery(id, queryString);
+        protected FilterQuery createQuery(Tuple queryTuple) {
+            FilterQuery original = super.createQuery(queryTuple);
             if (original != null) {
                 original = spy(original);
                 when(original.isExpired()).thenReturn(false);
@@ -115,10 +115,11 @@ public class FilterBoltTest {
         }
 
         @Override
-        protected FilterQuery getQuery(String id, String queryString) {
+        protected FilterQuery createQuery(Tuple queryTuple) {
+            String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
             FilterQuery spied = spy(getFilterQuery(queryString, configuration));
             List<Boolean> answers = IntStream.range(0, expireAfter).mapToObj(i -> false)
-                                             .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+                    .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);
             when(spied.isExpired()).thenAnswer(returnsElementsOf(answers));
             return spied;
