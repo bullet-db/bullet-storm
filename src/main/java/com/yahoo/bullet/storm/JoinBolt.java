@@ -98,7 +98,8 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
                 handleQuery(tuple);
                 break;
             case FILTER_TUPLE:
-                emit(tuple);
+                handleFilterTuple(tuple);
+                //emit(tuple);
                 break;
             default:
                 // May want to throw an error here instead of not acking
@@ -128,6 +129,18 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         return null;
     }
 
+    private void emitError(String id, Error... errors) {
+        emitError(id, Arrays.asList(errors));
+    }
+
+    private void emitError(String id, List<Error> errors) {
+        Metadata meta = Metadata.of(errors);
+        Clip clip = Clip.of(meta);
+        Tuple queryTuple = bufferedMetadata.remove(id);
+        updateCount(improperQueriesCount, 1L);
+        emit(clip, queryTuple);
+    }
+
     private void handleQuery(Tuple tuple) {
         bufferedMetadata.put(tuple.getString(TopologyConstants.ID_POSITION), tuple);
         AggregationQuery query = initializeQuery(tuple);
@@ -143,18 +156,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         emitRetired(bufferedQueries.rotate());
     }
 
-    private void emitError(String id, Error... errors) {
-        emitError(id, Arrays.asList(errors));
-    }
-
-    private void emitError(String id, List<Error> errors) {
-        Metadata meta = Metadata.of(errors);
-        Clip clip = Clip.of(meta);
-        Tuple queryTuple = bufferedMetadata.remove(id);
-        updateCount(improperQueriesCount, 1L);
-        emit(clip, queryTuple);
-    }
-
     private void emitRetired(Map<String, AggregationQuery> forceEmit) {
         // Force emit everything that was asked to be emitted if we can. These are rotated out queries from bufferedQueries.
         long emitted = 0;
@@ -162,7 +163,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
             String id = e.getKey();
             AggregationQuery query = e.getValue();
             Tuple queryTuple = bufferedMetadata.remove(id);
-            if (canEmit(id, query, queryTuple)) {
+            if (!queryIsNull(query, queryTuple)) {
                 emitted++;
                 emit(id, query, queryTuple);
             }
@@ -174,41 +175,37 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         retireQueries().forEach(bufferedQueries::put);
     }
 
-    private boolean canEmit(String id, AggregationQuery query, Tuple queryTuple) {
-        // Deliberately only doing joins if both query and return are here. Can do an OUTER join if needed later...
-        if (query == null) {
-            log.debug("Received tuples for request {} before query or too late. Skipping...", id);
-            return false;
+    private void handleFilterTuple(Tuple tuple) {
+        AggregationQuery query = getQueryFromMaps(tuple);
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
+        if (queryIsNull(query, tuple)) {
+            return;
         }
-        if (queryTuple == null) {
-            log.debug("Received tuples for request {} before return information. Skipping...", id);
-            return false;
+
+        byte[] data = (byte[]) tuple.getValue(TopologyConstants.RECORD_POSITION);
+        if (query.consume(data)) {
+            emit(id, query, tuple);
         }
-        return true;
     }
 
-    private void emit(Tuple tuple) {
+    private AggregationQuery getQueryFromMaps(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
-        byte[] data = (byte[]) tuple.getValue(TopologyConstants.RECORD_POSITION);
 
-        // We have two places we could have Queries in
+        // JoinBolt has two places where the query might be
         AggregationQuery query = queriesMap.get(id);
         if (query == null) {
             query = bufferedQueries.get(id);
         }
-
-        emit(id, query, bufferedMetadata.get(id), data);
+        return query;
     }
 
-    private void emit(String id, AggregationQuery query, Tuple queryTuple, byte[] data) {
-        if (!canEmit(id, query, queryTuple)) {
-            return;
+    private boolean queryIsNull(AggregationQuery query, Tuple tuple) {
+        if (query == null) {
+            log.debug("Received tuples for request {} before query or too late. Skipping...",
+                      tuple.getString(TopologyConstants.ID_POSITION));
+            return true;
         }
-        // If the query is not satisfied after consumption, we should not emit.
-        if (!query.consume(data)) {
-            return;
-        }
-        emit(id, query, queryTuple);
+        return false;
     }
 
     private void emit(String id, AggregationQuery query, Tuple queryTuple) {
