@@ -37,7 +37,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     /** This is the default number of ticks for which we will buffer a query. */
     public static final int DEFAULT_QUERY_TICKOUT = 3;
 
-    private Map<String, Tuple> bufferedTuples;
+    private Map<String, com.yahoo.bullet.pubsub.Metadata> bufferedMetadata;
     // For doing a LEFT OUTER JOIN between Queries and intermediate aggregation, if the aggregations are lagging.
     private RotatingMap<String, AggregationQuery> bufferedQueries;
 
@@ -71,7 +71,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         super.prepare(stormConf, context, collector);
 
-        bufferedTuples = new HashMap<>();
+        bufferedMetadata = new HashMap<>();
 
         Number queryTickoutNumber = (Number) configuration.getOrDefault(BulletStormConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
                                                                         DEFAULT_QUERY_TICKOUT);
@@ -135,14 +135,13 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         Metadata meta = Metadata.of(errors);
         Clip clip = Clip.of(meta);
         updateCount(improperQueriesCount, 1L);
-        emit(clip, queryTuple);
+        collector.emit(new Values(queryTuple.getString(TopologyConstants.ID_POSITION), clip.asJSON(), getMetadata(queryTuple)));
     }
 
     private void handleQuery(Tuple tuple) {
         AggregationQuery query = initializeQuery(tuple);
         if (query != null) {
-            bufferedTuples.put(tuple.getString(TopologyConstants.ID_POSITION), tuple); // REMOVE THIS
-            //bufferedTuples.put(tuple.getString(TopologyConstants.ID_POSITION), getMetadata(tuple));
+            bufferedMetadata.put(tuple.getString(TopologyConstants.ID_POSITION), getMetadata(tuple));
             updateCount(createdQueriesCount, 1L);
             updateCount(activeQueriesCount, 1L);
         }
@@ -160,10 +159,10 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         for (Map.Entry<String, AggregationQuery> e : forceEmit.entrySet()) {
             String id = e.getKey();
             AggregationQuery query = e.getValue();
-            Tuple queryTuple = bufferedTuples.remove(id);
+
             if (!logIfQueryIsNull(query, id)) {
                 emitted++;
-                emit(id, query, queryTuple);
+                emit(query, id, bufferedMetadata.remove(id));
             }
         }
         // We already decreased activeQueriesCount by emitted. The others that are thrown away should decrease the count too.
@@ -182,7 +181,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
 
         byte[] data = (byte[]) filterTuple.getValue(TopologyConstants.RECORD_POSITION);
         if (query.consume(data)) {
-            emit(id, query, bufferedTuples.get(id));
+            emit(query, id, bufferedMetadata.get(id));
         }
     }
 
@@ -205,28 +204,20 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         return false;
     }
 
-    private void emit(String id, AggregationQuery query, Tuple queryTuple) {
+    private void emit(AggregationQuery query, String id, com.yahoo.bullet.pubsub.Metadata metadata) {
         Objects.requireNonNull(id);
         Objects.requireNonNull(query);
-        Objects.requireNonNull(queryTuple);
+        Objects.requireNonNull(metadata);
 
         Clip records = query.getData();
         records.add(getMetadata(id, query));
-        emit(records, queryTuple);
+        collector.emit(new Values(id, records.asJSON(), metadata));
         int emitted = records.getRecords().size();
         log.info("Query {} has been satisfied with {} records. Cleaning up...", id, emitted);
         queriesMap.remove(id);
         bufferedQueries.remove(id);
-        bufferedTuples.remove(id);
+        bufferedMetadata.remove(id);
         updateCount(activeQueriesCount, -1L);
-    }
-
-    private void emit(Clip clip, Tuple queryTuple) {
-        Objects.requireNonNull(clip);
-        Objects.requireNonNull(queryTuple);
-        String id = queryTuple.getString(TopologyConstants.ID_POSITION);
-        com.yahoo.bullet.pubsub.Metadata metadata = getMetadata(queryTuple);
-        collector.emit(new Values(id, clip.asJSON(), metadata));
     }
 
     private Metadata getMetadata(String id, AggregationQuery query) {
