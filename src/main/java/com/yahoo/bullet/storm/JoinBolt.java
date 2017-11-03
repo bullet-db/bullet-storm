@@ -34,8 +34,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     public static final String JOIN_STREAM = Utils.DEFAULT_STREAM_ID;
     public static final String JOIN_FIELD = "result";
 
-    /** This is the default number of ticks for which we will buffer an individual error message. */
-    public static final int DEFAULT_ERROR_TICKOUT = 3;
     /** This is the default number of ticks for which we will buffer a query. */
     public static final int DEFAULT_QUERY_TICKOUT = 3;
 
@@ -144,7 +142,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         AggregationQuery query = initializeQuery(tuple);
         if (query != null) {
             bufferedTuples.put(tuple.getString(TopologyConstants.ID_POSITION), tuple); // REMOVE THIS
-            //bufferedTuples.put(tuple.getString(TopologyConstants.ID_POSITION), tuple);
+            //bufferedTuples.put(tuple.getString(TopologyConstants.ID_POSITION), getMetadata(tuple));
             updateCount(createdQueriesCount, 1L);
             updateCount(activeQueriesCount, 1L);
         }
@@ -163,7 +161,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
             String id = e.getKey();
             AggregationQuery query = e.getValue();
             Tuple queryTuple = bufferedTuples.remove(id);
-            if (!logIfQueryIsNull(query, queryTuple)) {
+            if (!logIfQueryIsNull(query, id)) {
                 emitted++;
                 emit(id, query, queryTuple);
             }
@@ -178,7 +176,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     private void handleFilterTuple(Tuple filterTuple) {
         AggregationQuery query = getQueryFromMaps(filterTuple);
         String id = filterTuple.getString(TopologyConstants.ID_POSITION);
-        if (logIfQueryIsNull(query, filterTuple)) {
+        if (logIfQueryIsNull(query, id)) {
             return;
         }
 
@@ -199,10 +197,9 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         return query;
     }
 
-    private boolean logIfQueryIsNull(AggregationQuery query, Tuple tuple) {
+    private boolean logIfQueryIsNull(AggregationQuery query, String id) {
         if (query == null) {
-            log.debug("Received tuples for request {} before query or too late. Skipping...",
-                      tuple.getString(TopologyConstants.ID_POSITION));
+            log.debug("Received tuples for request {} before query or too late. Skipping...", id);
             return true;
         }
         return false;
