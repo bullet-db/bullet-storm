@@ -30,12 +30,6 @@ public class QueryBoltTest {
         public void declareOutputFields(OutputFieldsDeclarer declarer) {
         }
 
-        // REMOVE THIS
-        @Override
-        public AbstractQuery getQuery(String id, String queryString) {
-            return null;
-        }
-
         @Override
         public AbstractQuery instantiateQuery(Tuple queryTuple) {
             return null;

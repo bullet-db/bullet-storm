@@ -130,21 +130,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         return null;
     }
 
-    @Override
-    protected AggregationQuery getQuery(String id, String queryString) {
-        try {
-            return new AggregationQuery(queryString, configuration);
-        } catch (JsonParseException jpe) {
-            emitError(id, com.yahoo.bullet.parsing.Error.makeError(jpe, queryString));
-        } catch (ParsingException pe) {
-            emitError(id, pe.getErrors());
-        } catch (RuntimeException re) {
-            log.error("Unhandled exception.", re);
-            emitError(id, Error.makeError(re, queryString));
-        }
-        return null;
-    }
-
     private void emitError(String id, Error... errors) {
         emitError(id, Arrays.asList(errors));
     }

@@ -105,17 +105,6 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
         }
     }
 
-    // REMOVE THIS
-    @Override
-    protected FilterQuery getQuery(String id, String queryString) {
-        // No need to handle any errors here. The JoinBolt reports all errors.
-        try {
-            return new FilterQuery(queryString, configuration);
-        } catch (ParsingException | RuntimeException e) {
-            return null;
-        }
-    }
-
     private void checkQuery(Tuple tuple) {
         BulletRecord record = (BulletRecord) tuple.getValue(0);
         // For each query that is satisfied, we will emit the data but we will not expire the query.
