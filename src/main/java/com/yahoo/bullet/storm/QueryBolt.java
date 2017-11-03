@@ -102,7 +102,7 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
     protected Q initializeQuery(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         String queryString = tuple.getString(TopologyConstants.QUERY_POSITION);
-        Q query = instantiateQuery(tuple);
+        Q query = createQuery(tuple);
         if (query == null) {
             log.error("Failed to initialize query for request {} with query {}", id, queryString);
             return null;
@@ -139,5 +139,5 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
      * @param queryTuple The query tuple
      * @return The appropriate type of AbstractQuery to use for this Bolt.
      */
-    protected abstract Q instantiateQuery(Tuple queryTuple);
+    protected abstract Q createQuery(Tuple queryTuple);
 }

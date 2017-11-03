@@ -31,7 +31,7 @@ public class QueryBoltTest {
         }
 
         @Override
-        public AbstractQuery instantiateQuery(Tuple queryTuple) {
+        public AbstractQuery createQuery(Tuple queryTuple) {
             return null;
         }
 

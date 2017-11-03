@@ -112,7 +112,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     }
 
     @Override
-    protected AggregationQuery instantiateQuery(Tuple queryTuple) {
+    protected AggregationQuery createQuery(Tuple queryTuple) {
         String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
         try {
             return new AggregationQuery(queryString, configuration);
@@ -160,7 +160,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
             String id = e.getKey();
             AggregationQuery query = e.getValue();
 
-            if (!logIfQueryIsNull(query, id)) {
+            if (!isNull(query, id)) {
                 emitted++;
                 emit(query, id, bufferedMetadata.remove(id));
             }
@@ -175,7 +175,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     private void handleFilterTuple(Tuple filterTuple) {
         AggregationQuery query = getQueryFromMaps(filterTuple);
         String id = filterTuple.getString(TopologyConstants.ID_POSITION);
-        if (logIfQueryIsNull(query, id)) {
+        if (isNull(query, id)) {
             return;
         }
 
@@ -196,7 +196,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         return query;
     }
 
-    private boolean logIfQueryIsNull(AggregationQuery query, String id) {
+    private boolean isNull(AggregationQuery query, String id) {
         if (query == null) {
             log.debug("Received tuples for request {} before query or too late. Skipping...", id);
             return true;

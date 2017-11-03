@@ -91,7 +91,7 @@ public class JoinBoltTest {
         }
 
         @Override
-        protected AggregationQuery instantiateQuery(Tuple queryTuple) {
+        protected AggregationQuery createQuery(Tuple queryTuple) {
             String id = queryTuple.getString(TopologyConstants.ID_POSITION);
             String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
             AggregationQuery spied = spy(getAggregationQuery(queryString, config));
