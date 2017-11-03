@@ -99,7 +99,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
                 break;
             case FILTER_TUPLE:
                 handleFilterTuple(tuple);
-                //emit(tuple);
                 break;
             default:
                 // May want to throw an error here instead of not acking
@@ -175,16 +174,16 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         retireQueries().forEach(bufferedQueries::put);
     }
 
-    private void handleFilterTuple(Tuple tuple) {
-        AggregationQuery query = getQueryFromMaps(tuple);
-        String id = tuple.getString(TopologyConstants.ID_POSITION);
-        if (queryIsNull(query, tuple)) {
+    private void handleFilterTuple(Tuple filterTuple) {
+        AggregationQuery query = getQueryFromMaps(filterTuple);
+        String id = filterTuple.getString(TopologyConstants.ID_POSITION);
+        if (queryIsNull(query, filterTuple)) {
             return;
         }
 
-        byte[] data = (byte[]) tuple.getValue(TopologyConstants.RECORD_POSITION);
+        byte[] data = (byte[]) filterTuple.getValue(TopologyConstants.RECORD_POSITION);
         if (query.consume(data)) {
-            emit(id, query, tuple);
+            emit(id, query, bufferedMetadata.get(id));
         }
     }
 
