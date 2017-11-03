@@ -95,6 +95,18 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
     }
 
     @Override
+    protected FilterQuery instantiateQuery(Tuple queryTuple) {
+        String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
+        // No need to handle any errors here. The JoinBolt reports all errors.
+        try {
+            return new FilterQuery(queryString, configuration);
+        } catch (ParsingException | RuntimeException e) {
+            return null;
+        }
+    }
+
+    // REMOVE THIS
+    @Override
     protected FilterQuery getQuery(String id, String queryString) {
         // No need to handle any errors here. The JoinBolt reports all errors.
         try {

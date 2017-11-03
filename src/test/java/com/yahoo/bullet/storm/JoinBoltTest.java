@@ -90,8 +90,18 @@ public class JoinBoltTest {
         public ExpiringJoinBolt() {
         }
 
+        // REMOVE THIS
         @Override
         protected AggregationQuery getQuery(String id, String queryString) {
+            AggregationQuery spied = spy(getAggregationQuery(queryString, config));
+            when(spied.isExpired()).thenReturn(false).thenReturn(true);
+            return spied;
+        }
+
+        @Override
+        protected AggregationQuery instantiateQuery(Tuple queryTuple) {
+            String id = queryTuple.getString(TopologyConstants.ID_POSITION);
+            String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
             AggregationQuery spied = spy(getAggregationQuery(queryString, config));
             when(spied.isExpired()).thenReturn(false).thenReturn(true);
             return spied;

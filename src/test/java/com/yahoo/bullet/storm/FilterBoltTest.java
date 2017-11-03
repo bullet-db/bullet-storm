@@ -82,12 +82,28 @@ public class FilterBoltTest {
         protected FilterQuery getQuery(String id, String queryString) {
             return null;
         }
+
+        @Override
+        protected FilterQuery instantiateQuery(Tuple queryTuple) {
+            return null;
+        }
     }
 
     private class NeverExpiringFilterBolt extends FilterBolt {
+        // DELETE THIS
         @Override
         protected FilterQuery getQuery(String id, String queryString) {
             FilterQuery original = super.getQuery(id, queryString);
+            if (original != null) {
+                original = spy(original);
+                when(original.isExpired()).thenReturn(false);
+            }
+            return original;
+        }
+
+        @Override
+        protected FilterQuery instantiateQuery(Tuple queryTuple) {
+            FilterQuery original = super.instantiateQuery(queryTuple);
             if (original != null) {
                 original = spy(original);
                 when(original.isExpired()).thenReturn(false);
@@ -114,11 +130,23 @@ public class FilterBoltTest {
             expireAfter = recordsConsumed + ticksConsumed - 1;
         }
 
+        // REMOVE THIS
         @Override
         protected FilterQuery getQuery(String id, String queryString) {
             FilterQuery spied = spy(getFilterQuery(queryString, configuration));
             List<Boolean> answers = IntStream.range(0, expireAfter).mapToObj(i -> false)
                                              .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            answers.add(true);
+            when(spied.isExpired()).thenAnswer(returnsElementsOf(answers));
+            return spied;
+        }
+
+        @Override
+        protected FilterQuery instantiateQuery(Tuple queryTuple) {
+            String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
+            FilterQuery spied = spy(getFilterQuery(queryString, configuration));
+            List<Boolean> answers = IntStream.range(0, expireAfter).mapToObj(i -> false)
+                    .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);
             when(spied.isExpired()).thenAnswer(returnsElementsOf(answers));
             return spied;
