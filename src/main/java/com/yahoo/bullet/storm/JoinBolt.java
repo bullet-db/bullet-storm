@@ -150,10 +150,10 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     private void handleTick() {
         // Buffer whatever we're retiring now and forceEmit all the bufferedQueries that are being rotated out.
         // Whatever we're retiring now MUST not have been satisfied since we emit Queries when FILTER_TUPLES satisfy them.
-        emitRetired(bufferedQueries.rotate());
+        processRetired(bufferedQueries.rotate());
     }
 
-    private void emitRetired(Map<String, AggregationQuery> forceEmit) {
+    private void processRetired(Map<String, AggregationQuery> forceEmit) {
         // Force emit everything that was asked to be emitted if we can. These are rotated out queries from bufferedQueries.
         long emitted = 0;
         for (Map.Entry<String, AggregationQuery> e : forceEmit.entrySet()) {
