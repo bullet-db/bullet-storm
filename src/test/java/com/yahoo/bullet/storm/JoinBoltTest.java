@@ -228,7 +228,7 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testFailJoiningForNoQueryOrReturn() {
+    public void testFailJoiningForNoQuery() {
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
         Tuple expected = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
