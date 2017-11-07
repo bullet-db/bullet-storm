@@ -28,7 +28,6 @@ public class BulletStormConfig extends BulletConfig {
     public static final String QUERY_SPOUT_PARALLELISM = "bullet.topology.query.spout.parallelism";
     public static final String FILTER_BOLT_PARALLELISM = "bullet.topology.filter.bolt.parallelism";
     public static final String JOIN_BOLT_PARALLELISM = "bullet.topology.join.bolt.parallelism";
-    public static final String JOIN_BOLT_ERROR_TICK_TIMEOUT = "bullet.topology.join.bolt.error.tick.timeout";
     public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
     public static final String RESULT_BOLT_PARALLELISM = "bullet.topology.result.bolt.parallelism";
     public static final String TICK_INTERVAL_SECS = "bullet.topology.tick.interval.secs";

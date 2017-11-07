@@ -19,7 +19,6 @@ import static com.yahoo.bullet.storm.TopologyConstants.JOIN_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.JOIN_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.RECORD_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.RECORD_STREAM;
-import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.TICK_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
 
@@ -33,7 +32,6 @@ public class TupleType {
     public enum Type {
         TICK_TUPLE(TICK_COMPONENT, TICK_STREAM),
         QUERY_TUPLE(QUERY_COMPONENT, QUERY_STREAM),
-        METADATA_TUPLE(QUERY_COMPONENT, METADATA_STREAM),
         FILTER_TUPLE(FILTER_COMPONENT, FILTER_STREAM),
         RECORD_TUPLE(RECORD_COMPONENT, RECORD_STREAM),
         JOIN_TUPLE(JOIN_COMPONENT, JOIN_STREAM);
