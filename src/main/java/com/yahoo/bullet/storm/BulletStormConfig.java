@@ -38,7 +38,6 @@ public class BulletStormConfig extends BulletConfig {
     public static final String JOIN_BOLT_CPU_LOAD = "bullet.topology.join.bolt.cpu.load";
     public static final String JOIN_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.join.bolt.memory.on.heap.load";
     public static final String JOIN_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.join.bolt.memory.off.heap.load";
-    public static final String JOIN_BOLT_ERROR_TICK_TIMEOUT = "bullet.topology.join.bolt.error.tick.timeout";
     public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
     public static final String RESULT_BOLT_PARALLELISM = "bullet.topology.result.bolt.parallelism";
     public static final String RESULT_BOLT_CPU_LOAD = "bullet.topology.result.bolt.cpu.load";

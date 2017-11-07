@@ -31,7 +31,7 @@ public class QueryBoltTest {
         }
 
         @Override
-        public AbstractQuery getQuery(String id, String queryString) {
+        public AbstractQuery createQuery(Tuple queryTuple) {
             return null;
         }
 

@@ -79,10 +79,6 @@ bullet.topology.join.bolt.parallelism: 2
 # have expired) etc. This setting controls the how frequently a tick happens - number of seconds between ticks.
 bullet.topology.tick.interval.secs: 1
 
-# This is the number of ticks for which an error caused by receiving a bad query will be buffered if the
-# return information has not been received, will be buffered before being thrown away
-bullet.topology.join.bolt.error.tick.timeout: 3
-
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
 # aggregations to trickle in from the Filter Bolts.
 bullet.topology.join.bolt.query.tick.timeout: 3
