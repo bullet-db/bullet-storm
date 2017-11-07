@@ -119,7 +119,7 @@ public class FilterBoltTest {
             String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
             FilterQuery spied = spy(getFilterQuery(queryString, configuration));
             List<Boolean> answers = IntStream.range(0, expireAfter).mapToObj(i -> false)
-                    .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+                                             .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);
             when(spied.isExpired()).thenAnswer(returnsElementsOf(answers));
             return spied;

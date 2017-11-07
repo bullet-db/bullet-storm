@@ -96,7 +96,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
                 handleQuery(tuple);
                 break;
             case FILTER_TUPLE:
-                handleFilterTuple(tuple);
+                handleFilter(tuple);
                 break;
             default:
                 // May want to throw an error here instead of not acking
@@ -117,18 +117,14 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         try {
             return new AggregationQuery(queryString, configuration);
         } catch (JsonParseException jpe) {
-            emitError(queryTuple, com.yahoo.bullet.parsing.Error.makeError(jpe, queryString));
+            emitError(queryTuple, Arrays.asList(Error.makeError(jpe, queryString)));
         } catch (ParsingException pe) {
             emitError(queryTuple, pe.getErrors());
         } catch (RuntimeException re) {
             log.error("Unhandled exception.", re);
-            emitError(queryTuple, Error.makeError(re, queryString));
+            emitError(queryTuple, Arrays.asList(Error.makeError(re, queryString)));
         }
         return null;
-    }
-
-    private void emitError(Tuple queryTuple, Error... errors) {
-        emitError(queryTuple, Arrays.asList(errors));
     }
 
     private void emitError(Tuple queryTuple, List<Error> errors) {
@@ -150,11 +146,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     private void handleTick() {
         // Buffer whatever we're retiring now and forceEmit all the bufferedQueries that are being rotated out.
         // Whatever we're retiring now MUST not have been satisfied since we emit Queries when FILTER_TUPLES satisfy them.
-        processRetired(bufferedQueries.rotate());
-    }
-
-    private void processRetired(Map<String, AggregationQuery> forceEmit) {
-        // Force emit everything that was asked to be emitted if we can. These are rotated out queries from bufferedQueries.
+        Map<String, AggregationQuery> forceEmit = bufferedQueries.rotate();
         long emitted = 0;
         for (Map.Entry<String, AggregationQuery> e : forceEmit.entrySet()) {
             String id = e.getKey();
@@ -172,7 +164,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         retireQueries().forEach(bufferedQueries::put);
     }
 
-    private void handleFilterTuple(Tuple filterTuple) {
+    private void handleFilter(Tuple filterTuple) {
         AggregationQuery query = getQueryFromMaps(filterTuple);
         String id = filterTuple.getString(TopologyConstants.ID_POSITION);
         if (isNull(query, id)) {
@@ -207,7 +199,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     private void emit(AggregationQuery query, String id, com.yahoo.bullet.pubsub.Metadata metadata) {
         Objects.requireNonNull(id);
         Objects.requireNonNull(query);
-        Objects.requireNonNull(metadata);
 
         Clip records = query.getData();
         records.add(getMetadata(id, query));
