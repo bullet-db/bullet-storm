@@ -6,9 +6,10 @@
 package com.yahoo.bullet.storm;
 
 import com.google.gson.JsonParseException;
-import com.yahoo.bullet.parsing.Error;
 import com.yahoo.bullet.parsing.ParsingException;
+import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.querying.AggregationQuery;
+import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Metadata;
 import com.yahoo.bullet.result.Metadata.Concept;
@@ -30,16 +31,15 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 @Slf4j
-public class JoinBolt extends QueryBolt<AggregationQuery> {
+public class JoinBolt extends QueryBolt {
+    private static final long serialVersionUID = 3312434064971532267L;
+
     public static final String JOIN_STREAM = Utils.DEFAULT_STREAM_ID;
     public static final String JOIN_FIELD = "result";
 
-    /** This is the default number of ticks for which we will buffer a query. */
-    public static final int DEFAULT_QUERY_TICKOUT = 3;
-
-    private Map<String, com.yahoo.bullet.pubsub.Metadata> bufferedMetadata;
-    // For doing a LEFT OUTER JOIN between Queries and intermediate aggregation, if the aggregations are lagging.
-    private RotatingMap<String, AggregationQuery> bufferedQueries;
+    private Map<String, Metadata> bufferedMetadata;
+    // For doing a join between Queries and intermediate windows, if the windows are time based and arriving slowly.
+    private RotatingMap<String, Querier> bufferedQueries;
 
     // Metrics
     public static final String ACTIVE_QUERIES = TopologyConstants.METRIC_PREFIX + "active_queries";
@@ -52,18 +52,12 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
     private transient AbsoluteCountMetric improperQueriesCount;
 
     /**
-     * Default constructor.
+     * Constructor that creates an instance of this JoinBolt using the given config.
+     *
+     * @param config The validated {@link BulletStormConfig} to use.
      */
-    public JoinBolt() {
-        super();
-    }
-
-    /**
-     * Constructor that accepts the tick interval.
-     * @param tickInterval The tick interval in seconds.
-     */
-    public JoinBolt(Integer tickInterval) {
-        super(tickInterval);
+    public JoinBolt(BulletStormConfig config) {
+        super(config);
     }
 
     @SuppressWarnings("unchecked")
@@ -73,9 +67,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
 
         bufferedMetadata = new HashMap<>();
 
-        Number queryTickoutNumber = (Number) configuration.getOrDefault(BulletStormConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
-                                                                        DEFAULT_QUERY_TICKOUT);
-        int queryTickout = queryTickoutNumber.intValue();
+        int queryTickout = config.getAs(BulletStormConfig.JOIN_BOLT_WINDOW_TICK_TIMEOUT, Integer.class);
         bufferedQueries = new RotatingMap<>(queryTickout);
 
         if (metricsEnabled) {
@@ -87,7 +79,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
 
     @Override
     public void execute(Tuple tuple) {
-        TupleType.Type type = TupleType.classify(tuple).orElse(null);
+        TupleClassifier.Type type = TupleClassifier.classify(tuple).orElse(null);
         switch (type) {
             case TICK_TUPLE:
                 handleTick();
@@ -171,7 +163,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
             return;
         }
 
-        byte[] data = (byte[]) filterTuple.getValue(TopologyConstants.RECORD_POSITION);
+        byte[] data = (byte[]) filterTuple.getValue(TopologyConstants.DATA_POSITION);
         if (query.consume(data)) {
             emit(query, id, bufferedMetadata.get(id));
         }
@@ -181,7 +173,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
 
         // JoinBolt has two places where the query might be
-        AggregationQuery query = queriesMap.get(id);
+        AggregationQuery query = queries.get(id);
         if (query == null) {
             query = bufferedQueries.get(id);
         }
@@ -205,7 +197,7 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         collector.emit(new Values(id, records.asJSON(), metadata));
         int emitted = records.getRecords().size();
         log.info("Query {} has been satisfied with {} records. Cleaning up...", id, emitted);
-        queriesMap.remove(id);
+        queries.remove(id);
         bufferedQueries.remove(id);
         bufferedMetadata.remove(id);
         updateCount(activeQueriesCount, -1L);
@@ -228,12 +220,6 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
         String key = metadataKeys.get(concept.getName());
         if (key != null) {
             action.accept(key);
-        }
-    }
-
-    private void updateCount(AbsoluteCountMetric metric, long updateValue) {
-        if (metricsEnabled) {
-            metric.add(updateValue);
         }
     }
 

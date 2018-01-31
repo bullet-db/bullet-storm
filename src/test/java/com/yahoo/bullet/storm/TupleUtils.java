@@ -10,7 +10,7 @@ import org.apache.storm.tuple.TupleImpl;
 
 import java.util.Arrays;
 
-import static com.yahoo.bullet.storm.TupleType.Type;
+import static com.yahoo.bullet.storm.TupleClassifier.Type;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

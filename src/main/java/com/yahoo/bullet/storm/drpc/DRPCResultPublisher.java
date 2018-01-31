@@ -5,7 +5,7 @@
  */
 package com.yahoo.bullet.storm.drpc;
 
-import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;

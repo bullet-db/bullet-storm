@@ -51,7 +51,7 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getReceived().size(), 1);
         Assert.assertEquals(subscriber.getReceived().get(0), messageA);
 
-        Tuple emittedFirst = TupleUtils.makeTuple(TupleType.Type.QUERY_TUPLE, messageA.getId(), messageA.getContent(), messageA.getMetadata());
+        Tuple emittedFirst = TupleUtils.makeTuple(TupleClassifier.Type.QUERY_TUPLE, messageA.getId(), messageA.getContent(), messageA.getMetadata());
         Assert.assertEquals(emitter.getEmitted().size(), 1);
         Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
 
@@ -62,7 +62,7 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getReceived().get(0), messageA);
         Assert.assertEquals(subscriber.getReceived().get(1), messageB);
 
-        Tuple emittedSecond = TupleUtils.makeTuple(TupleType.Type.QUERY_TUPLE, messageB.getId(), messageB.getContent(), messageB.getMetadata());
+        Tuple emittedSecond = TupleUtils.makeTuple(TupleClassifier.Type.QUERY_TUPLE, messageB.getId(), messageB.getContent(), messageB.getMetadata());
         Assert.assertEquals(emitter.getEmitted().size(), 2);
         Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
         Assert.assertTrue(emitter.wasNthEmitted(emittedSecond, 2));

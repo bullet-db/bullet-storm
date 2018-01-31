@@ -12,7 +12,6 @@ import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
 import org.apache.storm.metric.api.IMetricsConsumer;
 import org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy;
-import org.apache.storm.scheduler.resource.strategies.scheduling.IStrategy;
 import org.apache.storm.topology.IRichSpout;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
@@ -28,7 +27,6 @@ import static java.util.Collections.emptyList;
 @Slf4j
 public class Topology {
     public static final int DEFAULT_PARALLELISM = 10;
-    public static final String RESOURCE_AWARE_SCHEDULING_STRATEGY = "ras";
     public static final double DEFAULT_CPU_LOAD = 50.0;
     public static final double DEFAULT_ON_HEAP_MEMORY_LOAD = 256.0;
     public static final double DEFAULT_OFF_HEAP_MEMORY_LOAD = 160.0;
@@ -40,7 +38,6 @@ public class Topology {
     public static final String ARGUMENT_ARG = "bullet-spout-arg";
     public static final String CONFIGURATION_ARG = "bullet-conf";
     public static final String HELP_ARG = "help";
-    public static final String REGISTER_METHOD = "register";
 
     public static final OptionParser PARSER = new OptionParser() {
         {
@@ -122,20 +119,18 @@ public class Topology {
         Number resultBoltMemoryOnHeapLoad = (Number) config.get(BulletStormConfig.RESULT_BOLT_MEMORY_ON_HEAP_LOAD);
         Number resultBoltMemoryOffHeapLoad = (Number) config.get(BulletStormConfig.RESULT_BOLT_MEMORY_OFF_HEAP_LOAD);
 
-        Integer tickInterval = ((Number) config.get(BulletStormConfig.TICK_INTERVAL_SECS)).intValue();
-
         builder.setSpout(TopologyConstants.QUERY_COMPONENT, new QuerySpout(config), querySpoutParallelism)
                .setCPULoad(querySpoutCPULoad)
                .setMemoryLoad(querySpoutMemoryOnHeapLoad, querySpoutMemoryOffHeapLoad);
 
         // Hook in the source of the BulletRecords
-        builder.setBolt(TopologyConstants.FILTER_COMPONENT, new FilterBolt(recordComponent, tickInterval), filterBoltParallelism)
+        builder.setBolt(TopologyConstants.FILTER_COMPONENT, new FilterBolt(recordComponent, config), filterBoltParallelism)
                .shuffleGrouping(recordComponent)
                .allGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.QUERY_STREAM)
                .setCPULoad(filterBoltCPULoad)
                .setMemoryLoad(filterBoltMemoryOnheapLoad, filterBoltMemoryOffHeapLoad);
 
-        builder.setBolt(TopologyConstants.JOIN_COMPONENT, new JoinBolt(tickInterval), joinBoltParallelism)
+        builder.setBolt(TopologyConstants.JOIN_COMPONENT, new JoinBolt(config), joinBoltParallelism)
                .fieldsGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.QUERY_STREAM, new Fields(TopologyConstants.ID_FIELD))
                .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.FILTER_STREAM, new Fields(TopologyConstants.ID_FIELD))
                .setCPULoad(joinBoltCPULoad)
@@ -149,17 +144,8 @@ public class Topology {
 
         Config stormConfig = new Config();
 
-        // Enable debug logging
-        Boolean debug = (Boolean) config.get(BulletStormConfig.TOPOLOGY_DEBUG);
-        stormConfig.setDebug(debug);
-
         // Scheduler
-        String scheduler = (String) config.get(BulletStormConfig.TOPOLOGY_SCHEDULER);
-        stormConfig.setTopologyStrategy(getScheduler(scheduler));
-
-        // Workers (only applicable for Multitenant Scheduler)
-        Number workers = (Number) config.get(BulletStormConfig.TOPOLOGY_WORKERS);
-        stormConfig.setNumWorkers(workers.intValue());
+        stormConfig.setTopologyStrategy(DefaultResourceAwareStrategy.class);
 
         // Metrics
         Boolean enableMetrics = (Boolean) config.get(BulletStormConfig.TOPOLOGY_METRICS_ENABLE);
@@ -168,19 +154,10 @@ public class Topology {
             classNames.stream().forEach(className -> registerMetricsConsumer(className, stormConfig, config));
         }
 
-        // Put the rest of the Bullet settings without checking their types
+        // Put the rest of the Bullet settings (with other possible Storm settings) without checking their types
         stormConfig.putAll(config.getNonTopologySubmissionSettings());
 
         StormSubmitter.submitTopology(name, stormConfig, builder.createTopology());
-    }
-
-    private static Class<? extends IStrategy> getScheduler(String scheduler) {
-        switch (scheduler) {
-            case RESOURCE_AWARE_SCHEDULING_STRATEGY:
-                return DefaultResourceAwareStrategy.class;
-            default:
-                throw new RuntimeException("Only the ResourceAwareScheduler is supported at this time.");
-        }
     }
 
     private static IRichSpout getSpout(String className, List<String> args) throws Exception {
@@ -201,7 +178,7 @@ public class Topology {
     private static void registerMetricsConsumer(String className, Config stormConfig, BulletStormConfig bulletStormConfig) {
         try {
             Class<? extends IMetricsConsumer> consumer = (Class<? extends IMetricsConsumer>) Class.forName(className);
-            Method method = consumer.getMethod(REGISTER_METHOD, Config.class, BulletStormConfig.class);
+            Method method = consumer.getMethod(BulletStormConfig.REGISTER_METHOD, Config.class, BulletStormConfig.class);
             log.info("Calling the IMetricsConsumer register method for class {} using method {}", className, method.toGenericString());
             method.invoke(null, stormConfig, bulletStormConfig);
             log.info("Registered the IMetricsConsumer class {}", className);

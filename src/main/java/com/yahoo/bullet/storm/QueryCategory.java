@@ -1,0 +1,76 @@
+/*
+ *  Copyright 2018, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
+package com.yahoo.bullet.storm;
+
+import com.yahoo.bullet.querying.Querier;
+import com.yahoo.bullet.record.BulletRecord;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.HashMap;
+import java.util.Map;
+
+@Getter @Slf4j
+public abstract class QueryCategory {
+    private Map<String, Querier> rateLimited = new HashMap<>();
+    private Map<String, Querier> closed = new HashMap<>();
+    private Map<String, Querier> retired = new HashMap<>();
+
+    /**
+     * Categorize the given {@link Map} of query IDs to {@link Querier} instances.
+     *
+     * @param queries The queries to categorize.
+     * @return This object for chaining.
+     */
+    public QueryCategory categorize(Map<String, Querier> queries) {
+        queries.entrySet().forEach(this::classify);
+        return this;
+    }
+
+    /**
+     * Categorize the given {@link Map} of query IDs to {@link Querier} instances after consuming the given record.
+     *
+     * @param record The {@link BulletRecord} to consume first.
+     * @param queries The queries to categorize.
+     * @return This object for chaining.
+     */
+    public QueryCategory categorize(BulletRecord record, Map<String, Querier> queries) {
+        for (Map.Entry<String, Querier> query : queries.entrySet()) {
+            query.getValue().consume(record);
+            classify(query);
+        }
+        return this;
+    }
+
+    /**
+     * Categorize the given {@link Map} of query IDs to {@link Querier} instances after combining the given data.
+     *
+     * @param data The {@link byte[]} to combine first.
+     * @param queries The queries to categorize.
+     * @return This object for chaining.
+     */
+    public QueryCategory categorize(byte[] data, Map<String, Querier> queries) {
+        for (Map.Entry<String, Querier> query : queries.entrySet()) {
+            query.getValue().combine(data);
+            classify(query);
+        }
+        return this;
+    }
+
+    protected abstract boolean isClosed(Querier querier);
+
+    private void classify(Map.Entry<String, Querier> query) {
+        String id = query.getKey();
+        Querier querier = query.getValue();
+        if (querier.isDone()) {
+            retired.put(id, querier);
+        } else if (querier.isClosed()) {
+            closed.put(id, querier);
+        } else if (querier.isExceedingRateLimit()) {
+            rateLimited.put(id, querier);
+        }
+    }
+}

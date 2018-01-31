@@ -1,15 +1,6 @@
 # The name of the Storm topology
 bullet.topology.name: "bullet-topology"
 
-# The number of topology workers to use. Applicable when the scheduler is not ras.
-bullet.topology.workers: 92
-
-# Enable Storm debug logging
-bullet.topology.debug: false
-
-# The scheduling strategy to use. Only "ras" is currently supported.
-bullet.topology.scheduler: "ras"
-
 # Enable metrics collection for the topology. The registered metrics classes under bullet.topology.metrics.classes are loaded.
 # This enables the default storm built-in metrics. See: http://storm.apache.org/releases/1.0.1/Metrics.html
 # Depending on your cluster configuration, things such as on/off heap usage, cpu usage, garbage collection time/types
@@ -26,6 +17,7 @@ bullet.topology.metrics.enable: false
 #                              otherwise short running queries may not be even counted.
 #   2. bullet_created_queries : A metric that counts the number of queries created per JoinBolt.
 #   3. bullet_improper_queries : A metric that counts the number of semantically incorrect queries created per JoinBolt.
+#   4. bullet_rate_exceeded_queries : A metric that counts the number of queries that exceeded the configured rate limit.
 
 # Averaging metrics: These are org.apache.storm.metric.api.ReducedMetrics
 #   1. bullet_filter_latency: A metric that computes the average latency to filter a single record in the Filter Bolt. The latency is
@@ -56,32 +48,34 @@ bullet.topology.metrics.classes:
   - "com.yahoo.bullet.storm.SigarLoggingMetricsConsumer"
 
 # The following CPU loads and memory on and off heap control their respective component's CPU
-# and memory configuration. These settings are only used when scheduler is "ras"
+# and memory configuration. These settings are only used for the RAS scheduler.
 # The parallelism setting controls the number of executors used for each component.
+bullet.topology.query.spout.parallelism: 2
 bullet.topology.query.spout.cpu.load: 20.0
 bullet.topology.query.spout.memory.on.heap.load: 256.0
 bullet.topology.query.spout.memory.off.heap.load: 160.0
-bullet.topology.query.spout.parallelism: 3
-bullet.topology.result.bolt.cpu.load: 20.0
-bullet.topology.result.bolt.memory.on.heap.load: 128.0
-bullet.topology.result.bolt.memory.off.heap.load: 160.0
-bullet.topology.result.bolt.parallelism: 3
+bullet.topology.filter.bolt.parallelism: 16
 bullet.topology.filter.bolt.cpu.load: 100.0
 bullet.topology.filter.bolt.memory.on.heap.load: 256.0
 bullet.topology.filter.bolt.memory.off.heap.load: 160.0
-bullet.topology.filter.bolt.parallelism: 32
+bullet.topology.join.bolt.parallelism: 2
 bullet.topology.join.bolt.cpu.load: 100.0
 bullet.topology.join.bolt.memory.on.heap.load: 512.0
 bullet.topology.join.bolt.memory.off.heap.load: 160.0
-bullet.topology.join.bolt.parallelism: 2
+bullet.topology.result.bolt.parallelism: 2
+bullet.topology.result.bolt.cpu.load: 20.0
+bullet.topology.result.bolt.memory.on.heap.load: 128.0
+bullet.topology.result.bolt.memory.off.heap.load: 160.0
 
-# Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if queries
-# have expired) etc. This setting controls the how frequently a tick happens - number of seconds between ticks.
-bullet.topology.tick.interval.secs: 1
+# This is the number of ticks for which a window will be buffered past its expiry in order to wait for
+# the windows to trickle in from the Filter Bolts. This only applies to time based windows.
+bullet.topology.join.bolt.window.tick.timeout: 5
 
-# This is the number of ticks for which a query will be buffered past its expiry in order to wait for
-# aggregations to trickle in from the Filter Bolts.
-bullet.topology.join.bolt.query.tick.timeout: 3
+# Bullet uses ticks underneath the hood as a "clock"-like mechanism to do metadata and query updates (checking if queries
+# have expired) etc. This is particularly relevant if your data volume is low since your queries depend on these ticks to
+# emit data etc appropriately. This setting controls the how frequently a tick happens - number of milliseconds between ticks.
+# The bullet.query.window.min.emit.every should be at least double this value, or else the defaults for both are used.
+bullet.topology.tick.spout.interval: 200
 
 ########################################################################################################################
 ######################################### PubSub and PubSub Storm DRPC defaults ########################################

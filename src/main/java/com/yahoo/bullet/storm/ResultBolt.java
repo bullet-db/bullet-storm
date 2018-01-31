@@ -15,28 +15,29 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.OutputFieldsDeclarer;
-import org.apache.storm.topology.base.BaseRichBolt;
 import org.apache.storm.tuple.Tuple;
 
 import java.util.Map;
 
 @Slf4j
-public class ResultBolt extends BaseRichBolt {
-    private OutputCollector collector;
-    private BulletStormConfig config;
+public class ResultBolt extends ConfigComponent implements IRichBolt {
+    private static final long serialVersionUID = -1927930701345251113L;
+
+    private transient OutputCollector collector;
 
     /** Exposed for testing only. */
     @Getter(AccessLevel.PACKAGE)
-    private Publisher publisher;
+    private transient Publisher publisher;
 
     /**
-     * Creates a ResultBolt and passes in a {@link BulletStormConfig}.
+     * Creates a ResultBolt with a non-null {@link BulletStormConfig}.
      *
-     * @param config The BulletStormConfig to create PubSub from.
+     * @param config The non-null BulletStormConfig to use. It should contain the settings to initialize a PubSub.
      */
     public ResultBolt(BulletStormConfig config) {
-        this.config = config;
+        super(config);
     }
 
     @Override

@@ -5,30 +5,32 @@
  */
 package com.yahoo.bullet.storm.drpc;
 
-import com.yahoo.bullet.Config;
+import com.yahoo.bullet.common.BulletConfig;
+import com.yahoo.bullet.common.Config;
 import com.yahoo.bullet.storm.BulletStormConfig;
 
 public class DRPCConfig extends BulletStormConfig {
+    private static final long serialVersionUID = -2767564998976326025L;
+
     public static final String PREFIX = "bullet.pubsub.storm.drpc.";
 
-    // The location of DRPC servers.
+    /** The location of DRPC servers. **/
     public static final String DRPC_SERVERS = PREFIX + "servers";
-    // This is the name of the DRPC function used to register with the DRPC servers
+    /** This is the name of the DRPC function used to register with the DRPC servers. **/
     public static final String DRPC_FUNCTION = PREFIX + "function";
 
-    // HTTP configuration
-    // The timeout and retry limits for HTTP connections to DRPC servers.
+    /** The timeout for HTTP connections to DRPC servers. **/
     public static final String DRPC_HTTP_CONNECT_TIMEOUT_MS = PREFIX + "http.connect.timeout.ms";
+    /** The number of retries for HTTP connections to DRPC servers. **/
     public static final String DRPC_HTTP_CONNECT_RETRY_LIMIT = PREFIX + "http.connect.retry.limit";
-    // This is the HTTP protocol to use when submitting to the DRPC server.
+    /** This is the HTTP protocol to use when submitting to the DRPC server. **/
     public static final String DRPC_HTTP_PROTOCOL = PREFIX + "http.protocol";
-    // This is the port that the QUERY_SUBMISSION end talks to.
+    /** This is the port that the QUERY_SUBMISSION end talks to. **/
     public static final String DRPC_HTTP_PORT = PREFIX + "http.port";
-    // The path that queries must be POSTed to. This generally is "drpc".
+    /** The path that queries must be POSTed to. This generally is "drpc". **/
     public static final String DRPC_HTTP_PATH = PREFIX + "http.path";
 
-    // This is the maximum number of pending queries that can be read by a single subscriber in QUERY_PROCESSING
-    // before a commit is needed.
+    /** The maximum pending queries read by a single subscriber in QUERY_PROCESSING before a commit is needed. **/
     public static final String DRPC_MAX_UNCOMMITED_MESSAGES = PREFIX + "max.uncommitted.messages";
 
     /**
@@ -39,6 +41,11 @@ public class DRPCConfig extends BulletStormConfig {
     public DRPCConfig(String file) {
         // Load and merge with default bullet-storm settings. Storm defaults also contain the DRPC settings.
         this(new BulletStormConfig(file));
+    }
+
+    @Override
+    public BulletConfig validate() {
+        return super.validate();
     }
 
     /**
