@@ -22,7 +22,7 @@ import java.util.Map;
 import static com.yahoo.bullet.storm.TopologyConstants.DATA_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.ERROR_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.ERROR_STREAM;
-import static com.yahoo.bullet.storm.TopologyConstants.FILTER_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 
 @Slf4j
@@ -56,7 +56,7 @@ public class FilterBolt extends QueryBolt {
         super.prepare(stormConf, context, collector);
         // Set the record component into the classifier
         classifier.setRecordComponent(recordComponent);
-        if (metricsEnabled) {
+        if (!metricsEnabled) {
             averageLatency = registerAveragingMetric(TopologyConstants.LATENCY_METRIC, context);
             rateExceededQueries = registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
         }
@@ -68,16 +68,16 @@ public class FilterBolt extends QueryBolt {
         TupleClassifier.Type type = classifier.classify(tuple).orElse(TupleClassifier.Type.UNKNOWN_TUPLE);
         switch (type) {
             case TICK_TUPLE:
-                processQueries();
+                onTick();
                 break;
             case META_TUPLE:
-                initializeMetadata(tuple);
+                onMeta(tuple);
                 break;
             case QUERY_TUPLE:
-                initializeQuery(tuple);
+                onQuery(tuple);
                 break;
             case RECORD_TUPLE:
-                consumeOnQueries(tuple);
+                onRecord(tuple);
                 updateLatency(tuple);
                 break;
             default:
@@ -90,44 +90,46 @@ public class FilterBolt extends QueryBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declareStream(FILTER_STREAM, new Fields(ID_FIELD, DATA_FIELD));
+        // This is the per query data stream
+        declarer.declareStream(DATA_STREAM, new Fields(ID_FIELD, DATA_FIELD));
+        // This is the where any errors per query are sent
         declarer.declareStream(ERROR_STREAM, new Fields(ID_FIELD, ERROR_FIELD));
     }
 
-    private void initializeQuery(Tuple queryTuple) {
+    private void onQuery(Tuple queryTuple) {
         String id = queryTuple.getString(TopologyConstants.ID_POSITION);
-        String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
+        String query = queryTuple.getString(TopologyConstants.QUERY_POSITION);
 
         // No need to handle any errors in the Filter Bolt.
         Querier querier = null;
         try {
-            querier = new Querier(id, queryString, config);
+            querier = new Querier(id, query, config);
             if (querier.initialize().isPresent()) {
                 querier = null;
             }
         } catch (RuntimeException ignored) {
         }
         if (querier == null) {
-            log.error("Failed to initialize query for request {} with query {}", id, queryString);
+            log.error("Failed to initialize query for request {} with query {}", id, query);
         } else {
-            log.info("Initialized query {}: {}", id, queryString);
+            log.info("Initialized query {}: {}", id, query);
             queries.put(id, querier);
         }
     }
 
-    private void consumeOnQueries(Tuple tuple) {
+    private void onRecord(Tuple tuple) {
         BulletRecord record = (BulletRecord) tuple.getValue(TopologyConstants.RECORD_POSITION);
         emitCategorizedQueries(new FilterCategory().categorize(record, queries));
     }
 
-    private void processQueries() {
+    private void onTick() {
         emitCategorizedQueries(new FilterCategory().categorize(queries));
     }
 
     private void emitCategorizedQueries(QueryCategory category) {
-        Map<String, Querier> retired = category.getRetired();
-        retired.entrySet().forEach(this::emitData);
-        queries.keySet().removeAll(retired.keySet());
+        Map<String, Querier> done = category.getDone();
+        done.entrySet().forEach(this::emitData);
+        queries.keySet().removeAll(done.keySet());
 
         Map<String, Querier> rateLimited = category.getRateLimited();
         rateLimited.entrySet().forEach(this::emitError);
@@ -137,21 +139,21 @@ public class FilterBolt extends QueryBolt {
         closed.entrySet().forEach(this::emitData);
         closed.values().forEach(Querier::reset);
 
-        log.info("Retired: {}, Rate limited: {}, Closed: {}, Active: {}",
-                 retired.size(), rateLimited.size(), closed.size(), queries.size());
+        log.info("Done: {}, Rate limited: {}, Closed: {}, Active: {}",
+                 done.size(), rateLimited.size(), closed.size(), queries.size());
     }
 
     private void emitData(Map.Entry<String, Querier> query) {
         byte[] data = query.getValue().getData();
         if (data != null) {
-            collector.emit(new Values(query.getKey(), data));
+            collector.emit(DATA_STREAM, new Values(query.getKey(), data));
         }
     }
 
     private void emitError(Map.Entry<String, Querier> query) {
         RateLimitError error = query.getValue().getRateLimitError();
         if (error != null) {
-            collector.emit(new Values(query.getKey(), error));
+            collector.emit(ERROR_STREAM, new Values(query.getKey(), error));
             updateCount(rateExceededQueries, 1L);
         }
     }

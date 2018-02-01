@@ -41,7 +41,7 @@ public class TopologyConstants {
 
     public static final String RECORD_STREAM = Utils.DEFAULT_STREAM_ID;
     public static final String TICK_STREAM = Utils.DEFAULT_STREAM_ID;
-    public static final String FILTER_STREAM = Utils.DEFAULT_STREAM_ID;
+    public static final String DATA_STREAM = Utils.DEFAULT_STREAM_ID;
     public static final String ERROR_STREAM = "error";
     public static final String JOIN_STREAM = Utils.DEFAULT_STREAM_ID;
     public static final String QUERY_STREAM = Utils.DEFAULT_STREAM_ID;

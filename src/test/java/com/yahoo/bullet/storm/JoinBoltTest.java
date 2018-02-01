@@ -108,7 +108,7 @@ public class JoinBoltTest {
             for (int j = 0; j < batchSize; ++j) {
                 batch[j] = RecordBox.get().add("field", String.valueOf(i + j)).getRecord();
             }
-            Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.FILTER_TUPLE, id, getListBytes(batch));
+            Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.DATA_TUPLE, id, getListBytes(batch));
             bolt.execute(tuple);
             sent.addAll(asList(batch));
         }
@@ -125,7 +125,7 @@ public class JoinBoltTest {
 
     private void sendRawByteTuplesTo(IRichBolt bolt, String id, List<byte[]> data) {
         for (byte[] b : data) {
-            Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.FILTER_TUPLE, id, b);
+            Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.DATA_TUPLE, id, b);
             bolt.execute(tuple);
         }
     }

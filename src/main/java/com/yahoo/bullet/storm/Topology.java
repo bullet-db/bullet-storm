@@ -132,7 +132,7 @@ public class Topology {
 
         builder.setBolt(TopologyConstants.JOIN_COMPONENT, new JoinBolt(config), joinBoltParallelism)
                .fieldsGrouping(TopologyConstants.QUERY_COMPONENT, TopologyConstants.QUERY_STREAM, new Fields(TopologyConstants.ID_FIELD))
-               .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.FILTER_STREAM, new Fields(TopologyConstants.ID_FIELD))
+               .fieldsGrouping(TopologyConstants.FILTER_COMPONENT, TopologyConstants.DATA_STREAM, new Fields(TopologyConstants.ID_FIELD))
                .setCPULoad(joinBoltCPULoad)
                .setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
 

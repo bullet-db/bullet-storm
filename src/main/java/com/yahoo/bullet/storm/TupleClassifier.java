@@ -16,7 +16,7 @@ import java.util.Set;
 
 import static com.yahoo.bullet.storm.TopologyConstants.ERROR_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.FILTER_COMPONENT;
-import static com.yahoo.bullet.storm.TopologyConstants.FILTER_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.JOIN_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.JOIN_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.META_STREAM;
@@ -35,10 +35,10 @@ public class TupleClassifier {
         TICK_TUPLE(TICK_COMPONENT, TICK_STREAM),
         QUERY_TUPLE(QUERY_COMPONENT, QUERY_STREAM),
         META_TUPLE(null, META_STREAM),
-        FILTER_TUPLE(FILTER_COMPONENT, FILTER_STREAM),
-        RECORD_TUPLE(RECORD_COMPONENT, null),
         ERROR_TUPLE(FILTER_COMPONENT, ERROR_STREAM),
+        DATA_TUPLE(FILTER_COMPONENT, DATA_STREAM),
         JOIN_TUPLE(JOIN_COMPONENT, JOIN_STREAM),
+        RECORD_TUPLE(RECORD_COMPONENT, null),
         UNKNOWN_TUPLE("", "");
 
         private String stream;

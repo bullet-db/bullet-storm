@@ -17,7 +17,7 @@ import java.util.Map;
 public abstract class QueryCategory {
     private Map<String, Querier> rateLimited = new HashMap<>();
     private Map<String, Querier> closed = new HashMap<>();
-    private Map<String, Querier> retired = new HashMap<>();
+    private Map<String, Querier> done = new HashMap<>();
 
     /**
      * Categorize the given {@link Map} of query IDs to {@link Querier} instances.
@@ -66,7 +66,7 @@ public abstract class QueryCategory {
         String id = query.getKey();
         Querier querier = query.getValue();
         if (querier.isDone()) {
-            retired.put(id, querier);
+            done.put(id, querier);
         } else if (querier.isClosed()) {
             closed.put(id, querier);
         } else if (querier.isExceedingRateLimit()) {

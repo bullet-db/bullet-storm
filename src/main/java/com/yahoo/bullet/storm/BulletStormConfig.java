@@ -51,6 +51,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String RESULT_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.result.bolt.memory.on.heap.load";
     public static final String RESULT_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.result.bolt.memory.off.heap.load";
     public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval";
+    public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
     public static final String JOIN_BOLT_WINDOW_TICK_TIMEOUT = "bullet.topology.join.bolt.window.tick.timeout";
 
     // Defaults
@@ -85,7 +86,8 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final double DEFAULT_RESULT_BOLT_MEMORY_ON_HEAP_LOAD = 128.0;
     public static final double DEFAULT_RESULT_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
     public static final int DEFAULT_TICK_SPOUT_INTERVAL = 200;
-    public static final int DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT = 5;
+    public static final int DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT = 5;
+    public static final int DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT = 3;
 
     //  Validations
 
@@ -193,6 +195,11 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         VALIDATOR.define(TICK_SPOUT_INTERVAL)
                  .checkIf(Validator::isPositiveInt)
                  .defaultTo(DEFAULT_TICK_SPOUT_INTERVAL)
+                 .castTo(Validator::asInt);
+
+        VALIDATOR.define(JOIN_BOLT_QUERY_TICK_TIMEOUT)
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT)
                  .castTo(Validator::asInt);
 
         VALIDATOR.define(JOIN_BOLT_WINDOW_TICK_TIMEOUT)

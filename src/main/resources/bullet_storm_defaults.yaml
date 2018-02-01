@@ -67,9 +67,13 @@ bullet.topology.result.bolt.cpu.load: 20.0
 bullet.topology.result.bolt.memory.on.heap.load: 128.0
 bullet.topology.result.bolt.memory.off.heap.load: 160.0
 
+# This is the number of ticks for which a query will be buffered past its expiry in order to wait for
+# aggregations to trickle in from the Filter Bolts.
+bullet.topology.join.bolt.query.tick.timeout: 5
+
 # This is the number of ticks for which a window will be buffered past its expiry in order to wait for
 # the windows to trickle in from the Filter Bolts. This only applies to time based windows.
-bullet.topology.join.bolt.window.tick.timeout: 5
+bullet.topology.join.bolt.window.tick.timeout: 3
 
 # Bullet uses ticks underneath the hood as a "clock"-like mechanism to do metadata and query updates (checking if queries
 # have expired) etc. This is particularly relevant if your data volume is low since your queries depend on these ticks to
