@@ -54,6 +54,9 @@ bullet.topology.query.spout.parallelism: 2
 bullet.topology.query.spout.cpu.load: 20.0
 bullet.topology.query.spout.memory.on.heap.load: 256.0
 bullet.topology.query.spout.memory.off.heap.load: 160.0
+bullet.topology.tick.spout.cpu.load: 20.0
+bullet.topology.tick.spout.memory.on.heap.load: 128.0
+bullet.topology.tick.spout.memory.off.heap.load: 160.0
 bullet.topology.filter.bolt.parallelism: 16
 bullet.topology.filter.bolt.cpu.load: 100.0
 bullet.topology.filter.bolt.memory.on.heap.load: 256.0
@@ -64,8 +67,12 @@ bullet.topology.join.bolt.memory.on.heap.load: 512.0
 bullet.topology.join.bolt.memory.off.heap.load: 160.0
 bullet.topology.result.bolt.parallelism: 2
 bullet.topology.result.bolt.cpu.load: 20.0
-bullet.topology.result.bolt.memory.on.heap.load: 128.0
+bullet.topology.result.bolt.memory.on.heap.load: 256.0
 bullet.topology.result.bolt.memory.off.heap.load: 160.0
+bullet.topology.loop.bolt.parallelism: 2
+bullet.topology.loop.bolt.cpu.load: 20.0
+bullet.topology.loop.bolt.memory.on.heap.load: 256.0
+bullet.topology.loop.bolt.memory.off.heap.load: 160.0
 
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
 # aggregations to trickle in from the Filter Bolts.
@@ -81,10 +88,32 @@ bullet.topology.join.bolt.window.tick.timeout: 3
 # The bullet.query.window.min.emit.every should be at least double this value, or else the defaults for both are used.
 bullet.topology.tick.spout.interval: 200
 
+# The Loop Bolt switches your PubSub into QUERY_SUBMISSION mode to loop back metadata messages to the rest of the
+# topology. If you need to change settings for your publisher in this mode that is different from the settings
+# used in the ResultBolt, override them here. They will be merged into the config and replace the existing settings.
+# This setting needs to be a Map if provided. The example below pretends that your PubSub settings start with
+# bullet.pubsub.custom. You will provide yours.
+# Example:
+#
+# bullet.topology.loop.bolt.pubsub.overrides:
+#   bullet.pubsub.custom.publisher.setting: 1
+#   bullet.pubsub.custom.nested.publisher.setting:
+#     foo: bar
+#     bar: baz
+bullet.topology.loop.bolt.pubsub.overrides: {}
+
+########################################################################################################################
+################################################# Custom Storm Settings ################################################
+########################################################################################################################
+
+# You can add custom storm settings if you want by prefixing them with "bullet.topology.custom."
+# They will be added as is to the Storm config when submitting the topology.
+# You can also set Storm settings by adding them a "-c setting=value" when submitting your job with "storm jar ..."
+
 ########################################################################################################################
 ######################################### PubSub and PubSub Storm DRPC defaults ########################################
 ########################################################################################################################
-# This is the type of PubSub context to use
+# This is the type of PubSub context to use for the result bolt.
 bullet.pubsub.context.name: "QUERY_PROCESSING"
 # This is the name of the concrete implementation of PubSub to use. By default, this is the DRPC implementation of PubSub that comes with bullet-storm.
 bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"

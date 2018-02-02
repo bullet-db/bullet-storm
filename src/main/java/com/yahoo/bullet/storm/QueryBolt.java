@@ -18,7 +18,6 @@ import org.apache.storm.tuple.Tuple;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import static com.yahoo.bullet.storm.BulletStormConfig.DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY;
 
@@ -52,6 +51,10 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         metricsIntervalMapping = config.getAs(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, Map.class);
     }
 
+    @Override
+    public void cleanup() {
+    }
+
     /**
      * Handles a metadata message for a query.
      *
@@ -67,10 +70,6 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
             log.info("Received {} signal and killed query: {}", signal, id);
         }
         return metadata;
-    }
-
-    @Override
-    public void cleanup() {
     }
 
     /**

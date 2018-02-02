@@ -24,7 +24,7 @@ import java.util.Map;
 
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_FIELD;
-import static com.yahoo.bullet.storm.TopologyConstants.META_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.QUERY_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.QUERY_STREAM;
 
@@ -86,20 +86,18 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
             return;
         }
         String content = message.getContent();
-        // If no content, it's a metadata only message. Send it on the META_STREAM.
+        // If no content, it's a metadata only message. Send it on the METADATA_STREAM.
         if (content == null) {
-            collector.emit(META_STREAM,
-                           new Values(message.getId(), message.getMetadata()), message.getId());
+            collector.emit(METADATA_STREAM, new Values(message.getId(), message.getMetadata()), message.getId());
         } else {
-            collector.emit(QUERY_STREAM,
-                           new Values(message.getId(), message.getContent(), message.getMetadata()), message.getId());
+            collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent(), message.getMetadata()), message.getId());
         }
     }
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
         declarer.declareStream(QUERY_STREAM, new Fields(ID_FIELD, QUERY_FIELD, METADATA_FIELD));
-        declarer.declareStream(META_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
+        declarer.declareStream(METADATA_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
     }
 
     @Override

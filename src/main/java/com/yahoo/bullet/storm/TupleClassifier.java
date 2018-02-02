@@ -18,8 +18,8 @@ import static com.yahoo.bullet.storm.TopologyConstants.ERROR_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.FILTER_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.JOIN_COMPONENT;
-import static com.yahoo.bullet.storm.TopologyConstants.JOIN_STREAM;
-import static com.yahoo.bullet.storm.TopologyConstants.META_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.RESULT_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.QUERY_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.QUERY_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.RECORD_COMPONENT;
@@ -34,11 +34,11 @@ public class TupleClassifier {
     public enum Type {
         TICK_TUPLE(TICK_COMPONENT, TICK_STREAM),
         QUERY_TUPLE(QUERY_COMPONENT, QUERY_STREAM),
-        META_TUPLE(null, META_STREAM),
+        METADATA_TUPLE(null, METADATA_STREAM),
+        RECORD_TUPLE(RECORD_COMPONENT, null),
         ERROR_TUPLE(FILTER_COMPONENT, ERROR_STREAM),
         DATA_TUPLE(FILTER_COMPONENT, DATA_STREAM),
-        JOIN_TUPLE(JOIN_COMPONENT, JOIN_STREAM),
-        RECORD_TUPLE(RECORD_COMPONENT, null),
+        RESULT_TUPLE(JOIN_COMPONENT, RESULT_STREAM),
         UNKNOWN_TUPLE("", "");
 
         private String stream;
@@ -56,10 +56,10 @@ public class TupleClassifier {
          * @return A boolean denoting whether this tuple is of this Type.
          */
         public boolean isMe(Tuple tuple) {
-            return checkField(component, tuple.getSourceComponent()) && checkField(stream, tuple.getSourceStreamId());
+            return isEqualIfSet(component, tuple.getSourceComponent()) && isEqualIfSet(stream, tuple.getSourceStreamId());
         }
 
-        private boolean checkField(String field, String value) {
+        private boolean isEqualIfSet(String field, String value) {
             return field == null || value.equals(field);
         }
     }

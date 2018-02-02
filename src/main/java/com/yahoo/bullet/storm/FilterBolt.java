@@ -27,13 +27,6 @@ import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 
 @Slf4j
 public class FilterBolt extends QueryBolt {
-    public static class FilterCategory extends QueryCategory {
-        @Override
-        protected boolean isClosed(Querier querier) {
-            return querier.isClosedForPartition();
-        }
-    }
-
     private static final long serialVersionUID = -4357269268404488793L;
 
     private String recordComponent;
@@ -70,7 +63,7 @@ public class FilterBolt extends QueryBolt {
             case TICK_TUPLE:
                 onTick();
                 break;
-            case META_TUPLE:
+            case METADATA_TUPLE:
                 onMeta(tuple);
                 break;
             case QUERY_TUPLE:
@@ -96,9 +89,9 @@ public class FilterBolt extends QueryBolt {
         declarer.declareStream(ERROR_STREAM, new Fields(ID_FIELD, ERROR_FIELD));
     }
 
-    private void onQuery(Tuple queryTuple) {
-        String id = queryTuple.getString(TopologyConstants.ID_POSITION);
-        String query = queryTuple.getString(TopologyConstants.QUERY_POSITION);
+    private void onQuery(Tuple tuple) {
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
+        String query = tuple.getString(TopologyConstants.QUERY_POSITION);
 
         // No need to handle any errors in the Filter Bolt.
         Querier querier = null;
@@ -119,14 +112,14 @@ public class FilterBolt extends QueryBolt {
 
     private void onRecord(Tuple tuple) {
         BulletRecord record = (BulletRecord) tuple.getValue(TopologyConstants.RECORD_POSITION);
-        emitCategorizedQueries(new FilterCategory().categorize(record, queries));
+        handleCategorizedQueries(new QueryCategorizer().categorize(record, queries));
     }
 
     private void onTick() {
-        emitCategorizedQueries(new FilterCategory().categorize(queries));
+        handleCategorizedQueries(new QueryCategorizer().categorize(queries, true));
     }
 
-    private void emitCategorizedQueries(QueryCategory category) {
+    private void handleCategorizedQueries(QueryCategorizer category) {
         Map<String, Querier> done = category.getDone();
         done.entrySet().forEach(this::emitData);
         queries.keySet().removeAll(done.keySet());

@@ -9,20 +9,16 @@ import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.common.Config;
 import com.yahoo.bullet.common.Validator;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.storm.metric.api.IMetricsConsumer;
 
 import java.io.Serializable;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import static com.yahoo.bullet.storm.TopologyConstants.BUILT_IN_METRICS;
-import static java.util.Arrays.asList;
 
 @Slf4j
 public class BulletStormConfig extends BulletConfig implements Serializable {
@@ -38,6 +34,9 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String QUERY_SPOUT_CPU_LOAD = "bullet.topology.query.spout.cpu.load";
     public static final String QUERY_SPOUT_MEMORY_ON_HEAP_LOAD = "bullet.topology.query.spout.memory.on.heap.load";
     public static final String QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.query.spout.memory.off.heap.load";
+    public static final String TICK_SPOUT_CPU_LOAD = "bullet.topology.tick.spout.cpu.load";
+    public static final String TICK_SPOUT_MEMORY_ON_HEAP_LOAD = "bullet.topology.tick.spout.memory.on.heap.load";
+    public static final String TICK_SPOUT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.tick.spout.memory.off.heap.load";
     public static final String FILTER_BOLT_PARALLELISM = "bullet.topology.filter.bolt.parallelism";
     public static final String FILTER_BOLT_CPU_LOAD = "bullet.topology.filter.bolt.cpu.load";
     public static final String FILTER_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.filter.bolt.memory.on.heap.load";
@@ -50,9 +49,14 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String RESULT_BOLT_CPU_LOAD = "bullet.topology.result.bolt.cpu.load";
     public static final String RESULT_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.result.bolt.memory.on.heap.load";
     public static final String RESULT_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.result.bolt.memory.off.heap.load";
+    public static final String LOOP_BOLT_PARALLELISM = "bullet.topology.loop.bolt.parallelism";
+    public static final String LOOP_BOLT_CPU_LOAD = "bullet.topology.loop.bolt.cpu.load";
+    public static final String LOOP_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.loop.bolt.memory.on.heap.load";
+    public static final String LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.loop.bolt.memory.off.heap.load";
     public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval";
     public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
     public static final String JOIN_BOLT_WINDOW_TICK_TIMEOUT = "bullet.topology.join.bolt.window.tick.timeout";
+    public static final String LOOP_BOLT_PUBSUB_OVERRIDES = "bullet.topology.loop.bolt.pubsub.overrides";
 
     // Defaults
 
@@ -73,6 +77,9 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final double DEFAULT_QUERY_SPOUT_CPU_LOAD = 20.0;
     public static final double DEFAULT_QUERY_SPOUT_MEMORY_ON_HEAP_LOAD = 256.0;
     public static final double DEFAULT_QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD = 160.0;
+    public static final double DEFAULT_TICK_SPOUT_CPU_LOAD = 20.0;
+    public static final double DEFAULT_TICK_SPOUT_MEMORY_ON_HEAP_LOAD = 128.0;
+    public static final double DEFAULT_TICK_SPOUT_MEMORY_OFF_HEAP_LOAD = 160.0;
     public static final Number DEFAULT_FILTER_BOLT_PARALLELISM = 16;
     public static final double DEFAULT_FILTER_BOLT_CPU_LOAD = 100.0;
     public static final double DEFAULT_FILTER_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
@@ -83,11 +90,16 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final double DEFAULT_JOIN_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
     public static final int DEFAULT_RESULT_BOLT_PARALLELISM = 2;
     public static final double DEFAULT_RESULT_BOLT_CPU_LOAD = 20.0;
-    public static final double DEFAULT_RESULT_BOLT_MEMORY_ON_HEAP_LOAD = 128.0;
+    public static final double DEFAULT_RESULT_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
     public static final double DEFAULT_RESULT_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
+    public static final int DEFAULT_LOOP_BOLT_PARALLELISM = 2;
+    public static final double DEFAULT_LOOP_BOLT_CPU_LOAD = 20.0;
+    public static final double DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
+    public static final double DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
     public static final int DEFAULT_TICK_SPOUT_INTERVAL = 200;
     public static final int DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT = 5;
     public static final int DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT = 3;
+    public static final Map<String, Object> DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES = Collections.emptyMap();
 
     //  Validations
 
@@ -131,6 +143,22 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isFloat)
                  .defaultTo(DEFAULT_QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD)
                  .castTo(Validator::asDouble);
+
+        VALIDATOR.define(TICK_SPOUT_CPU_LOAD)
+                .checkIf(Validator::isPositive)
+                .checkIf(Validator::isFloat)
+                .defaultTo(DEFAULT_TICK_SPOUT_CPU_LOAD)
+                .castTo(Validator::asDouble);
+        VALIDATOR.define(TICK_SPOUT_MEMORY_ON_HEAP_LOAD)
+                .checkIf(Validator::isPositive)
+                .checkIf(Validator::isFloat)
+                .defaultTo(DEFAULT_TICK_SPOUT_MEMORY_ON_HEAP_LOAD)
+                .castTo(Validator::asDouble);
+        VALIDATOR.define(TICK_SPOUT_MEMORY_OFF_HEAP_LOAD)
+                .checkIf(Validator::isPositive)
+                .checkIf(Validator::isFloat)
+                .defaultTo(DEFAULT_TICK_SPOUT_MEMORY_OFF_HEAP_LOAD)
+                .castTo(Validator::asDouble);
 
         VALIDATOR.define(FILTER_BOLT_PARALLELISM)
                  .checkIf(Validator::isPositiveInt)
@@ -192,6 +220,26 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .defaultTo(DEFAULT_RESULT_BOLT_MEMORY_OFF_HEAP_LOAD)
                  .castTo(Validator::asDouble);
 
+        VALIDATOR.define(LOOP_BOLT_PARALLELISM)
+                .checkIf(Validator::isPositiveInt)
+                .defaultTo(DEFAULT_LOOP_BOLT_PARALLELISM)
+                .castTo(Validator::asInt);
+        VALIDATOR.define(LOOP_BOLT_CPU_LOAD)
+                .checkIf(Validator::isPositive)
+                .checkIf(Validator::isFloat)
+                .defaultTo(DEFAULT_LOOP_BOLT_CPU_LOAD)
+                .castTo(Validator::asDouble);
+        VALIDATOR.define(LOOP_BOLT_MEMORY_ON_HEAP_LOAD)
+                .checkIf(Validator::isPositive)
+                .checkIf(Validator::isFloat)
+                .defaultTo(DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD)
+                .castTo(Validator::asDouble);
+        VALIDATOR.define(LOOP_BOLT_MEMORY_OFF_HEAP_LOAD)
+                .checkIf(Validator::isPositive)
+                .checkIf(Validator::isFloat)
+                .defaultTo(DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD)
+                .castTo(Validator::asDouble);
+
         VALIDATOR.define(TICK_SPOUT_INTERVAL)
                  .checkIf(Validator::isPositiveInt)
                  .defaultTo(DEFAULT_TICK_SPOUT_INTERVAL)
@@ -207,6 +255,11 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .defaultTo(DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT)
                  .castTo(Validator::asInt);
 
+        VALIDATOR.define(LOOP_BOLT_PUBSUB_OVERRIDES)
+                 .checkIf(Validator::isMap)
+                 .checkIf(BulletStormConfig::isMapWithStringKeys)
+                 .defaultTo(DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
+
         VALIDATOR.relate("Minimum window emit every should be >= 2 * tick interval", TICK_SPOUT_INTERVAL, BulletConfig.WINDOW_MIN_EMIT_EVERY)
                  .checkIf(BulletStormConfig::isAtleastDouble);
     }
@@ -219,16 +272,10 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     // This is the key to place the TopologyContext as
     public static final String STORM_CONTEXT = "bullet.topology.storm.context";
 
-    // The name of the register method in a custom metrics class.
-    public static final String REGISTER_METHOD = "register";
+    public static final String CUSTOM_STORM_SETTING_PREFIX = "bullet.topology.custom.";
 
-    public static Set<String> TOPOLOGY_SUBMISSION_SETTINGS =
-        new HashSet<>(asList(QUERY_SPOUT_PARALLELISM, QUERY_SPOUT_CPU_LOAD, QUERY_SPOUT_MEMORY_ON_HEAP_LOAD,
-                             QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD, FILTER_BOLT_PARALLELISM, FILTER_BOLT_CPU_LOAD,
-                             FILTER_BOLT_MEMORY_ON_HEAP_LOAD, FILTER_BOLT_MEMORY_OFF_HEAP_LOAD, JOIN_BOLT_PARALLELISM,
-                             JOIN_BOLT_CPU_LOAD, JOIN_BOLT_MEMORY_ON_HEAP_LOAD, JOIN_BOLT_MEMORY_OFF_HEAP_LOAD,
-                             RESULT_BOLT_PARALLELISM, RESULT_BOLT_CPU_LOAD, RESULT_BOLT_MEMORY_ON_HEAP_LOAD,
-                             RESULT_BOLT_MEMORY_OFF_HEAP_LOAD, TOPOLOGY_NAME, TOPOLOGY_METRICS_ENABLE));
+    // The number of tick spouts in the topology. This should be 1 since it is broadcast to all filter and join bolts.
+    public static final int TICK_SPOUT_PARALLELISM = 1;
 
     public static final String DEFAULT_STORM_CONFIGURATION = "bullet_storm_defaults.yaml";
 
@@ -262,12 +309,12 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     }
 
     /**
-     * Gets all the settings besides the {@link #TOPOLOGY_SUBMISSION_SETTINGS}.
+     * Gets all the custom settings defined with {@link #CUSTOM_STORM_SETTING_PREFIX}. The prefix is removed.
      *
-     * @return A {@link Map} of the other settings.
+     * @return A {@link Map} of these custom settings.
      */
-    public Map<String, Object> getNonTopologySubmissionSettings() {
-        return getAllBut(Optional.of(TOPOLOGY_SUBMISSION_SETTINGS));
+    public Map<String, Object> getCustomStormSettings() {
+        return getAllWithPrefix(Optional.empty(), CUSTOM_STORM_SETTING_PREFIX, true);
     }
 
     @SuppressWarnings("unchecked")
@@ -295,7 +342,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     private static boolean areMetricsConsumerClasses(Object metricClassList) {
         try {
             List<String> classes = (List<String>) metricClassList;
-            return classes.stream().allMatch(BulletStormConfig::isIMetricsConsumer);
+            return classes.stream().allMatch(ReflectionUtils::isIMetricsConsumer);
         } catch (ClassCastException e) {
             log.warn("Metrics classes is not provided as a list of strings: {}", metricClassList);
             return false;
@@ -303,20 +350,14 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     }
 
     @SuppressWarnings("unchecked")
-    private static boolean isIMetricsConsumer(String clazz) {
+    private static boolean isMapWithStringKeys(Object maybeMap) {
         try {
-            Class<? extends IMetricsConsumer> consumer = (Class<? extends IMetricsConsumer>) Class.forName(clazz);
-            Method method = consumer.getMethod(REGISTER_METHOD, Config.class, BulletStormConfig.class);
-            if (method == null) {
-                log.warn("The {} method was not found in class: {}", REGISTER_METHOD, clazz);
-                return false;
-            }
-        } catch (Exception e) {
-            log.warn("The given class: {} was not a proper IMetricsConsumer with a {} method", clazz, REGISTER_METHOD);
-            log.warn("Exception: {}", e);
+            Map<String, Object> map = (Map<String, Object>) maybeMap;
+            return map.keySet().stream().noneMatch(String::isEmpty);
+        } catch (ClassCastException e) {
+            log.warn("{} is not a valid map of non-empty strings to objects", maybeMap);
             return false;
         }
-        return true;
     }
 
     private static boolean isAtleastDouble(Object minEvery, Object tickInterval) {
