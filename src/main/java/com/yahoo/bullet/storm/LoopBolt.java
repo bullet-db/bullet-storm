@@ -23,7 +23,7 @@ public class LoopBolt extends PublisherBolt {
     /**
      * Creates an instance of this class with the given non-null config.
      *
-     * @param config The non-null {@link BulletStormConfig} which is the config for this component.
+     * @param config The non-null validated {@link BulletStormConfig} which is the config for this component.
      */
     public LoopBolt(BulletStormConfig config) {
         super(config);
@@ -33,13 +33,15 @@ public class LoopBolt extends PublisherBolt {
     protected Publisher createPublisher() throws PubSubException {
         PubSub pubSub = PubSub.from(config);
 
+        log.info("Initial settings: {}", config.toString());
         // Map is always not null and is validated to be a proper BulletStormConfig
         Map<String, Object> overrides = (Map<String, Object>) config.getAs(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, Map.class);
+        log.info("Loaded pubsub overrides: {}", overrides);
         BulletConfig modified = new BulletConfig();
         overrides.forEach(modified::set);
-        pubSub.switchContext(PubSub.Context.QUERY_SUBMISSION, null);
+        pubSub.switchContext(PubSub.Context.QUERY_SUBMISSION, modified);
+        log.info("Switched the PubSub into query submission mode");
 
-        log.info("Switched the PubSub into {} mode", PubSub.Context.QUERY_SUBMISSION);
         Publisher publisher = pubSub.getPublisher();
         log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
         return publisher;

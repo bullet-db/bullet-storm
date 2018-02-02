@@ -5,7 +5,6 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.google.gson.JsonParseException;
 import com.yahoo.bullet.common.BulletError;
 import com.yahoo.bullet.parsing.ParsingError;
 import com.yahoo.bullet.pubsub.Metadata;
@@ -29,10 +28,10 @@ import java.util.Map;
 import java.util.Optional;
 
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
-import static com.yahoo.bullet.storm.TopologyConstants.RESULT_FIELD;
-import static com.yahoo.bullet.storm.TopologyConstants.RESULT_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.RESULT_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.RESULT_STREAM;
 
 @Slf4j
 public class JoinBolt extends QueryBolt {
@@ -119,7 +118,7 @@ public class JoinBolt extends QueryBolt {
     private void onTick() {
         // Force emit all the done queries or closed queries that are being rotated out.
         Map<String, Querier> forceDone = bufferedQueries.rotate();
-        forceDone.entrySet().forEach(this::emitOrBufferFinished);
+        forceDone.entrySet().forEach(this::emitFinished);
 
         // Close all the buffered windows and re-add them back to queries
         Map<String, Querier> forceClosed = bufferedWindows.rotate();
@@ -139,14 +138,13 @@ public class JoinBolt extends QueryBolt {
             querier = new Querier(id, query, config);
             Optional<List<BulletError>> optionalErrors = querier.initialize();
             if (!optionalErrors.isPresent()) {
+                // TODO Might create a query whose filter error was received and ignored before. This could be a leak.
                 setupQuery(id, query, metadata, querier);
                 return;
             }
             emitErrorsAsResult(id, metadata, optionalErrors.get());
-        } catch (JsonParseException jpe) {
-            emitErrorsAsResult(id, metadata, ParsingError.makeError(jpe, query));
         } catch (RuntimeException re) {
-            log.error("Unhandled exception.", re);
+            // Includes JSONParseException
             emitErrorsAsResult(id, metadata, ParsingError.makeError(re, query));
         }
         log.error("Failed to initialize query for request {} with query {}", id, query);
@@ -154,8 +152,12 @@ public class JoinBolt extends QueryBolt {
 
     private void onData(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
-        byte[] data = (byte[]) tuple.getValue(TopologyConstants.DATA_POSITION);
         Querier querier = getQuery(id);
+        if (querier == null) {
+            log.debug("Received data for query {} before query. Ignoring...", id);
+            return;
+        }
+        byte[] data = (byte[]) tuple.getValue(TopologyConstants.DATA_POSITION);
         querier.combine(data);
         if (querier.isDone()) {
             emitOrBufferFinished(id, querier);
@@ -168,8 +170,12 @@ public class JoinBolt extends QueryBolt {
 
     private void onError(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
-        RateLimitError error = (RateLimitError) tuple.getValue(TopologyConstants.ERROR_POSITION);
         Querier querier = getQuery(id);
+        if (querier == null) {
+            log.debug("Received error for {} without the query existing", id);
+            return;
+        }
+        RateLimitError error = (RateLimitError) tuple.getValue(TopologyConstants.ERROR_POSITION);
         emitRateLimitError(id, querier, error);
     }
 
@@ -200,7 +206,6 @@ public class JoinBolt extends QueryBolt {
         Meta meta = error.makeMeta();
         Clip clip = querier.finish();
         clip.getMeta().merge(meta);
-        log.info("Sending kill since rate limit exceeded for {}...", id);
         emitResult(id, metadata, clip);
         emitMetaSignal(id, Metadata.Signal.KILL);
         removeQuery(id);
@@ -216,14 +221,19 @@ public class JoinBolt extends QueryBolt {
         if (querier.isTimeBasedWindow()) {
             log.debug("Buffering final result for time-windowed query {}...", id);
             rotateInto(id, querier, bufferedQueries);
-            return;
+        } else {
+            emitFinished(id, querier);
         }
+    }
+
+    private void emitFinished(Map.Entry<String, Querier> query) {
+        emitFinished(query.getKey(), query.getValue());
+    }
+
+    private void emitFinished(String id, Querier querier) {
         log.info("Query is done {}...", id);
-        boolean emitted = emitResult(id, bufferedMetadata.get(id), querier.finish());
+        emitResult(id, bufferedMetadata.get(id), querier.finish());
         removeQuery(id);
-        if (emitted) {
-            updateCount(activeQueriesCount, -1L);
-        }
     }
 
     private void emitOrBufferWindow(Map.Entry<String, Querier> query) {
@@ -259,13 +269,12 @@ public class JoinBolt extends QueryBolt {
         emitResult(id, metadata, Clip.of(Meta.of(errors)));
     }
 
-    private boolean emitResult(String id, Metadata metadata, Clip result) {
+    private void emitResult(String id, Metadata metadata, Clip result) {
         if (metadata == null) {
-            log.debug("Data arrived before metadata. Unable to emit data for {}", id);
-            return false;
+            log.debug("Unable to emit data since there is no metadata for {}", id);
+            return;
         }
         collector.emit(RESULT_STREAM, new Values(id, result.asJSON(), metadata));
-        return true;
     }
 
     // METADATA_STREAM emitters
@@ -306,6 +315,9 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void removeQuery(String id) {
+        if (getQuery(id) != null) {
+            updateCount(activeQueriesCount, -1L);
+        }
         queries.remove(id);
         bufferedWindows.remove(id);
         bufferedQueries.remove(id);
