@@ -44,11 +44,12 @@ public class TopologyConstants {
 
     public static final String TICK_STREAM = Utils.DEFAULT_STREAM_ID;
     public static final String QUERY_STREAM = Utils.DEFAULT_STREAM_ID;
-    public static final String METADATA_STREAM = "meta";
+    public static final String METADATA_STREAM = "metadata";
     public static final String RECORD_STREAM = Utils.DEFAULT_STREAM_ID;
     public static final String ERROR_STREAM = "error";
     public static final String DATA_STREAM = Utils.DEFAULT_STREAM_ID;
     public static final String RESULT_STREAM = Utils.DEFAULT_STREAM_ID;
+    public static final String FEEDBACK_STREAM = "feedback";
 
     public static final String METRIC_PREFIX = "bullet_";
     public static final String ACTIVE_QUERIES_METRIC = METRIC_PREFIX + "active_queries";

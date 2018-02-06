@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
@@ -40,7 +41,7 @@ public class JoinBolt extends QueryBolt {
     private transient Map<String, Metadata> bufferedMetadata;
     // For doing a join between Queries and intermediate windows, if the windows are time based and arriving slowly.
     private transient RotatingMap<String, Querier> bufferedQueries;
-    // For doing a join between expired queries and final data, if query has expired.
+    // For doing a join between expired queries and final windows, if query has expired and last data is arriving slowly.
     private transient RotatingMap<String, Querier> bufferedWindows;
 
     // Variable
@@ -82,7 +83,7 @@ public class JoinBolt extends QueryBolt {
 
     @Override
     public void execute(Tuple tuple) {
-        TupleClassifier.Type type = classifier.classifyNonRecord(tuple).orElse(TupleClassifier.Type.UNKNOWN_TUPLE);
+        TupleClassifier.Type type = classifier.classifyInternalTypes(tuple).orElse(TupleClassifier.Type.UNKNOWN_TUPLE);
         switch (type) {
             case TICK_TUPLE:
                 onTick();
@@ -112,7 +113,7 @@ public class JoinBolt extends QueryBolt {
         // This is where the data for each queries go
         declarer.declareStream(RESULT_STREAM, new Fields(ID_FIELD, RESULT_FIELD, METADATA_FIELD));
         // This is where the metadata that is used for feedback is sent
-        declarer.declareStream(METADATA_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
+        declarer.declareStream(FEEDBACK_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
     }
 
     private void onTick() {
@@ -124,7 +125,7 @@ public class JoinBolt extends QueryBolt {
         Map<String, Querier> forceClosed = bufferedWindows.rotate();
         forceClosed.entrySet().forEach(this::emitBufferedWindow);
 
-        // Categorize all in queries and do the roll over or emit as necessary
+        // Categorize all in queries in non-partition mode and do the roll over or emit as necessary
         handleCategorizedQueries(new QueryCategorizer().categorize(queries, false));
     }
 
@@ -138,7 +139,6 @@ public class JoinBolt extends QueryBolt {
             querier = new Querier(id, query, config);
             Optional<List<BulletError>> optionalErrors = querier.initialize();
             if (!optionalErrors.isPresent()) {
-                // TODO Might create a query whose filter error was received and ignored before. This could be a leak.
                 setupQuery(id, query, metadata, querier);
                 return;
             }
@@ -173,6 +173,7 @@ public class JoinBolt extends QueryBolt {
         Querier querier = getQuery(id);
         if (querier == null) {
             log.debug("Received error for {} without the query existing", id);
+            // TODO Might later create this query whose error ignored here. This is a leak.
             return;
         }
         RateLimitError error = (RateLimitError) tuple.getValue(TopologyConstants.ERROR_POSITION);
@@ -185,13 +186,14 @@ public class JoinBolt extends QueryBolt {
 
         Map<String, Querier> rateLimited = category.getRateLimited();
         rateLimited.entrySet().forEach(this::emitRateLimitError);
+        // Only increment this count for our own rate exceeded queries
         updateCount(rateExceededQueries, rateLimited.size());
 
         Map<String, Querier> closed = category.getClosed();
         closed.entrySet().forEach(this::emitOrBufferWindow);
 
-        log.info("Done: {}, Rate limited: {}, Closed: {}, Pending Emit: {}, Active: {}",
-                 done.size(), rateLimited.size(), closed.size(), bufferedWindows.size(), queries.size());
+        log.info("Done: {}, Rate limited: {}, Closed: {}, Pending Windows: {}, Pending Done: Active: {}", done.size(),
+                 rateLimited.size(), closed.size(), bufferedWindows.size(), bufferedQueries.size(), queries.size());
     }
 
     // RESULT_STREAM and METADATA_STREAM emitters
@@ -206,7 +208,7 @@ public class JoinBolt extends QueryBolt {
         Meta meta = error.makeMeta();
         Clip clip = querier.finish();
         clip.getMeta().merge(meta);
-        emitResult(id, metadata, clip);
+        emitResult(id, withSignal(metadata, Metadata.Signal.FAIL), clip);
         emitMetaSignal(id, Metadata.Signal.KILL);
         removeQuery(id);
     }
@@ -232,7 +234,7 @@ public class JoinBolt extends QueryBolt {
 
     private void emitFinished(String id, Querier querier) {
         log.info("Query is done {}...", id);
-        emitResult(id, bufferedMetadata.get(id), querier.finish());
+        emitResult(id, withSignal(bufferedMetadata.get(id), Metadata.Signal.COMPLETE), querier.finish());
         removeQuery(id);
     }
 
@@ -280,7 +282,7 @@ public class JoinBolt extends QueryBolt {
     // METADATA_STREAM emitters
 
     private void emitMetaSignal(String id, Metadata.Signal signal) {
-        log.error("Emitting for {}: {} signal", id, signal);
+        log.error("Emitting {} signal to the metadata stream for {}", signal, id);
         collector.emit(METADATA_STREAM, new Values(id, new Metadata(signal, null)));
     }
 
@@ -292,12 +294,31 @@ public class JoinBolt extends QueryBolt {
         into.put(id, querier);
     }
 
+    private Metadata withSignal(Metadata metadata, Metadata.Signal signal) {
+        if (metadata == null) {
+            log.debug("Unabled to add the {} signal to the metadata", signal);
+            return null;
+        }
+        metadata.setSignal(signal);
+        return metadata;
+    }
+
     private void setupQuery(String id, String query, Metadata metadata, Querier querier) {
         queries.put(id, querier);
         bufferedMetadata.put(id, metadata);
         updateCount(createdQueriesCount, 1L);
         updateCount(activeQueriesCount, 1L);
         log.info("Initialized query {}: {}", id, query);
+    }
+
+    private void removeQuery(String id) {
+        if (getQuery(id) != null) {
+            updateCount(activeQueriesCount, -1L);
+        }
+        queries.remove(id);
+        bufferedWindows.remove(id);
+        bufferedQueries.remove(id);
+        bufferedMetadata.remove(id);
     }
 
     private Querier getQuery(String id) {
@@ -312,15 +333,5 @@ public class JoinBolt extends QueryBolt {
             query = bufferedQueries.get(id);
         }
         return query;
-    }
-
-    private void removeQuery(String id) {
-        if (getQuery(id) != null) {
-            updateCount(activeQueriesCount, -1L);
-        }
-        queries.remove(id);
-        bufferedWindows.remove(id);
-        bufferedQueries.remove(id);
-        bufferedMetadata.remove(id);
     }
 }

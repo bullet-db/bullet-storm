@@ -75,11 +75,18 @@ bullet.topology.loop.bolt.memory.on.heap.load: 256.0
 bullet.topology.loop.bolt.memory.off.heap.load: 160.0
 
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
-# aggregations to trickle in from the Filter Bolts.
+# aggregations to trickle in from the Filter Bolts. If tuples from your your Filter Bolts take longer than
+# (bullet.topology.tick.spout.interval * this setting) to get to the Join Bolt, that data will be LOST and will not
+# be in the final result for the query. If you have bullet.query.window.disable set to true, then this is the value
+# that is used in waiting for your final (and only) intermediate results to arrive from your Filter Bolts.
+# The defaults make this (200ms * 5) or ~1s after the query is done for the final results to come back.
 bullet.topology.join.bolt.query.tick.timeout: 5
 
 # This is the number of ticks for which a window will be buffered past its expiry in order to wait for
-# the windows to trickle in from the Filter Bolts. This only applies to time based windows.
+# the windows to trickle in from the Filter Bolts. This only applies to time based windows. If tuples from your
+# Filter Bolts take longer than your (bullet.topology.tick.spout.interval * this setting) to get to the Join Bolt,
+# that data will roll over to the next window (your query result for that window is in the next window).
+# The defaults make this (200ms * 3) or ~0.6s after the window is done for the results to come back.
 bullet.topology.join.bolt.window.tick.timeout: 3
 
 # Bullet uses ticks underneath the hood as a "clock"-like mechanism to do metadata and query updates (checking if queries
@@ -90,9 +97,9 @@ bullet.topology.tick.spout.interval: 200
 
 # The Loop Bolt switches your PubSub into QUERY_SUBMISSION mode to loop back metadata messages to the rest of the
 # topology. If you need to change settings for your publisher in this mode that is different from the settings
-# used in the ResultBolt, override them here. They will be merged into the config and replace the existing settings.
-# This setting needs to be a Map if provided. The example below pretends that your PubSub settings start with
-# bullet.pubsub.custom. You will provide yours.
+# used in the ResultBolt, override them here. They will be merged into the config and replace the existing settings in
+# your Loop Bolts. This setting needs to be a Map if provided. The example below pretends that your PubSub settings
+# start with bullet.pubsub.custom. You will provide yours.
 # Example:
 #
 # bullet.topology.loop.bolt.pubsub.overrides:
@@ -113,9 +120,17 @@ bullet.topology.loop.bolt.pubsub.overrides: {}
 ########################################################################################################################
 ######################################### PubSub and PubSub Storm DRPC defaults ########################################
 ########################################################################################################################
-# This is the type of PubSub context to use for the result bolt.
+# This is the type of PubSub context to use for the Result Bolt and the Query Spout. The Loop Bolt uses QUERY_SUBMISSION
+# since it submits messages using the query publisher of your pubsub.
 bullet.pubsub.context.name: "QUERY_PROCESSING"
-# This is the name of the concrete implementation of PubSub to use. By default, this is the DRPC implementation of PubSub that comes with bullet-storm.
+
+# This is the name of the concrete implementation of PubSub to use. By default, this is the DRPC implementation of PubSub
+# that comes with bullet-storm.
+############################################# IMPORTANT! ###################################################
+# The DRPC pubsub does not support windowing currently. You should set
+# bullet.query.window.disable: true
+# if you are using this pubsub. This setting will also cause the topology to not hook in the Loop Bolt. If
+############################################# IMPORTANT! ###################################################
 bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
 
 # Common DRPC PubSub Settings
@@ -123,7 +138,8 @@ bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
 # This is your DRPC servers' hostnames.
 bullet.pubsub.storm.drpc.servers:
   - "127.0.0.1"
-# This is your DRPC function name (a namespace since DRPC is shared) to use. Queries and Results will be sent to and received from here.
+# This is your DRPC function name (a namespace since DRPC is shared in your Storm  cluster) to use. Queries and Results
+# will be sent to and received from here.
 bullet.pubsub.storm.drpc.function: "bullet-query"
 
 # QUERY_SUBMISSION DRPC PubSub Settings
@@ -148,5 +164,6 @@ bullet.pubsub.storm.drpc.max.uncommitted.messages: 50
 ########################################################################################################################
 ## You can also configure the core Bullet settings here. For documentation and defaults for those settings, refer to:
 ## https://github.com/yahoo/bullet-core/blob/master/src/main/resources/bullet_defaults.yaml
+## Remember to use bullet.query.window.disable: true if you're using the DRPCPubSub!
 ########################################################################################################################
 ########################################################################################################################

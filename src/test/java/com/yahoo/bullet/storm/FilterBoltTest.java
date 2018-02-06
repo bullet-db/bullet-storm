@@ -34,11 +34,11 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP_K;
+import static com.yahoo.bullet.parsing.Aggregation.Type.COUNT_DISTINCT;
+import static com.yahoo.bullet.parsing.Aggregation.Type.DISTRIBUTION;
+import static com.yahoo.bullet.parsing.Aggregation.Type.GROUP;
+import static com.yahoo.bullet.parsing.Aggregation.Type.RAW;
+import static com.yahoo.bullet.parsing.Aggregation.Type.TOP_K;
 import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.AND;
 import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
