@@ -66,8 +66,8 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final Map<String, Number> DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING = new HashMap<>();
     public static final String DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY = "default";
     static {
-        DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING.put("bullet_active_queries", 10);
-        DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING.put(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, 10);
+        DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING.put("bullet_active_queries", 10L);
+        DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING.put(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, 10L);
     }
     public static final List<String> DEFAULT_TOPOLOGY_METRICS_CLASSES = new ArrayList<>();
     static {
@@ -103,7 +103,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
 
     //  Validations
 
-    private static final Validator VALIDATOR = new Validator();
+    private static final Validator VALIDATOR = BulletConfig.getValidator();
     static {
         VALIDATOR.define(TOPOLOGY_NAME)
                  .defaultTo(DEFAULT_TOPOLOGY_NAME)
@@ -280,6 +280,14 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String DEFAULT_STORM_CONFIGURATION = "bullet_storm_defaults.yaml";
 
     /**
+     * Constructor that loads the defaults.
+     */
+    public BulletStormConfig() {
+        super(DEFAULT_STORM_CONFIGURATION);
+        VALIDATOR.validate(this);
+    }
+
+    /**
      * Constructor that loads specific file augmented with defaults.
      *
      * @param file YAML file to load.
@@ -294,18 +302,26 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
      */
     public BulletStormConfig(Config other) {
         // Load Bullet and Storm defaults. Then merge the other.
-        super(DEFAULT_STORM_CONFIGURATION);
+        super();
         merge(other);
-        // Call validate since we merged
-        validate();
-        log.info("Settings:\n {}", this.toString());
+        VALIDATOR.validate(this);
+        log.info("Bullet Storm settings:\n {}", this.toString());
     }
 
     @Override
-    public BulletConfig validate() {
-        super.validate();
+    public BulletStormConfig validate() {
         VALIDATOR.validate(this);
         return this;
+    }
+
+    /**
+     * Returns a copy of the {@link Validator} used by this config. This validator also includes the definitions
+     * in the {@link BulletConfig#getValidator()} validator.
+     *
+     * @return The validator used by this class.
+     */
+    public static Validator getValidator() {
+        return VALIDATOR.copy();
     }
 
     /**

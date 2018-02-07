@@ -57,7 +57,7 @@ public class StormUtils {
         Number querySpoutMemoryOnHeapLoad = config.getAs(BulletStormConfig.QUERY_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
         Number querySpoutMemoryOffHeapLoad = config.getAs(BulletStormConfig.QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
-        // Tick parallelism must be 1
+        // Tick parallelism must be 1 otherwise multiple ticks will get delivered to a component
         Number tickSpoutParallelism = BulletStormConfig.TICK_SPOUT_PARALLELISM;
         Number tickSpoutCPULoad = config.getAs(BulletStormConfig.TICK_SPOUT_CPU_LOAD, Number.class);
         Number tickSpoutMemoryOnheapLoad = config.getAs(BulletStormConfig.TICK_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
@@ -110,7 +110,6 @@ public class StormUtils {
 
         // Hook in the Loop Bolt only if windowing is enabled
         boolean isWindowingDisabled = config.getAs(BulletConfig.WINDOW_DISABLE, Boolean.class);
-
         if (isWindowingDisabled) {
             log.info("Windowing is disabled. Skipping hooking in the Loop Bolt...");
         } else {

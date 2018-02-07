@@ -54,7 +54,7 @@ public class DRPCConfig extends BulletStormConfig {
 
     // Validations
 
-    private static final Validator VALIDATOR = new Validator();
+    private static final Validator VALIDATOR = BulletStormConfig.getValidator();
     static {
         VALIDATOR.define(DRPC_SERVERS)
                 .checkIf(Validator::isList)
@@ -101,6 +101,7 @@ public class DRPCConfig extends BulletStormConfig {
     public DRPCConfig(String file) {
         // Load and merge with default bullet-storm settings. Storm defaults also contain the DRPC settings.
         this(new BulletStormConfig(file));
+        VALIDATOR.validate(this);
     }
 
     /**
@@ -110,11 +111,11 @@ public class DRPCConfig extends BulletStormConfig {
      */
     public DRPCConfig(Config config) {
         super(config);
+        VALIDATOR.validate(this);
     }
 
     @Override
-    public BulletConfig validate() {
-        super.validate();
+    public DRPCConfig validate() {
         VALIDATOR.validate(this);
         return this;
     }

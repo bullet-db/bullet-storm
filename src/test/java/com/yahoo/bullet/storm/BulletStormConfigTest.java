@@ -14,11 +14,19 @@ import java.util.Map;
 
 public class BulletStormConfigTest {
     @Test
+    public void testDefaultInitialization() {
+        BulletStormConfig config = new BulletStormConfig();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_NAME), BulletStormConfig.DEFAULT_TOPOLOGY_NAME);
+        Assert.assertEquals(config.get(BulletStormConfig.QUERY_MAX_DURATION), BulletStormConfig.DEFAULT_QUERY_MAX_DURATION);
+        Assert.assertEquals(config.get(BulletStormConfig.AGGREGATION_MAX_SIZE), BulletStormConfig.DEFAULT_AGGREGATION_MAX_SIZE);
+    }
+
+    @Test
     public void testNoFiles() {
         BulletStormConfig config = new BulletStormConfig((String) null);
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_NAME), BulletStormConfig.DEFAULT_TOPOLOGY_NAME);
-        Assert.assertEquals(config.get(BulletStormConfig.QUERY_MAX_DURATION), Long.MAX_VALUE);
-        Assert.assertEquals(config.get(BulletStormConfig.AGGREGATION_MAX_SIZE), 512L);
+        Assert.assertEquals(config.get(BulletStormConfig.QUERY_MAX_DURATION), BulletStormConfig.DEFAULT_QUERY_MAX_DURATION);
+        Assert.assertEquals(config.get(BulletStormConfig.AGGREGATION_MAX_SIZE), BulletStormConfig.DEFAULT_AGGREGATION_MAX_SIZE);
         config = new BulletStormConfig("");
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_NAME), BulletStormConfig.DEFAULT_TOPOLOGY_NAME);
     }
@@ -27,11 +35,12 @@ public class BulletStormConfigTest {
     public void testCustomConfig() {
         BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_NAME), "test");
+        Assert.assertEquals(config.get(BulletStormConfig.QUERY_DEFAULT_DURATION), 1000L);
         Assert.assertEquals(config.get(BulletStormConfig.QUERY_MAX_DURATION), 10000L);
         Assert.assertEquals(config.get("fake.setting"), "bar");
 
         // Defaulted
-        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_ENABLE), true);
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_ENABLE), false);
         Assert.assertEquals(config.get(BulletStormConfig.AGGREGATION_MAX_SIZE), BulletConfig.DEFAULT_AGGREGATION_MAX_SIZE);
         Assert.assertEquals(config.get(BulletStormConfig.QUERY_SPOUT_CPU_LOAD), BulletStormConfig.DEFAULT_QUERY_SPOUT_CPU_LOAD);
     }
@@ -43,7 +52,19 @@ public class BulletStormConfigTest {
         config.set(BulletStormConfig.CUSTOM_STORM_SETTING_PREFIX + "bar", "baz");
         Map<String, Object> settings = config.getCustomStormSettings();
         Assert.assertEquals(settings.size(), 2);
-        Assert.assertEquals(settings.get(BulletStormConfig.CUSTOM_STORM_SETTING_PREFIX + "storm.foo"), "bar");
-        Assert.assertEquals(settings.get(BulletStormConfig.CUSTOM_STORM_SETTING_PREFIX + "bar"), "baz");
+        Assert.assertEquals(settings.get("storm.foo"), "bar");
+        Assert.assertEquals(settings.get("bar"), "baz");
+    }
+
+    @Test
+    public void testInvalidMetricMapping() {
+        BulletStormConfig config = new BulletStormConfig((Config) null);
+
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, null);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING),
+                            BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING);
+
+        config.set
     }
 }

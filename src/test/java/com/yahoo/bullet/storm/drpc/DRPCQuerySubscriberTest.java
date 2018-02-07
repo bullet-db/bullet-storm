@@ -5,7 +5,7 @@
  */
 package com.yahoo.bullet.storm.drpc;
 
-import com.yahoo.bullet.Config;
+import com.yahoo.bullet.common.Config;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storm.CustomTopologyContext;
