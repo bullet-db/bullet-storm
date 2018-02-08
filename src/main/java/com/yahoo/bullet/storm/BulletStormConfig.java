@@ -7,6 +7,7 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.common.Config;
+import com.yahoo.bullet.common.Utilities;
 import com.yahoo.bullet.common.Validator;
 import lombok.extern.slf4j.Slf4j;
 
@@ -260,8 +261,10 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(BulletStormConfig::isMapWithStringKeys)
                  .defaultTo(DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
 
-        VALIDATOR.relate("Minimum window emit every should be >= 2 * tick interval", TICK_SPOUT_INTERVAL, BulletConfig.WINDOW_MIN_EMIT_EVERY)
+        VALIDATOR.relate("Minimum window emit every should be >= 2 * tick interval", BulletConfig.WINDOW_MIN_EMIT_EVERY, TICK_SPOUT_INTERVAL)
                  .checkIf(BulletStormConfig::isAtleastDouble);
+        VALIDATOR.relate("Built-in metrics enabled but no intervals provided", TOPOLOGY_METRICS_BUILT_IN_ENABLE, TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING)
+                 .checkIf(BulletStormConfig::areNeededIntervalsProvided);
     }
 
     // Other constants
@@ -302,7 +305,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
      */
     public BulletStormConfig(Config other) {
         // Load Bullet and Storm defaults. Then merge the other.
-        super();
+        super(DEFAULT_STORM_CONFIGURATION);
         merge(other);
         VALIDATOR.validate(this);
         log.info("Bullet Storm settings:\n {}", this.toString());
@@ -378,5 +381,12 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
 
     private static boolean isAtleastDouble(Object minEvery, Object tickInterval) {
         return ((Number) minEvery).doubleValue() >= 2.0 * ((Number) tickInterval).doubleValue();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean areNeededIntervalsProvided(Object builtInEnable, Object intervalMapping) {
+        boolean enabled = (boolean) builtInEnable;
+        // return false when enabled and map is empty
+        return !(enabled && Utilities.isEmpty((Map<String, Number>) intervalMapping));
     }
 }

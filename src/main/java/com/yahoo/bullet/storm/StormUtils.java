@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
 import org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy;
-import org.apache.storm.topology.IRichSpout;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 
@@ -140,7 +139,7 @@ public class StormUtils {
      * This submits a topology after loading the given spout with the given configuration as the source of
      * {@link com.yahoo.bullet.record.BulletRecord}.
      *
-     * @param spout The name of the {@link IRichSpout} to load.
+     * @param spout The name of the instance of an {@link org.apache.storm.topology.IRichSpout} to load.
      * @param args The arguments to pass to the constructor of this spout (otherwise the default constructor is used).
      * @param config The Storm settings for this Bullet topology.
      * @param parallelism The parallelism of the spout component.

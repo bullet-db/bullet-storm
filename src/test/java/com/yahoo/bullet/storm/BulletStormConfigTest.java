@@ -10,7 +10,13 @@ import com.yahoo.bullet.common.Config;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Map;
+
+import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 
 public class BulletStormConfigTest {
     @Test
@@ -60,11 +66,137 @@ public class BulletStormConfigTest {
     public void testInvalidMetricMapping() {
         BulletStormConfig config = new BulletStormConfig((Config) null);
 
+        // Not present
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, null);
         config.validate();
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING),
                             BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING);
 
-        config.set
+        // Wrong type
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, 1L);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING),
+                                       BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING);
+
+        // Bad interval type
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING,
+                   singletonMap(TopologyConstants.LATENCY_METRIC, "foo"));
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING),
+                                       BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING);
+
+        // Bad Metric
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING,
+                   singletonMap("foo", 50));
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING),
+                                       BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING);
+
+        // Proper mapping
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING,
+                   singletonMap(TopologyConstants.LATENCY_METRIC, 60));
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING),
+                            singletonMap(TopologyConstants.LATENCY_METRIC, 60));
+    }
+
+    @Test
+    public void testIntervalMappingNotPresent() {
+        BulletStormConfig config = new BulletStormConfig((Config) null);
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, new HashMap<>());
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING),
+                            BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING);
+
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, false);
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, new HashMap<>());
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING), emptyMap());
+    }
+
+    @Test
+    public void testTickIntervalIsLowEnough() {
+        BulletStormConfig config = new BulletStormConfig((Config) null);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 1000);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
+        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 200);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
+        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), BulletConfig.DEFAULT_WINDOW_MIN_EMIT_EVERY);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
+        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 150);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
+        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), BulletConfig.DEFAULT_WINDOW_MIN_EMIT_EVERY);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
+        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 200);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), 100);
+        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 200);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
+        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 5000);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), 100);
+        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 5000);
+    }
+
+    @Test
+    public void testLoopBoltOverridesIsAMapWithStringKeys() {
+        BulletStormConfig config = new BulletStormConfig((Config) null);
+
+        config.set(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, null);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES), BulletStormConfig.DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
+
+        config.set(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, new HashMap<>());
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES), BulletStormConfig.DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
+
+        config.set(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, singletonMap(1, "foo"));
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES), BulletStormConfig.DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
+
+        config.set(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, singletonMap("foo", singletonList("bar")));
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES), singletonMap("foo", singletonList("bar")));
+
+        Map<String, Object> overrides = new HashMap<>();
+        overrides.put("foo", 1L);
+        overrides.put("bar", new ArrayList<>());
+        config.set(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, overrides);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES), overrides);
+    }
+
+    @Test
+    public void testProperMetricsConsumers() {
+        BulletStormConfig config = new BulletStormConfig((Config) null);
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_CLASSES), BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_CLASSES);
+
+        // Test removing all metrics
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_ENABLE, true);
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, new ArrayList<>());
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_CLASSES), new ArrayList<>());
+
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, singletonList(1));
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_CLASSES), BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_CLASSES);
+
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, singletonList("foo"));
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_CLASSES), BulletStormConfig.DEFAULT_TOPOLOGY_METRICS_CLASSES);
+
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, singletonList(CustomIMetricsConsumer.class.getName()));
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_CLASSES), singletonList(CustomIMetricsConsumer.class.getName()));
     }
 }

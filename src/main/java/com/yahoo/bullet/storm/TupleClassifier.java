@@ -72,9 +72,9 @@ public class TupleClassifier {
 
     /**
      * Returns the {@link TupleClassifier.Type} of this tuple. If you have a custom record component name, you should
-     * use {@link #setRecordComponent(String)} first. Otherwise, the default value of
-     * {@link TopologyConstants#RECORD_COMPONENT} is used. The type returned will never be a {@link Type#UNKNOWN_TUPLE}.
-     * See {@link #classifyInternalTypes(Tuple)} if you will not be passing in {@link Type#RECORD_TUPLE} tuples.
+     * use setRecordComponent(String) first. Otherwise, the default value of {@link TopologyConstants#RECORD_COMPONENT}
+     * is used. The type returned will never be a {@link Type#UNKNOWN_TUPLE}. See {@link #classifyInternalTypes(Tuple)}
+     * if you will not be passing in {@link Type#RECORD_TUPLE} tuples.
      *
      * @param tuple The tuple whose type is needed.
      * @return An {@link Optional} {@link TupleClassifier.Type} for the tuple.
