@@ -148,7 +148,7 @@ bullet.pubsub.storm.drpc.function: "bullet-query"
 # bullet.pubsub.storm.drpc.servers, a query will be randomly POSTed to one of them. The URL will be of the form:
 # ${drpc.http.protocol}://${random.server}:${drpc.http.port}/${drpc.http.path}/${drpc.function}
 bullet.pubsub.storm.drpc.http.protocol: "http"
-bullet.pubsub.storm.drpc.http.port: "3774"
+bullet.pubsub.storm.drpc.http.port: 3774
 bullet.pubsub.storm.drpc.http.path: "drpc"
 # This is the timeout in ms for connecting to the DRPC server to send a query.
 bullet.pubsub.storm.drpc.http.connect.timeout.ms: 5000

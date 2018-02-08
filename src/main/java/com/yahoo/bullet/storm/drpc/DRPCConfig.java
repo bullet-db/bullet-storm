@@ -13,6 +13,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 
 @Slf4j
 public class DRPCConfig extends BulletStormConfig {
@@ -67,9 +68,9 @@ public class DRPCConfig extends BulletStormConfig {
                 .checkIf(Validator.isIn("http", "https"))
                 .defaultTo(DEFAULT_DRPC_HTTP_PROTOCOL);
         VALIDATOR.define(DRPC_HTTP_PORT)
-                .checkIf(Validator::isString)
                 .checkIf(DRPCConfig::isStringPositiveInteger)
-                .defaultTo(DEFAULT_DRPC_HTTP_PORT);
+                .defaultTo(DEFAULT_DRPC_HTTP_PORT)
+                .castTo(Objects::toString);
         VALIDATOR.define(DRPC_HTTP_PATH)
                 .checkIf(Validator::isString)
                 .defaultTo(DEFAULT_DRPC_HTTP_PATH);
@@ -120,13 +121,17 @@ public class DRPCConfig extends BulletStormConfig {
         return this;
     }
 
-    private static boolean isStringPositiveInteger(Object string) {
-        String asString = string.toString();
+    private static boolean isStringPositiveInteger(Object entry) {
+        if (entry == null || !(entry instanceof Number || entry instanceof String)) {
+            log.warn("{} should be a valid positive integer", entry);
+            return false;
+        }
         try {
+            String asString = entry.toString();
             Integer asInt = Integer.valueOf(asString);
             return Validator.isPositiveInt(asInt);
         } catch (NumberFormatException e) {
-            log.warn("{} should be a string that is a valid positive integer", string);
+            log.warn("{} should be a string that is a valid positive integer", entry);
             return false;
         }
     }
