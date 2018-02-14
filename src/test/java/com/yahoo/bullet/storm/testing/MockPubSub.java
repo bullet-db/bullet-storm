@@ -3,13 +3,14 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet.storm;
+package com.yahoo.bullet.storm.testing;
 
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
+import com.yahoo.bullet.storm.CustomSubscriber;
 import com.yahoo.bullet.storm.testing.CustomPublisher;
 
 import java.util.List;
