@@ -102,9 +102,28 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final int DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT = 3;
     public static final Map<String, Object> DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES = Collections.emptyMap();
 
+    // Other constants
+
+    // Used automatically by the Storm code. Not for user setting.
+    // This is the key to place the Storm configuration as
+    public static final String STORM_CONFIG = "bullet.topology.storm.config";
+    // This is the key to place the TopologyContext as
+    public static final String STORM_CONTEXT = "bullet.topology.storm.context";
+
+    public static final String CUSTOM_STORM_SETTING_PREFIX = "bullet.topology.custom.";
+
+    // The number of tick spouts in the topology. This should be 1 since it is broadcast to all filter and join bolts.
+    public static final int TICK_SPOUT_PARALLELISM = 1;
+    // The smallest value that Tick Interval can be
+    public static final int TICK_INTERVAL_MINIMUM = 10;
+
+
+    public static final String DEFAULT_STORM_CONFIGURATION = "bullet_storm_defaults.yaml";
+
     //  Validations
 
     private static final Validator VALIDATOR = BulletConfig.getValidator();
+
     static {
         VALIDATOR.define(TOPOLOGY_NAME)
                  .defaultTo(DEFAULT_TOPOLOGY_NAME)
@@ -243,6 +262,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
 
         VALIDATOR.define(TICK_SPOUT_INTERVAL)
                  .checkIf(Validator::isPositiveInt)
+                 .checkIf(Validator.isInRange(TICK_INTERVAL_MINIMUM, Double.POSITIVE_INFINITY))
                  .defaultTo(DEFAULT_TICK_SPOUT_INTERVAL)
                  .castTo(Validator::asInt);
 
@@ -266,21 +286,6 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         VALIDATOR.relate("Built-in metrics enabled but no intervals provided", TOPOLOGY_METRICS_BUILT_IN_ENABLE, TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING)
                  .checkIf(BulletStormConfig::areNeededIntervalsProvided);
     }
-
-    // Other constants
-
-    // Used automatically by the Storm code. Not for user setting.
-    // This is the key to place the Storm configuration as
-    public static final String STORM_CONFIG = "bullet.topology.storm.config";
-    // This is the key to place the TopologyContext as
-    public static final String STORM_CONTEXT = "bullet.topology.storm.context";
-
-    public static final String CUSTOM_STORM_SETTING_PREFIX = "bullet.topology.custom.";
-
-    // The number of tick spouts in the topology. This should be 1 since it is broadcast to all filter and join bolts.
-    public static final int TICK_SPOUT_PARALLELISM = 1;
-
-    public static final String DEFAULT_STORM_CONFIGURATION = "bullet_storm_defaults.yaml";
 
     /**
      * Constructor that loads the defaults.

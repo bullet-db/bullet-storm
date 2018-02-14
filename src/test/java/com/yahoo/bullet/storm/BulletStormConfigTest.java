@@ -147,6 +147,19 @@ public class BulletStormConfigTest {
         config.validate();
         Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), 100);
         Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 5000);
+
+        // Too low
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 1);
+        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 5000);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
+        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 5000);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, BulletStormConfig.TICK_INTERVAL_MINIMUM);
+        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 5000);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.TICK_INTERVAL_MINIMUM);
+        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 5000);
     }
 
     @Test

@@ -27,8 +27,7 @@ public class TickSpout extends ConfigComponent implements IRichSpout {
 
     protected transient SpoutOutputCollector collector;
 
-    public static final long GRACEFUL_SLEEP = 5;
-    public static final int MIN_TICK_INTERVAL = 2 * (int) GRACEFUL_SLEEP;
+    public static final long GRACEFUL_SLEEP = BulletStormConfig.TICK_INTERVAL_MINIMUM / 2;
 
     private final int tickInterval;
     private int id;
@@ -42,8 +41,7 @@ public class TickSpout extends ConfigComponent implements IRichSpout {
      */
     public TickSpout(BulletStormConfig config) {
         super(config);
-        int interval = config.getAs(BulletStormConfig.TICK_SPOUT_INTERVAL, Integer.class);
-        tickInterval = interval < MIN_TICK_INTERVAL ? MIN_TICK_INTERVAL : interval;
+        tickInterval = config.getAs(BulletStormConfig.TICK_SPOUT_INTERVAL, Integer.class);
     }
 
     @Override

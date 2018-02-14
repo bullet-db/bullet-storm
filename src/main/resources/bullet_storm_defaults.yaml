@@ -93,6 +93,7 @@ bullet.topology.join.bolt.window.tick.timeout: 3
 # have expired) etc. This is particularly relevant if your data volume is low since your queries depend on these ticks to
 # emit data etc appropriately. This setting controls the how frequently a tick happens - number of milliseconds between ticks.
 # The bullet.query.window.min.emit.every should be at least double this value, or else the defaults for both are used.
+# Also, this cannot be lower than 10 ms
 bullet.topology.tick.spout.interval: 200
 
 # The Loop Bolt switches your PubSub into QUERY_SUBMISSION mode to loop back metadata messages to the rest of the
