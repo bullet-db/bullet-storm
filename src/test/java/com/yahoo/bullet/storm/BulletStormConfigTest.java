@@ -7,6 +7,7 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.common.Config;
+import com.yahoo.bullet.storm.testing.CustomIMetricsConsumer;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

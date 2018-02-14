@@ -3,7 +3,7 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet.storm;
+package com.yahoo.bullet.storm.testing;
 
 import org.apache.storm.spout.ISpoutOutputCollector;
 import org.apache.storm.spout.SpoutOutputCollector;

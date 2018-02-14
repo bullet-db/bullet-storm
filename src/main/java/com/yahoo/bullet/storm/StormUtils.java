@@ -137,6 +137,30 @@ public class StormUtils {
 
     /**
      * This submits a topology after loading the given spout with the given configuration as the source of
+     * {@link com.yahoo.bullet.record.BulletRecord} using the given {@link TopologyBuilder}.
+     *
+     * @param builder The {@link TopologyBuilder} to use to add the topology to.
+     * @param spout The name of the instance of an {@link org.apache.storm.topology.IRichSpout} to load.
+     * @param args The arguments to pass to the constructor of this spout (otherwise the default constructor is used).
+     * @param config The Storm settings for this Bullet topology.
+     * @param parallelism The parallelism of the spout component.
+     * @param cpuLoad The CPU load for the Storm RAS scheduler.
+     * @param onHeapMemoryLoad The on heap memory load for the Storm RAS scheduler.
+     * @param offHeapMemoryLoad The off heap memory load for the Storm RAS scheduler.
+     * @throws Exception if there were issues creating the topology.
+     */
+    public static void submit(TopologyBuilder builder, String spout, List<String> args, BulletStormConfig config,
+                              Number parallelism, Number cpuLoad, Number onHeapMemoryLoad,
+                              Number offHeapMemoryLoad) throws Exception {
+        builder.setSpout(TopologyConstants.RECORD_COMPONENT, ReflectionUtils.getSpout(spout, args), parallelism)
+               .setCPULoad(cpuLoad).setMemoryLoad(onHeapMemoryLoad, offHeapMemoryLoad);
+        log.info("Added spout " + spout + " with parallelism " + parallelism + ", CPU load " + cpuLoad +
+                 ", On-heap memory " + onHeapMemoryLoad + ", Off-heap memory " + offHeapMemoryLoad);
+        submit(config, TopologyConstants.RECORD_COMPONENT, builder);
+    }
+
+    /**
+     * This submits a topology after loading the given spout with the given configuration as the source of
      * {@link com.yahoo.bullet.record.BulletRecord}.
      *
      * @param spout The name of the instance of an {@link org.apache.storm.topology.IRichSpout} to load.
@@ -150,11 +174,6 @@ public class StormUtils {
      */
     public static void submit(String spout, List<String> args, BulletStormConfig config, Number parallelism,
                               Number cpuLoad, Number onHeapMemoryLoad, Number offHeapMemoryLoad) throws Exception {
-        TopologyBuilder builder = new TopologyBuilder();
-        builder.setSpout(TopologyConstants.RECORD_COMPONENT, ReflectionUtils.getSpout(spout, args), parallelism)
-               .setCPULoad(cpuLoad).setMemoryLoad(onHeapMemoryLoad, offHeapMemoryLoad);
-        log.info("Added spout " + spout + " with parallelism " + parallelism + ", CPU load " + cpuLoad +
-                 ", On-heap memory " + onHeapMemoryLoad + ", Off-heap memory " + offHeapMemoryLoad);
-        submit(config, TopologyConstants.RECORD_COMPONENT, builder);
+        submit(new TopologyBuilder(), spout, args, config, parallelism, cpuLoad, onHeapMemoryLoad, offHeapMemoryLoad);
     }
 }

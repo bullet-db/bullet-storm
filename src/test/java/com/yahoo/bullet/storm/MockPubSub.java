@@ -10,6 +10,7 @@ import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
+import com.yahoo.bullet.storm.testing.CustomPublisher;
 
 import java.util.List;
 

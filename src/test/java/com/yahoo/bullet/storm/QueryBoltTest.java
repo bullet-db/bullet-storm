@@ -9,6 +9,9 @@ import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.Metadata.Signal;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.storm.TupleClassifier.Type;
+import com.yahoo.bullet.storm.testing.ComponentUtils;
+import com.yahoo.bullet.storm.testing.CustomCollector;
+import com.yahoo.bullet.storm.testing.CustomTopologyContext;
 import lombok.Getter;
 import org.apache.storm.metric.api.IMetric;
 import org.apache.storm.metric.api.ReducedMetric;
@@ -23,7 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.yahoo.bullet.storm.TupleUtils.makeIDTuple;
+import static com.yahoo.bullet.storm.testing.TupleUtils.makeIDTuple;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 

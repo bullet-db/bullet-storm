@@ -45,8 +45,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.storm.TestHelpers.assertJSONEquals;
-import static com.yahoo.bullet.storm.TestHelpers.getListBytes;
+import static com.yahoo.bullet.storm.testing.TestHelpers.assertJSONEquals;
+import static com.yahoo.bullet.storm.testing.TestHelpers.getListBytes;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
 import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;

@@ -18,7 +18,7 @@ import org.testng.annotations.Test;
 import java.util.ArrayList;
 import java.util.List;
 
-import static com.yahoo.bullet.storm.TupleUtils.makeTuple;
+import static com.yahoo.bullet.storm.testing.TupleUtils.makeTuple;
 import static java.util.Arrays.asList;
 
 public class ResultBoltTest {
