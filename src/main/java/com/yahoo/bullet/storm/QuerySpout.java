@@ -32,12 +32,10 @@ import static com.yahoo.bullet.storm.TopologyConstants.QUERY_STREAM;
 public class QuerySpout extends ConfigComponent implements IRichSpout {
     private static final long serialVersionUID = 504190523090872490L;
 
-    private transient Subscriber subscriber;
-    private transient SpoutOutputCollector collector;
-
     /** Exposed for testing only. */
     @Getter(AccessLevel.PACKAGE)
-    private transient PubSub pubSub;
+    private transient Subscriber subscriber;
+    private transient SpoutOutputCollector collector;
 
     /**
      * Creates a QuerySpout with a given {@link BulletStormConfig}.
@@ -60,7 +58,7 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
     @Override
     public void activate() {
         try {
-            pubSub = PubSub.from(config);
+            PubSub pubSub = PubSub.from(config);
             subscriber = pubSub.getSubscriber();
             log.info("Setup PubSub: {} with Subscriber: {}", pubSub, subscriber);
         } catch (PubSubException e) {

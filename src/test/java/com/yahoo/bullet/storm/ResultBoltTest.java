@@ -3,13 +3,16 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-/*
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
+import com.yahoo.bullet.storm.testing.ComponentUtils;
+import com.yahoo.bullet.storm.testing.CustomCollector;
+import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
+import com.yahoo.bullet.storm.testing.CustomPublisher;
 import org.apache.storm.tuple.Tuple;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -92,4 +95,3 @@ public class ResultBoltTest {
         Assert.assertTrue(!declarer.areFieldsDeclared());
     }
 }
-*/
