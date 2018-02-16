@@ -79,11 +79,7 @@ public class ReflectionUtils {
     public static boolean isIMetricsConsumer(String className) {
         try {
             Class<? extends IMetricsConsumer> consumer = (Class<? extends IMetricsConsumer>) Class.forName(className);
-            Method method = consumer.getMethod(REGISTER_METHOD, Config.class, BulletStormConfig.class);
-            if (method == null) {
-                log.warn("The {} method was not found in class: {}", REGISTER_METHOD, className);
-                return false;
-            }
+            consumer.getMethod(REGISTER_METHOD, Config.class, BulletStormConfig.class);
         } catch (Exception e) {
             log.warn("The given class: {} was not a proper IMetricsConsumer with a {} method", className, REGISTER_METHOD);
             log.warn("Exception: {}", e);

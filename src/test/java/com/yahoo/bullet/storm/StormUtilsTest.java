@@ -37,9 +37,6 @@ import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
 import static java.util.Collections.singletonList;
 
 public class StormUtilsTest {
-    // To please the coverage gods
-    private StormUtils utils = new StormUtils();
-
     private CustomTopologyBuilder builder;
     private BulletStormConfig config;
 
@@ -88,7 +85,8 @@ public class StormUtilsTest {
 
     @Test(expectedExceptions = ClassNotFoundException.class)
     public void testFailingSubmitOnMissingSpout() throws Exception {
-        StormUtils.submit("non.existant.spout", null, new BulletStormConfig(), null, null, null, null);
+        StormUtils utils = new StormUtils();
+        utils.submit("non.existant.spout", null, new BulletStormConfig(), null, null, null, null);
     }
 
     @Test

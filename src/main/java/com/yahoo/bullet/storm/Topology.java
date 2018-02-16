@@ -9,7 +9,6 @@ import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.extern.slf4j.Slf4j;
 
-import java.io.IOException;
 import java.util.List;
 
 @Slf4j
@@ -65,15 +64,6 @@ public class Topology {
         }
     };
 
-    private static void printHelp() throws IOException {
-        System.out.println("If you are looking to connect your existing topology to Bullet, you should compile");
-        System.out.println("in the Bullet jar and use the submit method in this class to wire up Bullet");
-        System.out.println("to the tail end of your topology that produces BulletRecords. If you are simply");
-        System.out.println("looking to connect a Spout class that implements IRichSpout and emits BulletRecords,");
-        System.out.println("use the main class directly with the arguments below.");
-        PARSER.printHelpOn(System.out);
-    }
-
     /**
      * Main. Launches a remote Storm topology.
      * @param args The input args.
@@ -82,7 +72,12 @@ public class Topology {
     public static void main(String[] args) throws Exception {
         OptionSet options = PARSER.parse(args);
         if (!options.hasOptions() || options.has(HELP_ARG) || !options.has(SPOUT_ARG)) {
-            printHelp();
+            System.out.println("If you are looking to connect your existing topology to Bullet, you should compile");
+            System.out.println("in the Bullet jar and use the submit method in the StormUtils class to wire up Bullet");
+            System.out.println("to the tail end of your topology that produces BulletRecords. If you are simply");
+            System.out.println("looking to connect a Spout class that implements IRichSpout and emits BulletRecords,");
+            System.out.println("use the main class directly with the arguments below.");
+            PARSER.printHelpOn(System.out);
             return;
         }
         String spoutClass = (String) options.valueOf(SPOUT_ARG);
