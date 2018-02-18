@@ -5,6 +5,9 @@
  */
 package com.yahoo.bullet.storm;
 
+import lombok.AccessLevel;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -21,7 +24,7 @@ import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.TICK_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
 
-@Slf4j
+@Slf4j @Getter(AccessLevel.PACKAGE)
 public class TickSpout extends ConfigComponent implements IRichSpout {
     private static final long serialVersionUID = 4448013633000246058L;
 
@@ -32,6 +35,7 @@ public class TickSpout extends ConfigComponent implements IRichSpout {
     private final int tickInterval;
     private int id;
     private long tick = 0;
+    @Setter(AccessLevel.PACKAGE)
     private long lastTickTime;
 
     /**
