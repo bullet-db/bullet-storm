@@ -9,3 +9,7 @@ fake.setting: "bar"
 bullet.pubsub.class.name: "com.yahoo.bullet.storm.testing.MockPubSub"
 # This is the type of PubSub context to use
 bullet.pubsub.context.name: "QUERY_PROCESSING"
+bullet.topology.loop.bolt.pubsub.overrides:
+  fake.setting: "foo"
+
+

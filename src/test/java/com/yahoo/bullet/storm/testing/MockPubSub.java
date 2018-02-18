@@ -14,11 +14,18 @@ import com.yahoo.bullet.pubsub.Subscriber;
 import java.util.List;
 
 public class MockPubSub extends PubSub {
-    Publisher publisher = new CustomPublisher();
-    Subscriber subscriber = new CustomSubscriber();
+    private Publisher publisher;
+    private Subscriber subscriber;
 
     public MockPubSub(BulletConfig config) throws PubSubException {
         super(config);
+        initialize();
+    }
+
+    @Override
+    public void switchContext(Context context, BulletConfig config) throws PubSubException {
+        super.switchContext(context, config);
+        initialize();
     }
 
     @Override
@@ -39,5 +46,11 @@ public class MockPubSub extends PubSub {
     @Override
     public List<Subscriber> getSubscribers(int n) {
         throw new UnsupportedOperationException();
+    }
+
+    private void initialize() {
+        PubSub.Context context = PubSub.Context.valueOf(config.get(BulletConfig.PUBSUB_CONTEXT_NAME).toString());
+        this.publisher = new CustomPublisher(context);
+        this.subscriber = new CustomSubscriber(context);
     }
 }
