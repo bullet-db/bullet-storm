@@ -5,6 +5,7 @@
  */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.querying.Querier;
 import lombok.extern.slf4j.Slf4j;
@@ -104,6 +105,18 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
      */
     protected AbsoluteCountMetric registerAbsoluteCountMetric(String name, TopologyContext context) {
         return registerMetric(new AbsoluteCountMetric(), name, context);
+    }
+
+    /**
+     * For testing only. Create a {@link Querier} from the given query ID, body and configuration.
+     *
+     * @param id The ID for the query.
+     * @param query The actual query JSON body.
+     * @param config The configuration to use for the query.
+     * @return A created, uninitialized instance of a querier or a RuntimeException if there were issues.
+     */
+    protected Querier createQuerier(String id, String query, BulletConfig config) {
+        return new Querier(id, query, config);
     }
 
     private <T extends IMetric> T registerMetric(T metric, String name, TopologyContext context) {

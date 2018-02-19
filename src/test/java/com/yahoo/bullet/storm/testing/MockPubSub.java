@@ -19,13 +19,16 @@ public class MockPubSub extends PubSub {
 
     public MockPubSub(BulletConfig config) throws PubSubException {
         super(config);
-        initialize();
+        PubSub.Context context = PubSub.Context.valueOf(config.get(BulletConfig.PUBSUB_CONTEXT_NAME).toString());
+        this.publisher = new CustomPublisher(context);
+        this.subscriber = new CustomSubscriber(context);
     }
 
     @Override
     public void switchContext(Context context, BulletConfig config) throws PubSubException {
         super.switchContext(context, config);
-        initialize();
+        this.publisher = new CustomPublisher(context);
+        this.subscriber = new CustomSubscriber(context);
     }
 
     @Override
@@ -46,11 +49,5 @@ public class MockPubSub extends PubSub {
     @Override
     public List<Subscriber> getSubscribers(int n) {
         throw new UnsupportedOperationException();
-    }
-
-    private void initialize() {
-        PubSub.Context context = PubSub.Context.valueOf(config.get(BulletConfig.PUBSUB_CONTEXT_NAME).toString());
-        this.publisher = new CustomPublisher(context);
-        this.subscriber = new CustomSubscriber(context);
     }
 }

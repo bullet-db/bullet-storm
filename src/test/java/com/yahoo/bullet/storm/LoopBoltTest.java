@@ -9,7 +9,6 @@ import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubMessage;
-import com.yahoo.bullet.storm.drpc.DRPCConfig;
 import com.yahoo.bullet.storm.testing.ComponentUtils;
 import com.yahoo.bullet.storm.testing.CustomCollector;
 import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;

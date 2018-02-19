@@ -33,18 +33,11 @@ public class LoopBolt extends PublisherBolt {
     protected Publisher createPublisher() throws PubSubException {
         PubSub pubSub = PubSub.from(config);
 
-        // Remove unserializable object before printing
-        Object context = config.get(BulletStormConfig.STORM_CONTEXT);
-        config.set(BulletStormConfig.STORM_CONTEXT, null);
-        log.info("Initial settings: {}", config.toString());
-        config.set(BulletStormConfig.STORM_CONTEXT, context);
-
         // Map is always not null and is validated to be a proper BulletStormConfig
         Map<String, Object> overrides = (Map<String, Object>) config.getAs(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, Map.class);
         log.info("Loaded pubsub overrides: {}", overrides);
         BulletConfig modified = new BulletConfig();
         overrides.forEach(modified::set);
-        modified.set(BulletConfig.PUBSUB_CONTEXT_NAME, PubSub.Context.QUERY_SUBMISSION.name());
         pubSub.switchContext(PubSub.Context.QUERY_SUBMISSION, modified);
         log.info("Switched the PubSub into query submission mode");
 

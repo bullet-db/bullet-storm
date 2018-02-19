@@ -136,7 +136,7 @@ public class JoinBolt extends QueryBolt {
 
         Querier querier;
         try {
-            querier = new Querier(id, query, config);
+            querier = createQuerier(id, query, config);
             Optional<List<BulletError>> optionalErrors = querier.initialize();
             if (!optionalErrors.isPresent()) {
                 setupQuery(id, query, metadata, querier);

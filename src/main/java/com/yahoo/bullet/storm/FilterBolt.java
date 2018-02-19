@@ -49,7 +49,7 @@ public class FilterBolt extends QueryBolt {
         super.prepare(stormConf, context, collector);
         // Set the record component into the classifier
         classifier.setRecordComponent(recordComponent);
-        if (!metricsEnabled) {
+        if (metricsEnabled) {
             averageLatency = registerAveragingMetric(TopologyConstants.LATENCY_METRIC, context);
             rateExceededQueries = registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
         }
@@ -96,7 +96,7 @@ public class FilterBolt extends QueryBolt {
         // No need to handle any errors in the Filter Bolt.
         Querier querier = null;
         try {
-            querier = new Querier(id, query, config);
+            querier = createQuerier(id, query, config);
             if (querier.initialize().isPresent()) {
                 querier = null;
             }
