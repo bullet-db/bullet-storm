@@ -77,12 +77,13 @@ import static com.yahoo.bullet.storm.testing.TupleUtils.makeTuple;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.mockito.AdditionalAnswers.returnsElementsOf;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 public class FilterBoltTest {
     private CustomCollector collector;
     private FilterBolt bolt;
+    private BulletStormConfig config;
     private static final Metadata METADATA = new Metadata();
 
     private static class NoQueryFilterBolt extends FilterBolt {
@@ -93,26 +94,6 @@ public class FilterBoltTest {
         @Override
         protected Querier createQuerier(String id, String query, BulletConfig config) {
             return null;
-        }
-    }
-
-    private static class NeverDoneFilterBolt extends FilterBolt {
-        NeverDoneFilterBolt() {
-            this(new BulletStormConfig());
-        }
-
-        NeverDoneFilterBolt(BulletStormConfig config) {
-            super(TopologyConstants.RECORD_COMPONENT, config);
-        }
-
-        @Override
-        protected Querier createQuerier(String id, String query, BulletConfig config) {
-            Querier original = super.createQuerier(id, query, config);
-            if (original != null) {
-                original = spy(original);
-                when(original.isDone()).thenReturn(false);
-            }
-            return original;
         }
     }
 
@@ -141,7 +122,7 @@ public class FilterBoltTest {
             List<Boolean> answers = IntStream.range(0, doneAfter).mapToObj(i -> false)
                                              .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);
-            when(spied.isDone()).thenAnswer(returnsElementsOf(answers));
+            doAnswer(returnsElementsOf(answers)).when(spied).isDone();
             return spied;
         }
     }
@@ -198,17 +179,28 @@ public class FilterBoltTest {
         return actual.getMetricsAsBulletRecord().equals(expected);
     }
 
+    private static BulletStormConfig oneRecordConfig() {
+        BulletStormConfig config = new BulletStormConfig();
+        // Set aggregation default size to 1 since most queries here are RAW with filtering and projections. This
+        // makes them isClosedForPartition even if they are not done. immediately.
+        config.set(BulletConfig.AGGREGATION_DEFAULT_SIZE, 1);
+        config.set(BulletConfig.RECORD_INJECT_TIMESTAMP, false);
+        config.validate();
+        return config;
+    }
+
     @BeforeMethod
     public void setup() {
         collector = new CustomCollector();
-        bolt = ComponentUtils.prepare(new NeverDoneFilterBolt(), collector);
+        config = oneRecordConfig();
+        bolt = ComponentUtils.prepare(new FilterBolt(TopologyConstants.RECORD_COMPONENT, config), collector);
     }
 
     @Test
     public void testOutputFields() {
         CustomOutputFieldsDeclarer declarer = new CustomOutputFieldsDeclarer();
         bolt.declareOutputFields(declarer);
-        Fields expected = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.RECORD_FIELD);
+        Fields expected = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.DATA_FIELD);
         Assert.assertTrue(declarer.areFieldsPresent(TopologyConstants.DATA_STREAM, false, expected));
     }
 
@@ -277,7 +269,7 @@ public class FilterBoltTest {
     public void testProjectionAndFiltering() {
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeProjectionFilterQuery("map_field.id", singletonList("123"), EQUALS,
-                                          Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
+                                                            Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
                                   METADATA);
         bolt.execute(query);
 
@@ -519,7 +511,7 @@ public class FilterBoltTest {
 
     @Test
     public void testTuplesCustomSource() {
-        FilterBolt bolt = ComponentUtils.prepare(new FilterBolt("CustomSource", new BulletStormConfig()), collector);
+        bolt = ComponentUtils.prepare(new FilterBolt("CustomSource", oneRecordConfig()), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         bolt.execute(query);
@@ -611,7 +603,7 @@ public class FilterBoltTest {
     }
 
     @Test
-    public void testNoConsumptionAfterExpiry() {
+    public void testNoConsumptionAfterDone() {
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5),
                                   METADATA);
@@ -737,11 +729,13 @@ public class FilterBoltTest {
 
     @Test
     public void testFilteringLatency() {
-        BulletStormConfig config = new BulletStormConfig();
+        config = new BulletStormConfig();
+        // Don't use the overridden aggregation default size but turn on built in metrics
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         collector = new CustomCollector();
         CustomTopologyContext context = new CustomTopologyContext();
-        bolt = ComponentUtils.prepare(new HashMap<>(), new NeverDoneFilterBolt(config), context, collector);
+        bolt = new FilterBolt(TopologyConstants.RECORD_COMPONENT, config);
+        ComponentUtils.prepare(new HashMap<>(), bolt, context, collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("bar"), METADATA);
         bolt.execute(query);

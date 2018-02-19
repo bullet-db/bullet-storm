@@ -20,9 +20,9 @@ import org.apache.storm.tuple.Values;
 import java.util.Map;
 
 import static com.yahoo.bullet.storm.TopologyConstants.DATA_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ERROR_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.ERROR_STREAM;
-import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 
 @Slf4j
