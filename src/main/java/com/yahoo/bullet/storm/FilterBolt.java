@@ -6,7 +6,6 @@
 package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.querying.Querier;
-import com.yahoo.bullet.querying.RateLimitError;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.metric.api.ReducedMetric;
@@ -31,7 +30,6 @@ public class FilterBolt extends QueryBolt {
 
     private String recordComponent;
     private transient ReducedMetric averageLatency;
-    private transient AbsoluteCountMetric rateExceededQueries;
 
     /**
      * Constructor that accepts the name of the component that the records are coming from and the validated config.
@@ -51,7 +49,6 @@ public class FilterBolt extends QueryBolt {
         classifier.setRecordComponent(recordComponent);
         if (metricsEnabled) {
             averageLatency = registerAveragingMetric(TopologyConstants.LATENCY_METRIC, context);
-            rateExceededQueries = registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
         }
     }
 
@@ -101,13 +98,13 @@ public class FilterBolt extends QueryBolt {
                 querier = null;
             }
         } catch (RuntimeException ignored) {
+            log.error("", ignored);
         }
         if (querier == null) {
             log.error("Failed to initialize query for request {} with query {}", id, query);
-        } else {
-            log.info("Initialized query {}: {}", id, query);
-            queries.put(id, querier);
+            return;
         }
+        setupQuery(id, query, null, querier);
     }
 
     private void onRecord(Tuple tuple) {
@@ -137,17 +134,16 @@ public class FilterBolt extends QueryBolt {
     }
 
     private void emitData(Map.Entry<String, Querier> query) {
-        byte[] data = query.getValue().getData();
-        if (data != null) {
-            collector.emit(DATA_STREAM, new Values(query.getKey(), data));
-        }
+        emit(DATA_STREAM, query.getKey(), query.getValue().getData());
     }
 
     private void emitError(Map.Entry<String, Querier> query) {
-        RateLimitError error = query.getValue().getRateLimitError();
-        if (error != null) {
-            collector.emit(ERROR_STREAM, new Values(query.getKey(), error));
-            updateCount(rateExceededQueries, 1L);
+        emit(ERROR_STREAM, query.getKey(), query.getValue().getRateLimitError());
+    }
+
+    private void emit(String stream, String id, Object value) {
+        if (value != null) {
+            collector.emit(stream, new Values(id, value));
         }
     }
 

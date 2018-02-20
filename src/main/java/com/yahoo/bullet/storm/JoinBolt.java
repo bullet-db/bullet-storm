@@ -186,8 +186,6 @@ public class JoinBolt extends QueryBolt {
 
         Map<String, Querier> rateLimited = category.getRateLimited();
         rateLimited.entrySet().forEach(this::emitRateLimitError);
-        // Only increment this count for our own rate exceeded queries
-        updateCount(rateExceededQueries, rateLimited.size());
 
         Map<String, Querier> closed = category.getClosed();
         closed.entrySet().forEach(this::emitOrBufferWindow);
@@ -210,6 +208,7 @@ public class JoinBolt extends QueryBolt {
         clip.getMeta().merge(meta);
         emitResult(id, withSignal(metadata, Metadata.Signal.FAIL), clip);
         emitMetaSignal(id, Metadata.Signal.KILL);
+        updateCount(rateExceededQueries, 1L);
         removeQuery(id);
     }
 
@@ -286,6 +285,28 @@ public class JoinBolt extends QueryBolt {
         collector.emit(METADATA_STREAM, new Values(id, new Metadata(signal, null)));
     }
 
+    // Override hooks
+
+    @Override
+    protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
+        super.setupQuery(id, query, metadata, querier);
+        bufferedMetadata.put(id, metadata);
+        updateCount(createdQueriesCount, 1L);
+        updateCount(activeQueriesCount, 1L);
+    }
+
+    @Override
+    protected void removeQuery(String id) {
+        if (getQuery(id) == null) {
+            return;
+        }
+        super.removeQuery(id);
+        bufferedWindows.remove(id);
+        bufferedQueries.remove(id);
+        bufferedMetadata.remove(id);
+        updateCount(activeQueriesCount, -1L);
+    }
+
     // Other helpers
 
     private void rotateInto(String id, Querier querier, RotatingMap<String, Querier> into) {
@@ -301,24 +322,6 @@ public class JoinBolt extends QueryBolt {
         }
         metadata.setSignal(signal);
         return metadata;
-    }
-
-    private void setupQuery(String id, String query, Metadata metadata, Querier querier) {
-        queries.put(id, querier);
-        bufferedMetadata.put(id, metadata);
-        updateCount(createdQueriesCount, 1L);
-        updateCount(activeQueriesCount, 1L);
-        log.info("Initialized query {}: {}", id, query);
-    }
-
-    private void removeQuery(String id) {
-        if (getQuery(id) != null) {
-            updateCount(activeQueriesCount, -1L);
-        }
-        queries.remove(id);
-        bufferedWindows.remove(id);
-        bufferedQueries.remove(id);
-        bufferedMetadata.remove(id);
     }
 
     private Querier getQuery(String id) {

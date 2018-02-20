@@ -67,10 +67,44 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.METADATA_POSITION);
         Metadata.Signal signal = metadata.getSignal();
         if (signal == Metadata.Signal.KILL || signal == Metadata.Signal.COMPLETE) {
-            queries.remove(id);
+            removeQuery(id);
             log.info("Received {} signal and killed query: {}", signal, id);
         }
         return metadata;
+    }
+
+    /**
+     * For testing only. Create a {@link Querier} from the given query ID, body and configuration.
+     *
+     * @param id The ID for the query.
+     * @param query The actual query JSON body.
+     * @param config The configuration to use for the query.
+     * @return A created, uninitialized instance of a querier or a RuntimeException if there were issues.
+     */
+    protected Querier createQuerier(String id, String query, BulletConfig config) {
+        return new Querier(id, query, config);
+    }
+
+    /**
+     * Setup the query with the given id and body. Override if you need to do additional setup.
+     *
+     * @param id The String ID of the query.
+     * @param query The String body of the query.
+     * @param metadata The {@link Metadata} for the query.
+     * @param querier The valid, initialized {@link Querier} for this query.
+     */
+    protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
+        queries.put(id, querier);
+        log.info("Initialized query {}: {}", id, query);
+    }
+
+    /**
+     * Remove the query with this given id. Override this if you need to do additional cleanup.
+     *
+     * @param id The String id of the query.
+     */
+    protected void removeQuery(String id) {
+        queries.remove(id);
     }
 
     /**
@@ -105,18 +139,6 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
      */
     protected AbsoluteCountMetric registerAbsoluteCountMetric(String name, TopologyContext context) {
         return registerMetric(new AbsoluteCountMetric(), name, context);
-    }
-
-    /**
-     * For testing only. Create a {@link Querier} from the given query ID, body and configuration.
-     *
-     * @param id The ID for the query.
-     * @param query The actual query JSON body.
-     * @param config The configuration to use for the query.
-     * @return A created, uninitialized instance of a querier or a RuntimeException if there were issues.
-     */
-    protected Querier createQuerier(String id, String query, BulletConfig config) {
-        return new Querier(id, query, config);
     }
 
     private <T extends IMetric> T registerMetric(T metric, String name, TopologyContext context) {

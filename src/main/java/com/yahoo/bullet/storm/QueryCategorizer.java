@@ -65,10 +65,10 @@ public class QueryCategorizer {
         Querier querier = query.getValue();
         if (querier.isDone()) {
             done.put(id, querier);
-        } else if (isClosed.test(querier)) {
-            closed.put(id, querier);
         } else if (querier.isExceedingRateLimit()) {
             rateLimited.put(id, querier);
+        } else if (isClosed.test(querier)) {
+            closed.put(id, querier);
         }
     }
 }
