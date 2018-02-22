@@ -150,25 +150,31 @@ public class JoinBoltTest {
     private static void enableMetadataInConfig(BulletStormConfig config, String metaConcept, String key) {
         Map<String, String> metadataConfig =
                 (Map<String, String>) config.getOrDefault(BulletStormConfig.RESULT_METADATA_METRICS, new HashMap<>());
-        metadataConfig.put(BulletStormConfig.RESULT_METADATA_METRICS_CONCEPT_KEY, metaConcept);
-        metadataConfig.put(BulletStormConfig.RESULT_METADATA_METRICS_NAME_KEY, key);
-
+        metadataConfig.put(metaConcept, key);
         config.set(BulletStormConfig.RESULT_METADATA_ENABLE, true);
         config.set(BulletStormConfig.RESULT_METADATA_METRICS, metadataConfig);
     }
 
-    private BulletStormConfig rawMaxSizeConfig() {
+    private static BulletStormConfig configWithRawMaxAndNoMeta() {
         BulletStormConfig config = new BulletStormConfig();
         config.set(BulletStormConfig.RAW_AGGREGATION_MAX_SIZE, RAW_MAX_SIZE);
+        config.set(BulletStormConfig.RESULT_METADATA_ENABLE, false);
         config.validate();
+        return config;
+    }
+
+    private static BulletStormConfig configWithRawMaxAndEmptyMeta() {
+        BulletStormConfig config = new BulletStormConfig();
+        config.set(BulletStormConfig.RAW_AGGREGATION_MAX_SIZE, RAW_MAX_SIZE);
+        config.set(BulletStormConfig.RESULT_METADATA_ENABLE, true);
+        config.validate();
+        config.set(BulletStormConfig.RESULT_METADATA_METRICS, new HashMap<>());
         return config;
     }
 
     @BeforeMethod
     public void setup() {
-        config = rawMaxSizeConfig();
-        config.set(BulletStormConfig.RESULT_METADATA_ENABLE, false);
-        config.validate();
+        config = configWithRawMaxAndNoMeta();
         setup(new JoinBolt(config));
     }
 
@@ -384,7 +390,7 @@ public class JoinBoltTest {
 
     @Test
     public void testQueryIdentifierMetadata() {
-        config = rawMaxSizeConfig();
+        config = configWithRawMaxAndEmptyMeta();
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         setup(new JoinBolt(config));
 
@@ -402,7 +408,7 @@ public class JoinBoltTest {
 
     @Test
     public void testUnknownConceptMetadata() {
-        config = rawMaxSizeConfig();
+        config = configWithRawMaxAndEmptyMeta();
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         enableMetadataInConfig(config, "foo", "bar");
         setup(new JoinBolt(config));
@@ -421,7 +427,7 @@ public class JoinBoltTest {
 
     @Test
     public void testMultipleMetadata() {
-        config = rawMaxSizeConfig();
+        config = configWithRawMaxAndEmptyMeta();
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         enableMetadataInConfig(config, Concept.QUERY_BODY.getName(), "query");
         enableMetadataInConfig(config, Concept.QUERY_RECEIVE_TIME.getName(), "created");
