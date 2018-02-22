@@ -608,9 +608,8 @@ public class FilterBoltTest {
 
     @Test
     public void testCountDistinct() {
-        BulletStormConfig config = new BulletStormConfig();
         // 256 Records will be consumed
-        config.merge(CountDistinctTest.makeConfiguration(8, 512));
+        BulletStormConfig config = new BulletStormConfig(CountDistinctTest.makeConfiguration(8, 512));
         bolt = ComponentUtils.prepare(new DonableFilterBolt(256, config), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
@@ -672,9 +671,8 @@ public class FilterBoltTest {
 
     @Test
     public void testDistribution() {
-        BulletStormConfig config = new BulletStormConfig();
-        config.merge(DistributionTest.makeConfiguration(20, 128));
         // 100 Records will be consumed
+        BulletStormConfig config = new BulletStormConfig(DistributionTest.makeConfiguration(20, 128));
         bolt = ComponentUtils.prepare(new DonableFilterBolt(101, config), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
@@ -724,9 +722,8 @@ public class FilterBoltTest {
 
     @Test
     public void testTopK() {
-        BulletStormConfig config = new BulletStormConfig();
         // 16 records
-        config.merge(TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 32));
+        BulletStormConfig config = new BulletStormConfig(TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 32));
         bolt = ComponentUtils.prepare(new DonableFilterBolt(16, config), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",

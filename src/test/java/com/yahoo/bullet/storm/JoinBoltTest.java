@@ -3,32 +3,38 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-/*
 package com.yahoo.bullet.storm;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
-import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
-import com.yahoo.bullet.operations.SerializerDeserializer;
-import com.yahoo.bullet.operations.aggregations.CountDistinct;
-import com.yahoo.bullet.operations.aggregations.CountDistinctTest;
-import com.yahoo.bullet.operations.aggregations.Distribution;
-import com.yahoo.bullet.operations.aggregations.DistributionTest;
-import com.yahoo.bullet.operations.aggregations.GroupBy;
-import com.yahoo.bullet.operations.aggregations.GroupByTest;
-import com.yahoo.bullet.operations.aggregations.TopK;
-import com.yahoo.bullet.operations.aggregations.TopKTest;
-import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
-import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
+import com.yahoo.bullet.aggregations.CountDistinct;
+import com.yahoo.bullet.aggregations.CountDistinctTest;
+import com.yahoo.bullet.aggregations.Distribution;
+import com.yahoo.bullet.aggregations.DistributionTest;
+import com.yahoo.bullet.aggregations.GroupBy;
+import com.yahoo.bullet.aggregations.GroupByTest;
+import com.yahoo.bullet.aggregations.TopK;
+import com.yahoo.bullet.aggregations.TopKTest;
+import com.yahoo.bullet.aggregations.grouping.GroupData;
+import com.yahoo.bullet.aggregations.grouping.GroupOperation;
+import com.yahoo.bullet.common.BulletConfig;
+import com.yahoo.bullet.common.BulletError;
+import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.parsing.Aggregation;
 import com.yahoo.bullet.parsing.AggregationUtils;
-import com.yahoo.bullet.parsing.Error;
-import com.yahoo.bullet.querying.AggregationQuery;
+import com.yahoo.bullet.parsing.ParsingError;
+import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata;
-import com.yahoo.bullet.result.Metadata.Concept;
+import com.yahoo.bullet.result.Meta;
+import com.yahoo.bullet.result.Meta.Concept;
 import com.yahoo.bullet.result.RecordBox;
+import com.yahoo.bullet.storm.testing.ComponentUtils;
+import com.yahoo.bullet.storm.testing.CustomCollector;
+import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
+import com.yahoo.bullet.storm.testing.CustomTopologyContext;
+import com.yahoo.bullet.storm.testing.TupleUtils;
 import com.yahoo.sketches.frequencies.ErrorType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.storm.topology.IRichBolt;
@@ -45,58 +51,62 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.storm.testing.TestHelpers.assertJSONEquals;
-import static com.yahoo.bullet.storm.testing.TestHelpers.getListBytes;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP_K;
-import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
-import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.SUM;
-import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.COUNT_FIELD;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY_END;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.PROBABILITY_FIELD;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.RANGE_FIELD;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.SEPARATOR;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
+import static com.yahoo.bullet.aggregations.grouping.GroupOperation.GroupOperationType.COUNT;
+import static com.yahoo.bullet.aggregations.grouping.GroupOperation.GroupOperationType.SUM;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.COUNT_FIELD;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY_END;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.PROBABILITY_FIELD;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.RANGE_FIELD;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.SEPARATOR;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
+import static com.yahoo.bullet.parsing.Aggregation.Type.COUNT_DISTINCT;
+import static com.yahoo.bullet.parsing.Aggregation.Type.DISTRIBUTION;
+import static com.yahoo.bullet.parsing.Aggregation.Type.GROUP;
+import static com.yahoo.bullet.parsing.Aggregation.Type.RAW;
+import static com.yahoo.bullet.parsing.Aggregation.Type.TOP_K;
 import static com.yahoo.bullet.parsing.AggregationUtils.makeAttributes;
-import static com.yahoo.bullet.parsing.QueryUtils.getAggregationQuery;
+import static com.yahoo.bullet.parsing.Clause.Operation.EQUALS;
 import static com.yahoo.bullet.parsing.QueryUtils.makeAggregationQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeGroupFilterQuery;
+import static com.yahoo.bullet.storm.testing.TestHelpers.assertJSONEquals;
+import static com.yahoo.bullet.storm.testing.TestHelpers.getListBytes;
 import static java.util.Arrays.asList;
-import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
+import static org.mockito.AdditionalAnswers.returnsElementsOf;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 public class JoinBoltTest {
-    private static final com.yahoo.bullet.pubsub.Metadata METADATA = new com.yahoo.bullet.pubsub.Metadata();
+    private static final Metadata COMPLETED = new Metadata(Metadata.Signal.COMPLETE, null);
+    private static final int RAW_MAX_SIZE = 5;
 
+    private BulletStormConfig config;
     private CustomCollector collector;
     private CustomTopologyContext context;
     private JoinBolt bolt;
 
-    private class ExpiringJoinBolt extends JoinBolt {
-        private Map config = emptyMap();
+    private static class DonableJoinBolt extends JoinBolt {
+        private final int doneAfter;
 
-        public ExpiringJoinBolt(Map config) {
-            this.config = config;
+        public DonableJoinBolt(BulletStormConfig config) {
+            this(config, 1);
         }
 
-        public ExpiringJoinBolt() {
+        public DonableJoinBolt(BulletStormConfig config, int doneAfter) {
+            super(config);
+            this.doneAfter = doneAfter;
         }
 
         @Override
-        protected AggregationQuery createQuery(Tuple queryTuple) {
-            String id = queryTuple.getString(TopologyConstants.ID_POSITION);
-            String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
-            AggregationQuery spied = spy(getAggregationQuery(queryString, config));
-            when(spied.isExpired()).thenReturn(false).thenReturn(true);
+        protected Querier createQuerier(String id, String query, BulletConfig config) {
+            Querier spied = spy(super.createQuerier(id, query, config));
+            List<Boolean> answers = IntStream.range(0, doneAfter).mapToObj(i -> false)
+                                             .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            answers.add(true);
+            doAnswer(returnsElementsOf(answers)).when(spied).isDone();
             return spied;
         }
     }
@@ -121,7 +131,7 @@ public class JoinBoltTest {
     }
 
     private List<BulletRecord> sendRawRecordTuplesTo(IRichBolt bolt, String id) {
-        return sendRawRecordTuplesTo(bolt, id, Aggregation.DEFAULT_SIZE);
+        return sendRawRecordTuplesTo(bolt, id, RAW_MAX_SIZE);
     }
 
     private void sendRawByteTuplesTo(IRichBolt bolt, String id, List<byte[]> data) {
@@ -137,76 +147,86 @@ public class JoinBoltTest {
         return SerializerDeserializer.toBytes(groupData);
     }
 
-    public static void enableMetadataInConfig(Map<String, Object> config, String metaConcept, String key) {
-        List<Map<String, String>> metadataConfig =
-                (List<Map<String, String>>) config.getOrDefault(BulletStormConfig.RESULT_METADATA_METRICS, new ArrayList<>());
-        Map<String, String> conceptConfig = new HashMap<>();
-        conceptConfig.put(BulletStormConfig.RESULT_METADATA_METRICS_CONCEPT_KEY, metaConcept);
-        conceptConfig.put(BulletStormConfig.RESULT_METADATA_METRICS_NAME_KEY, key);
-        metadataConfig.add(conceptConfig);
+    private static void enableMetadataInConfig(BulletStormConfig config, String metaConcept, String key) {
+        Map<String, String> metadataConfig =
+                (Map<String, String>) config.getOrDefault(BulletStormConfig.RESULT_METADATA_METRICS, new HashMap<>());
+        metadataConfig.put(BulletStormConfig.RESULT_METADATA_METRICS_CONCEPT_KEY, metaConcept);
+        metadataConfig.put(BulletStormConfig.RESULT_METADATA_METRICS_NAME_KEY, key);
 
-        config.put(BulletStormConfig.RESULT_METADATA_ENABLE, true);
-        config.putIfAbsent(BulletStormConfig.RESULT_METADATA_METRICS, metadataConfig);
+        config.set(BulletStormConfig.RESULT_METADATA_ENABLE, true);
+        config.set(BulletStormConfig.RESULT_METADATA_METRICS, metadataConfig);
+    }
+
+    private BulletStormConfig rawMaxSizeConfig() {
+        BulletStormConfig config = new BulletStormConfig();
+        config.set(BulletStormConfig.RAW_AGGREGATION_MAX_SIZE, RAW_MAX_SIZE);
+        config.validate();
+        return config;
     }
 
     @BeforeMethod
     public void setup() {
-        collector = new CustomCollector();
-        bolt = ComponentUtils.prepare(new JoinBolt(), collector);
+        config = rawMaxSizeConfig();
+        config.set(BulletStormConfig.RESULT_METADATA_ENABLE, false);
+        config.validate();
+        setup(new JoinBolt(config));
     }
 
-    public void setup(Map<String, Object> config, JoinBolt bolt) {
+    public void setup(JoinBolt bolt) {
         collector = new CustomCollector();
         context = new CustomTopologyContext();
-        this.bolt = ComponentUtils.prepare(config, bolt, context, collector);
+        this.bolt = ComponentUtils.prepare(new HashMap<>(), bolt, context, collector);
     }
 
     @Test
     public void testOutputFields() {
         CustomOutputFieldsDeclarer declarer = new CustomOutputFieldsDeclarer();
         bolt.declareOutputFields(declarer);
-        Fields expected = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.RESULT_FIELD, TopologyConstants.METADATA_FIELD);
-        Assert.assertTrue(declarer.areFieldsPresent(JoinBolt.JOIN_STREAM, false, expected));
+        Fields expectedResultFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.RESULT_FIELD, TopologyConstants.METADATA_FIELD);
+        Fields expectedFeedbackFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.METADATA_FIELD);
+        Assert.assertTrue(declarer.areFieldsPresent(TopologyConstants.RESULT_STREAM, false, expectedResultFields));
+        Assert.assertTrue(declarer.areFieldsPresent(TopologyConstants.FEEDBACK_STREAM, false, expectedFeedbackFields));
     }
 
     @Test
     public void testUnknownTuple() {
-        Tuple query = TupleUtils.makeTuple(TupleClassifier.Type.RECORD_TUPLE, RecordBox.get().add("a", "b").getRecord());
+        Tuple query = TupleUtils.makeRawTuple(TopologyConstants.RECORD_COMPONENT, TopologyConstants.RECORD_STREAM,
+                                              RecordBox.get().add("a", "b").getRecord());
         bolt.execute(query);
         Assert.assertFalse(collector.wasAcked(query));
     }
 
     @Test
     public void testJoining() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", COMPLETED);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
         // We'd have <JSON, metadataTuple> as the expected tuple
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
 
     @Test
     public void testQueryExpiry() {
-        bolt = ComponentUtils.prepare(new ExpiringJoinBolt(), collector);
+        bolt = ComponentUtils.prepare(new DonableJoinBolt(config), collector);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", COMPLETED);
         bolt.execute(query);
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
 
-        List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", Aggregation.DEFAULT_SIZE - 1);
+        List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", BulletStormConfig.DEFAULT_RAW_AGGREGATION_MAX_SIZE - 1);
 
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
 
         // Should cause an expiry and starts buffering the query for the query tickout
         bolt.execute(tick);
         // We need to tick the default query tickout to make the query emit
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
@@ -218,7 +238,7 @@ public class JoinBoltTest {
 
     @Test
     public void testEmit() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", COMPLETED);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
@@ -232,22 +252,21 @@ public class JoinBoltTest {
     public void testFailJoiningForNoQuery() {
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
         Assert.assertFalse(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 0);
     }
 
     @Test
     public void testJoiningAfterTickout() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        setup(config, new ExpiringJoinBolt());
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        setup(new DonableJoinBolt(config));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3), METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3), COMPLETED);
         bolt.execute(query);
 
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 2);
 
@@ -257,34 +276,33 @@ public class JoinBoltTest {
         bolt.execute(tick);
 
         // We'd have <JSON, metadataTuple> as the expected tuple
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
 
         // We need to tick the default query tickout to make the query emit
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
-            Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-            Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+            Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+            Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
         }
         // This will cause the emission
         bolt.execute(tick);
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
     }
 
     @Test
     public void testJoiningAfterLateArrivalBeforeTickout() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        setup(config, new ExpiringJoinBolt());
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        setup(new DonableJoinBolt(config));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3), METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3), COMPLETED);
         bolt.execute(query);
 
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 2);
 
@@ -293,52 +311,52 @@ public class JoinBoltTest {
         bolt.execute(tick);
         bolt.execute(tick);
 
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
 
         // We now tick a few times to get the query rotated but not discarded
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
-            Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-            Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+            Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+            Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
         }
         // Now we satisfy the aggregation and see if it causes an emission
         List<BulletRecord> sentLate = sendRawRecordTuplesTo(bolt, "42", 1);
         sent.addAll(sentLate);
 
         // The expected record now should contain the sentLate ones too
-        expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), METADATA);
+        expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
 
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
     }
 
     @Test
     public void testMultiJoining() {
-        bolt = ComponentUtils.prepare(new ExpiringJoinBolt(), collector);
+        bolt = ComponentUtils.prepare(new DonableJoinBolt(config), collector);
 
-        Tuple queryA = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple queryA = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", COMPLETED);
         bolt.execute(queryA);
 
-        Tuple queryB = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43", "{}", METADATA);
+        Tuple queryB = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43", "{}", COMPLETED);
         bolt.execute(queryB);
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
 
         // This will not satisfy the query and will be emitted second
-        List<BulletRecord> sentFirst = sendRawRecordTuplesTo(bolt, "42", Aggregation.DEFAULT_SIZE - 1);
+        List<BulletRecord> sentFirst = sendRawRecordTuplesTo(bolt, "42", BulletStormConfig.DEFAULT_RAW_AGGREGATION_MAX_SIZE - 1);
         List<BulletRecord> sentSecond = sendRawRecordTuplesTo(bolt, "43");
         bolt.execute(tick);
         bolt.execute(tick);
 
-        Tuple emittedFirst = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "43", Clip.of(sentSecond).asJSON(), METADATA);
+        Tuple emittedFirst = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "43", Clip.of(sentSecond).asJSON(), COMPLETED);
         Assert.assertTrue(collector.wasNthEmitted(emittedFirst, 1));
 
-        Tuple emittedSecond = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sentFirst).asJSON(), METADATA);
+        Tuple emittedSecond = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sentFirst).asJSON(), COMPLETED);
         // We need to tick the default query tickout to make the query emit
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(emittedSecond));
         }
@@ -349,86 +367,70 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testErrorImmediate() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "garbage", METADATA);
-        bolt.execute(query);
-
-        Assert.assertEquals(collector.getAllEmitted().count(), 1);
-
-        String error = Error.GENERIC_JSON_ERROR + ":\ngarbage\n" +
-                       "IllegalStateException: Expected BEGIN_OBJECT but was STRING at line 1 column 1 path $";
-        Error expectedError = Error.of(error, singletonList(Error.GENERIC_JSON_RESOLUTION));
-        Metadata expectedMetadata = Metadata.of(expectedError);
-        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), METADATA).getValues();
-        List<Object> actual = collector.getNthTupleEmittedTo(JoinBolt.JOIN_STREAM, 1).get();
-        Assert.assertEquals(actual, expected);
-    }
-
-    @Test
     public void testErrorEmittedProperly() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "garbage", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "garbage", COMPLETED);
         bolt.execute(query);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 
-        String error = Error.GENERIC_JSON_ERROR + ":\ngarbage\n" +
+        String error = ParsingError.GENERIC_JSON_ERROR + ":\ngarbage\n" +
                        "IllegalStateException: Expected BEGIN_OBJECT but was STRING at line 1 column 1 path $";
-        Error expectedError = Error.of(error, singletonList(Error.GENERIC_JSON_RESOLUTION));
-        Metadata expectedMetadata = Metadata.of(expectedError);
-        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), METADATA).getValues();
-        List<Object> actual = collector.getNthTupleEmittedTo(JoinBolt.JOIN_STREAM, 1).get();
+        BulletError expectedError = ParsingError.makeError(error, ParsingError.GENERIC_JSON_RESOLUTION);
+        Meta expectedMetadata = Meta.of(expectedError);
+        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), COMPLETED).getValues();
+        List<Object> actual = collector.getNthTupleEmittedTo(TopologyConstants.RESULT_STREAM, 1).get();
         Assert.assertEquals(actual, expected);
     }
 
     @Test
     public void testQueryIdentifierMetadata() {
-        Map<String, Object> config = new HashMap<>();
+        config = rawMaxSizeConfig();
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
-        setup(config, new JoinBolt());
+        setup(new JoinBolt(config));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", COMPLETED);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
-        Metadata meta = new Metadata();
+        Meta meta = new Meta();
         meta.add("id", "42");
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).add(meta).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).add(meta).asJSON(), COMPLETED);
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
 
     @Test
     public void testUnknownConceptMetadata() {
-        Map<String, Object> config = new HashMap<>();
+        config = rawMaxSizeConfig();
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         enableMetadataInConfig(config, "foo", "bar");
-        setup(config, new JoinBolt());
+        setup(new JoinBolt(config));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", COMPLETED);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
-        Metadata meta = new Metadata();
+        Meta meta = new Meta();
         meta.add("id", "42");
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).add(meta).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).add(meta).asJSON(), COMPLETED);
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
 
     @Test
     public void testMultipleMetadata() {
-        Map<String, Object> config = new HashMap<>();
+        config = rawMaxSizeConfig();
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         enableMetadataInConfig(config, Concept.QUERY_BODY.getName(), "query");
-        enableMetadataInConfig(config, Concept.QUERY_CREATION_TIME.getName(), "created");
-        enableMetadataInConfig(config, Concept.QUERY_TERMINATION_TIME.getName(), "finished");
-        setup(config, new JoinBolt());
+        enableMetadataInConfig(config, Concept.QUERY_RECEIVE_TIME.getName(), "created");
+        enableMetadataInConfig(config, Concept.QUERY_FINISH_TIME.getName(), "finished");
+        setup(new JoinBolt(config));
 
         long startTime = System.currentTimeMillis();
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{}", COMPLETED);
         bolt.execute(query);
 
         sendRawRecordTuplesTo(bolt, "42");
@@ -459,7 +461,7 @@ public class JoinBoltTest {
     @Test
     public void testUnsupportedAggregation() {
         // "TOP_K" aggregation type not currently supported - error should be emitted
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(TOP_K, 5), METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(TOP_K, 5), COMPLETED);
         bolt.execute(query);
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
@@ -468,14 +470,14 @@ public class JoinBoltTest {
     public void testUnknownAggregation() {
         // Lowercase "top" is not valid and will not be parsed since there is no enum for it
         // In this case aggregation type should be set to null and an error should be emitted
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{\"aggregation\": {\"type\": \"garbage\"}}", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{\"aggregation\": {\"type\": \"garbage\"}}", COMPLETED);
         bolt.execute(query);
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
-        Error expectedError = Aggregation.TYPE_NOT_SUPPORTED_ERROR;
-        Metadata expectedMetadata = Metadata.of(expectedError);
-        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), METADATA).getValues();
-        List<Object> actual = collector.getNthTupleEmittedTo(JoinBolt.JOIN_STREAM, 1).get();
+        BulletError expectedError = Aggregation.TYPE_NOT_SUPPORTED_ERROR;
+        Meta expectedMetadata = Meta.of(expectedError);
+        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), COMPLETED).getValues();
+        List<Object> actual = collector.getNthTupleEmittedTo(TopologyConstants.RESULT_STREAM, 1).get();
         Assert.assertEquals(actual, expected);
     }
 
@@ -483,28 +485,28 @@ public class JoinBoltTest {
     public void testUnhandledExceptionErrorEmitted() {
         // An empty query should throw an null-pointer exception which should be caught in JoinBolt
         // and an error should be emitted
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "", METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "", COMPLETED);
         bolt.execute(query);
 
         sendRawRecordTuplesTo(bolt, "42");
 
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 
-        String error = Error.GENERIC_JSON_ERROR + ":\n\nNullPointerException: ";
-        Error expectedError = Error.of(error, singletonList(Error.GENERIC_JSON_RESOLUTION));
-        Metadata expectedMetadata = Metadata.of(expectedError);
-        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), METADATA).getValues();
-        List<Object> actual = collector.getNthTupleEmittedTo(JoinBolt.JOIN_STREAM, 1).get();
+        String error = ParsingError.GENERIC_JSON_ERROR + ":\n\nNullPointerException: ";
+        BulletError expectedError = ParsingError.makeError(error, ParsingError.GENERIC_JSON_RESOLUTION);
+        Meta expectedMetadata = Meta.of(expectedError);
+        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), COMPLETED).getValues();
+        List<Object> actual = collector.getNthTupleEmittedTo(TopologyConstants.RESULT_STREAM, 1).get();
         Assert.assertEquals(actual, expected);
     }
 
     @Test
     public void testCounting() {
-        bolt = ComponentUtils.prepare(new ExpiringJoinBolt(), collector);
+        bolt = ComponentUtils.prepare(new DonableJoinBolt(new BulletStormConfig()), collector);
 
         String filterQuery = makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
                                                   singletonList(new GroupOperation(COUNT, null, "cnt")));
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", filterQuery, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", filterQuery, COMPLETED);
         bolt.execute(query);
 
         // Send 5 GroupData with counts 1, 2, 3, 4, 5 to the JoinBolt
@@ -512,7 +514,7 @@ public class JoinBoltTest {
 
         // 1 + 2 + 3 + 4 + 5
         List<BulletRecord> result = singletonList(RecordBox.get().add("cnt", 15L).getRecord());
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(result).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(result).asJSON(), COMPLETED);
 
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
@@ -520,7 +522,7 @@ public class JoinBoltTest {
         // Should cause an expiry and starts buffering the query for the query tickout
         bolt.execute(tick);
         // We need to tick the default query tickout to make the query emit
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
@@ -532,7 +534,7 @@ public class JoinBoltTest {
 
     @Test
     public void testRawMicroBatchSizeGreaterThanOne() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 5), METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 5), COMPLETED);
         bolt.execute(query);
 
         // This will send 2 batches of 3 records each (total of 6 records).
@@ -540,42 +542,42 @@ public class JoinBoltTest {
 
         List<BulletRecord> actualSent = sent.subList(0, 5);
 
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(actualSent).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(actualSent).asJSON(), COMPLETED);
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
 
     @Test
     public void testCountDistinct() {
-        Map<Object, Object> config = CountDistinctTest.makeConfiguration(8, 512);
+        BulletConfig config = CountDistinctTest.makeConfiguration(8, 512);
 
         CountDistinct distinct = CountDistinctTest.makeCountDistinct(config, singletonList("field"));
 
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord()).forEach(distinct::consume);
-        byte[] first = distinct.getSerializedAggregation();
+        byte[] first = distinct.getData();
 
         distinct = CountDistinctTest.makeCountDistinct(config, singletonList("field"));
 
         IntStream.range(128, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord()).forEach(distinct::consume);
-        byte[] second = distinct.getSerializedAggregation();
+        byte[] second = distinct.getData();
 
         // Send generated data to JoinBolt
-        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
+        bolt = ComponentUtils.prepare(new DonableJoinBolt(new BulletStormConfig(config)), collector);
 
         Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                              makeAggregationQuery(COUNT_DISTINCT, 1, null, Pair.of("field", "field")),
-                                             METADATA);
+                COMPLETED);
         bolt.execute(query);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
 
         List<BulletRecord> result = singletonList(RecordBox.get().add(CountDistinct.DEFAULT_NEW_NAME, 256.0).getRecord());
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(result).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(result).asJSON(), COMPLETED);
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
@@ -588,7 +590,7 @@ public class JoinBoltTest {
     @Test
     public void testGroupBy() {
         final int entries = 16;
-        Map<Object, Object> config = GroupByTest.makeConfiguration(entries);
+        BulletConfig config = GroupByTest.makeConfiguration(entries);
 
         GroupBy groupBy = GroupByTest.makeGroupBy(config, singletonMap("fieldA", "A"), entries,
                                                   AggregationUtils.makeGroupOperation(COUNT, null, "cnt"),
@@ -596,7 +598,7 @@ public class JoinBoltTest {
 
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("fieldA", i % 16).add("fieldB", i / 16).getRecord())
                                .forEach(groupBy::consume);
-        byte[] first = groupBy.getSerializedAggregation();
+        byte[] first = groupBy.getData();
 
         groupBy = GroupByTest.makeGroupBy(config, singletonMap("fieldA", "A"), entries,
                                           AggregationUtils.makeGroupOperation(COUNT, null, "cnt"),
@@ -605,17 +607,17 @@ public class JoinBoltTest {
         IntStream.range(256, 1024).mapToObj(i -> RecordBox.get().add("fieldA", i % 16).add("fieldB", i / 16).getRecord())
                                   .forEach(groupBy::consume);
 
-        byte[] second = groupBy.getSerializedAggregation();
+        byte[] second = groupBy.getData();
 
         // Send generated data to JoinBolt
-        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
+        bolt = ComponentUtils.prepare(new DonableJoinBolt(new BulletStormConfig(config)), collector);
 
         List<GroupOperation> operations = asList(new GroupOperation(COUNT, null, "cnt"),
                                                  new GroupOperation(SUM, "fieldB", "sumB"));
         String queryString = makeGroupFilterQuery("ts", singletonList("1"), EQUALS, GROUP, entries, operations,
                                                   Pair.of("fieldA", "A"));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", queryString, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", queryString, COMPLETED);
         bolt.execute(query);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
@@ -623,7 +625,7 @@ public class JoinBoltTest {
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertEquals(collector.getAllEmitted().count(), 0);
         }
@@ -634,27 +636,26 @@ public class JoinBoltTest {
 
     @Test
     public void testQueryCountingMetrics() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        setup(config, new ExpiringJoinBolt());
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        setup(new DonableJoinBolt(config));
 
         String filterQuery = makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
                                                   singletonList(new GroupOperation(COUNT, null, "cnt")));
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", filterQuery, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", filterQuery, COMPLETED);
 
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
 
         bolt.execute(query);
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         sendRawByteTuplesTo(bolt, "42", singletonList(getGroupDataWithCount("cnt", 21)));
         sendRawByteTuplesTo(bolt, "42", singletonList(getGroupDataWithCount("cnt", 21)));
 
         List<BulletRecord> result = singletonList(RecordBox.get().add("cnt", 42L).getRecord());
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(result).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(result).asJSON(), COMPLETED);
 
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
@@ -663,107 +664,104 @@ public class JoinBoltTest {
         // Should cause an expiry and starts buffering the query for the query tickout
         bolt.execute(tick);
         // We need to tick the default query tickout to make the query emit
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
         }
         Assert.assertFalse(collector.wasTupleEmitted(expected));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         bolt.execute(tick);
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
 
         Assert.assertTrue(collector.wasNthEmitted(expected, 1));
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
 
         bolt.execute(query);
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(2));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(2));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
     }
 
     @Test
     public void testImproperQueryCountingMetrics() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        setup(config, new JoinBolt());
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        setup(new JoinBolt(config));
 
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
 
-        Tuple badQuery = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", METADATA);
+        Tuple badQuery = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", COMPLETED);
         bolt.execute(badQuery);
         bolt.execute(badQuery);
-        Assert.assertEquals(context.getLongMetric(JoinBolt.CREATED_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(JoinBolt.IMPROPER_QUERIES), Long.valueOf(2));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(2));
     }
 
     @Test
     public void testCustomMetricEmitInterval() {
-        Map<String, Object> config = new HashMap<>();
         Map<String, Number> mapping = new HashMap<>();
-        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-
-        mapping.put(JoinBolt.ACTIVE_QUERIES, 1);
-        mapping.put(JoinBolt.DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, 10);
-        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, mapping);
-        setup(config, new ExpiringJoinBolt());
+        mapping.put(TopologyConstants.ACTIVE_QUERIES_METRIC, 1);
+        mapping.put(BulletStormConfig.DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, 10);
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, mapping);
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        setup(new DonableJoinBolt(config));
 
         String filterQuery = makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
                                                   singletonList(new GroupOperation(COUNT, null, "cnt")));
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", filterQuery, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", filterQuery, COMPLETED);
 
-        Assert.assertEquals(context.getLongMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(10, TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(1, TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(10, TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
 
         bolt.execute(query);
-        Assert.assertEquals(context.getLongMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(10, TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(1, TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        for (int i = 0; i <= JoinBolt.DEFAULT_QUERY_TICKOUT; ++i) {
+        for (int i = 0; i <= BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT; ++i) {
             bolt.execute(tick);
         }
 
         List<BulletRecord> result = singletonList(RecordBox.get().add("cnt", 42L).getRecord());
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(result).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(result).asJSON(), COMPLETED);
         Assert.assertFalse(collector.wasTupleEmitted(expected));
 
-        Assert.assertEquals(context.getLongMetric(10, JoinBolt.CREATED_QUERIES), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(1, JoinBolt.ACTIVE_QUERIES), Long.valueOf(0));
-        Assert.assertEquals(context.getLongMetric(10, JoinBolt.IMPROPER_QUERIES), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(10, TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(1, TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(10, TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
     }
 
     @Test
     public void testDistribution() {
-        Map<Object, Object> config = DistributionTest.makeConfiguration(10, 128);
+        BulletStormConfig config = new BulletStormConfig(DistributionTest.makeConfiguration(10, 128));
 
-        Distribution distribution = DistributionTest.makeDistribution(config, makeAttributes(DistributionType.PMF, 3),
+        Distribution distribution = DistributionTest.makeDistribution(config, makeAttributes(Distribution.Type.PMF, 3),
                                                                       "field", 10, null);
 
         IntStream.range(0, 50).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
                               .forEach(distribution::consume);
 
-        byte[] first = distribution.getSerializedAggregation();
+        byte[] first = distribution.getData();
 
-        distribution = DistributionTest.makeDistribution(config, makeAttributes(DistributionType.PMF, 3),
+        distribution = DistributionTest.makeDistribution(config, makeAttributes(Distribution.Type.PMF, 3),
                                                          "field", 10, null);
 
         IntStream.range(50, 101).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
                                 .forEach(distribution::consume);
 
-        byte[] second = distribution.getSerializedAggregation();
+        byte[] second = distribution.getData();
 
-        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
+        bolt = ComponentUtils.prepare(new DonableJoinBolt(config), collector);
 
         Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                             makeAggregationQuery(DISTRIBUTION, 10, DistributionType.PMF, "field",
+                                             makeAggregationQuery(DISTRIBUTION, 10, Distribution.Type.PMF, "field",
                                                                   null, null, null, null, 3),
-                                             METADATA);
+                COMPLETED);
         bolt.execute(query);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
@@ -782,12 +780,12 @@ public class JoinBoltTest {
                                                 .add(PROBABILITY_FIELD, 1.0 / 101).getRecord();
 
         List<BulletRecord> results = asList(expectedA, expectedB, expectedC, expectedD);
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(results).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(results).asJSON(), COMPLETED);
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
@@ -799,7 +797,7 @@ public class JoinBoltTest {
 
     @Test
     public void testTopK() {
-        Map<Object, Object> config = TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 16);
+        BulletStormConfig config = new BulletStormConfig(TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 16));
 
         Map<String, String> fields = new HashMap<>();
         fields.put("A", "");
@@ -808,18 +806,18 @@ public class JoinBoltTest {
 
         IntStream.range(0, 32).mapToObj(i -> RecordBox.get().add("A", i % 8).getRecord()).forEach(topK::consume);
 
-        byte[] first = topK.getSerializedAggregation();
+        byte[] first = topK.getData();
 
         topK = TopKTest.makeTopK(config, makeAttributes(null, 5L), fields, 2, null);
 
         IntStream.range(0, 8).mapToObj(i -> RecordBox.get().add("A", i % 2).getRecord()).forEach(topK::consume);
 
-        byte[] second = topK.getSerializedAggregation();
+        byte[] second = topK.getData();
 
-        bolt = ComponentUtils.prepare(config, new ExpiringJoinBolt(config), collector);
+        bolt = ComponentUtils.prepare(new DonableJoinBolt(config), collector);
 
         String aggregationQuery = makeAggregationQuery(TOP_K, 2, 5L, "cnt", Pair.of("A", ""), Pair.of("B", "foo"));
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", aggregationQuery, METADATA);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", aggregationQuery, COMPLETED);
         bolt.execute(query);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
@@ -828,12 +826,12 @@ public class JoinBoltTest {
         BulletRecord expectedB = RecordBox.get().add("A", "1").add("foo", "null").add("cnt", 8L).getRecord();
 
         List<BulletRecord> results = asList(expectedA, expectedB);
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(results).asJSON(), METADATA);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(results).asJSON(), COMPLETED);
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
-        for (int i = 0; i < JoinBolt.DEFAULT_QUERY_TICKOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(collector.wasTupleEmitted(expected));
         }
@@ -843,4 +841,3 @@ public class JoinBoltTest {
         Assert.assertEquals(collector.getAllEmitted().count(), 1);
     }
 }
-*/

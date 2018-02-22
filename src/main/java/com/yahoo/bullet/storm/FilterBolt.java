@@ -98,7 +98,6 @@ public class FilterBolt extends QueryBolt {
                 querier = null;
             }
         } catch (RuntimeException ignored) {
-            log.error("", ignored);
         }
         if (querier == null) {
             log.error("Failed to initialize query for request {} with query {}", id, query);
