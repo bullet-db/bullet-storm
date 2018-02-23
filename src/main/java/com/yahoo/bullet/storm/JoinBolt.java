@@ -190,7 +190,7 @@ public class JoinBolt extends QueryBolt {
         Map<String, Querier> closed = category.getClosed();
         closed.entrySet().forEach(this::emitOrBufferWindow);
 
-        log.info("Done: {}, Rate limited: {}, Closed: {}, Pending Windows: {}, Pending Done: Active: {}", done.size(),
+        log.info("Done: {}, Rate limited: {}, Closed: {}, Pending Windows: {}, Pending Done: {}, Active: {}", done.size(),
                  rateLimited.size(), closed.size(), bufferedWindows.size(), bufferedQueries.size(), queries.size());
     }
 
@@ -219,8 +219,8 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void emitOrBufferFinished(String id, Querier querier) {
-        if (querier.isTimeBasedWindow()) {
-            log.debug("Buffering final result for time-windowed query {}...", id);
+        if (shouldBuffer(id, querier)) {
+            log.debug("Buffering while waiting for more final results for query {}...", id);
             rotateInto(id, querier, bufferedQueries);
         } else {
             emitFinished(id, querier);
@@ -242,8 +242,8 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void emitOrBufferWindow(String id, Querier querier) {
-        if (querier.isTimeBasedWindow()) {
-            log.debug("Buffering window for time-windowed query {}...", id);
+        if (shouldBuffer(id, querier)) {
+            log.debug("Buffering while waiting for more windows for query {}...", id);
             rotateInto(id, querier, bufferedWindows);
         } else {
             log.debug("Emitting window for {} and resetting...", id);
@@ -297,9 +297,6 @@ public class JoinBolt extends QueryBolt {
 
     @Override
     protected void removeQuery(String id) {
-        if (getQuery(id) == null) {
-            return;
-        }
         super.removeQuery(id);
         bufferedWindows.remove(id);
         bufferedQueries.remove(id);
@@ -308,6 +305,11 @@ public class JoinBolt extends QueryBolt {
     }
 
     // Other helpers
+
+    private boolean shouldBuffer(String id, Querier querier) {
+        // Only buffer if not already in a buffer (in other words, in queries) and querier says should buffer.
+        return queries.containsKey(id) && querier.shouldBuffer();
+    }
 
     private void rotateInto(String id, Querier querier, RotatingMap<String, Querier> into) {
         // Make sure it's not in queries
