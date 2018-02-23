@@ -95,7 +95,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
      */
     protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
         queries.put(id, querier);
-        log.info("Initialized query {}: {}", id, query);
+        log.info("Initialized query {}", querier.toString());
     }
 
     /**

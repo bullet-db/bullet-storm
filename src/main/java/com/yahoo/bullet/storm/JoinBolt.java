@@ -120,6 +120,8 @@ public class JoinBolt extends QueryBolt {
         // Force emit all the done queries or closed queries that are being rotated out.
         Map<String, Querier> forceDone = bufferedQueries.rotate();
         forceDone.entrySet().forEach(this::emitFinished);
+        // The active queries count is not updated for these since these queries are not in any map, so do it here
+        updateCount(activeQueriesCount, -forceDone.size());
 
         // Close all the buffered windows and re-add them back to queries
         Map<String, Querier> forceClosed = bufferedWindows.rotate();
@@ -212,8 +214,6 @@ public class JoinBolt extends QueryBolt {
         removeQuery(id);
     }
 
-    // RESULT_STREAM emitters
-
     private void emitOrBufferFinished(Map.Entry<String, Querier> query) {
         emitOrBufferFinished(query.getKey(), query.getValue());
     }
@@ -234,8 +234,11 @@ public class JoinBolt extends QueryBolt {
     private void emitFinished(String id, Querier querier) {
         log.info("Query is done {}...", id);
         emitResult(id, withSignal(bufferedMetadata.get(id), Metadata.Signal.COMPLETE), querier.finish());
+        emitMetaSignal(id, Metadata.Signal.COMPLETE);
         removeQuery(id);
     }
+
+    // RESULT_STREAM emitters
 
     private void emitOrBufferWindow(Map.Entry<String, Querier> query) {
         emitOrBufferWindow(query.getKey(), query.getValue());
@@ -281,8 +284,8 @@ public class JoinBolt extends QueryBolt {
     // METADATA_STREAM emitters
 
     private void emitMetaSignal(String id, Metadata.Signal signal) {
-        log.error("Emitting {} signal to the metadata stream for {}", signal, id);
-        collector.emit(METADATA_STREAM, new Values(id, new Metadata(signal, null)));
+        log.error("Emitting {} signal to the feedback stream for {}", signal, id);
+        collector.emit(FEEDBACK_STREAM, new Values(id, new Metadata(signal, null)));
     }
 
     // Override hooks
@@ -297,11 +300,13 @@ public class JoinBolt extends QueryBolt {
 
     @Override
     protected void removeQuery(String id) {
+        if (getQuery(id) != null) {
+            updateCount(activeQueriesCount, -1L);
+        }
         super.removeQuery(id);
         bufferedWindows.remove(id);
         bufferedQueries.remove(id);
         bufferedMetadata.remove(id);
-        updateCount(activeQueriesCount, -1L);
     }
 
     // Other helpers

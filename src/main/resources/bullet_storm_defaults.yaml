@@ -130,7 +130,7 @@ bullet.pubsub.context.name: "QUERY_PROCESSING"
 ############################################# IMPORTANT! ###################################################
 # The DRPC pubsub does not support windowing currently. You should set
 # bullet.query.window.disable: true
-# if you are using this pubsub. This setting will also cause the topology to not hook in the Loop Bolt. If
+# if you are using this pubsub. This setting will also cause the topology to not hook in the Loop Bolt. This is required.
 ############################################# IMPORTANT! ###################################################
 bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
 
