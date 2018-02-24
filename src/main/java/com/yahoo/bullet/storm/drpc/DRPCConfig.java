@@ -58,36 +58,36 @@ public class DRPCConfig extends BulletStormConfig {
     private static final Validator VALIDATOR = BulletStormConfig.getValidator();
     static {
         VALIDATOR.define(DRPC_SERVERS)
-                .checkIf(Validator::isList)
-                .defaultTo(DEFAULT_DRPC_SERVERS);
+                 .checkIf(Validator::isList)
+                 .defaultTo(DEFAULT_DRPC_SERVERS);
         VALIDATOR.define(DRPC_FUNCTION)
-                .checkIf(Validator::isString)
-                .defaultTo(DEFAULT_DRPC_FUNCTION);
+                 .checkIf(Validator::isString)
+                 .defaultTo(DEFAULT_DRPC_FUNCTION);
         VALIDATOR.define(DRPC_HTTP_PROTOCOL)
-                .checkIf(Validator::isString)
-                .checkIf(Validator.isIn("http", "https"))
-                .defaultTo(DEFAULT_DRPC_HTTP_PROTOCOL);
+                 .checkIf(Validator::isString)
+                 .checkIf(Validator.isIn("http", "https"))
+                 .defaultTo(DEFAULT_DRPC_HTTP_PROTOCOL);
         VALIDATOR.define(DRPC_HTTP_PORT)
-                .checkIf(DRPCConfig::isStringPositiveInteger)
-                .defaultTo(DEFAULT_DRPC_HTTP_PORT)
-                .castTo(Objects::toString);
+                 .checkIf(DRPCConfig::isStringPositiveInteger)
+                 .defaultTo(DEFAULT_DRPC_HTTP_PORT)
+                 .castTo(Objects::toString);
         VALIDATOR.define(DRPC_HTTP_PATH)
-                .checkIf(Validator::isString)
-                .defaultTo(DEFAULT_DRPC_HTTP_PATH);
+                 .checkIf(Validator::isString)
+                 .defaultTo(DEFAULT_DRPC_HTTP_PATH);
 
         VALIDATOR.define(DRPC_HTTP_CONNECT_TIMEOUT_MS)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_DRPC_HTTP_CONNECT_TIMEOUT_MS)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_DRPC_HTTP_CONNECT_TIMEOUT_MS)
+                 .castTo(Validator::asInt);
         VALIDATOR.define(DRPC_HTTP_CONNECT_RETRY_LIMIT)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_DRPC_HTTP_CONNECT_RETRY_LIMIT)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_DRPC_HTTP_CONNECT_RETRY_LIMIT)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(DRPC_MAX_UNCOMMITED_MESSAGES)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_DRPC_MAX_UNCOMMITED_MESSAGES)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_DRPC_MAX_UNCOMMITED_MESSAGES)
+                 .castTo(Validator::asInt);
 
         // This throws a RunTimeException if windowing is not disabled because we do not want to proceed.
         VALIDATOR.relate("Windowing is not disabled", BulletConfig.WINDOW_DISABLE, BulletConfig.WINDOW_DISABLE)

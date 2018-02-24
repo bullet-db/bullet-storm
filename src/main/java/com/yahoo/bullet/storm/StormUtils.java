@@ -154,8 +154,8 @@ public class StormUtils {
                               Number offHeapMemoryLoad) throws Exception {
         builder.setSpout(TopologyConstants.RECORD_COMPONENT, ReflectionUtils.getSpout(spout, args), parallelism)
                .setCPULoad(cpuLoad).setMemoryLoad(onHeapMemoryLoad, offHeapMemoryLoad);
-        log.info("Added spout " + spout + " with parallelism " + parallelism + ", CPU load " + cpuLoad +
-                 ", On-heap memory " + onHeapMemoryLoad + ", Off-heap memory " + offHeapMemoryLoad);
+        log.info("Added spout {} with Parallelism {}, CPU load {}, On-heap memory {}, Off-heap memory {}",
+                 spout, parallelism, cpuLoad, onHeapMemoryLoad, offHeapMemoryLoad);
         submit(config, TopologyConstants.RECORD_COMPONENT, builder);
     }
 

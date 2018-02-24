@@ -25,7 +25,7 @@ public class CustomTopologyBuilder extends TopologyBuilder {
     @Override
     public StormTopology createTopology() {
         topologyCreated = true;
-        return null;
+        throw new RuntimeException("You should handle this exception silently since the topology should not be submitted");
     }
 
     @Override
