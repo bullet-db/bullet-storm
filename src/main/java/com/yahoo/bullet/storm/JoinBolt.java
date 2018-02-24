@@ -30,7 +30,6 @@ import java.util.Optional;
 import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_FIELD;
-import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.RESULT_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.RESULT_STREAM;
 
@@ -161,11 +160,13 @@ public class JoinBolt extends QueryBolt {
         }
         byte[] data = (byte[]) tuple.getValue(TopologyConstants.DATA_POSITION);
         querier.combine(data);
+
+        // If already in buffer, then don't check isClosed() and don't emit window. Tick will emit it.
         if (querier.isDone()) {
             emitOrBufferFinished(id, querier);
         } else if (querier.isExceedingRateLimit()) {
             emitRateLimitError(id, querier, querier.getRateLimitError());
-        } else if (querier.isClosed()) {
+        } else if (!bufferedWindows.containsKey(id) && querier.isClosed()) {
             emitOrBufferWindow(id, querier);
         }
     }
@@ -192,8 +193,8 @@ public class JoinBolt extends QueryBolt {
         Map<String, Querier> closed = category.getClosed();
         closed.entrySet().forEach(this::emitOrBufferWindow);
 
-        log.info("Done: {}, Rate limited: {}, Closed: {}, Pending Windows: {}, Pending Done: {}, Active: {}", done.size(),
-                 rateLimited.size(), closed.size(), bufferedWindows.size(), bufferedQueries.size(), queries.size());
+        log.debug("Done: {}, Rate limited: {}, Closed: {}, Pending Windows: {}, Pending Done: {}, Active: {}", done.size(),
+                  rateLimited.size(), closed.size(), bufferedWindows.size(), bufferedQueries.size(), queries.size());
     }
 
     // RESULT_STREAM and METADATA_STREAM emitters
@@ -219,7 +220,10 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void emitOrBufferFinished(String id, Querier querier) {
-        if (shouldBuffer(id, querier)) {
+        // Only buffer if not already buffered in EITHER bufferedQueries or bufferedWindows.
+        // It might have been in bufferedWindows and a combine might have caused it to be done. If so, we should emit.
+        boolean shouldBuffer = queries.containsKey(id) && querier.shouldBuffer();
+        if (shouldBuffer) {
             log.debug("Buffering while waiting for more final results for query {}...", id);
             rotateInto(id, querier, bufferedQueries);
         } else {
@@ -245,7 +249,7 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void emitOrBufferWindow(String id, Querier querier) {
-        if (shouldBuffer(id, querier)) {
+        if (querier.shouldBuffer()) {
             log.debug("Buffering while waiting for more windows for query {}...", id);
             rotateInto(id, querier, bufferedWindows);
         } else {
@@ -270,14 +274,11 @@ public class JoinBolt extends QueryBolt {
 
     private void emitErrorsAsResult(String id, Metadata metadata, List<BulletError> errors) {
         updateCount(improperQueriesCount, 1L);
-        emitResult(id, metadata, Clip.of(Meta.of(errors)));
+        emitResult(id, withSignal(metadata, Metadata.Signal.FAIL), Clip.of(Meta.of(errors)));
     }
 
     private void emitResult(String id, Metadata metadata, Clip result) {
-        if (metadata == null) {
-            log.debug("Unable to emit data since there is no metadata for {}", id);
-            return;
-        }
+        // Metadata should not be checked. It could be null.
         collector.emit(RESULT_STREAM, new Values(id, result.asJSON(), metadata));
     }
 
@@ -311,11 +312,6 @@ public class JoinBolt extends QueryBolt {
 
     // Other helpers
 
-    private boolean shouldBuffer(String id, Querier querier) {
-        // Only buffer if not already in a buffer (in other words, in queries) and querier says should buffer.
-        return queries.containsKey(id) && querier.shouldBuffer();
-    }
-
     private void rotateInto(String id, Querier querier, RotatingMap<String, Querier> into) {
         // Make sure it's not in queries
         queries.remove(id);
@@ -324,8 +320,7 @@ public class JoinBolt extends QueryBolt {
 
     private Metadata withSignal(Metadata metadata, Metadata.Signal signal) {
         if (metadata == null) {
-            log.debug("Unabled to add the {} signal to the metadata", signal);
-            return null;
+            return new Metadata(signal, null);
         }
         metadata.setSignal(signal);
         return metadata;
