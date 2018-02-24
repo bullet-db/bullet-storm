@@ -5,7 +5,7 @@
  */
 package com.yahoo.bullet.storm.drpc;
 
-import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import org.asynchttpclient.AsyncHttpClient;
 import org.asynchttpclient.BoundRequestBuilder;
@@ -129,7 +129,7 @@ public class DRPCQueryResultPubscriberTest {
 
         Assert.assertNotNull(actual);
         Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSON());
+        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSONClip());
     }
 
     @Test(timeOut = 5000L)
@@ -144,7 +144,7 @@ public class DRPCQueryResultPubscriberTest {
 
         Assert.assertNotNull(actual);
         Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSON());
+        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSONClip());
     }
 
     @Test
@@ -188,6 +188,6 @@ public class DRPCQueryResultPubscriberTest {
 
         Assert.assertNotNull(actual);
         Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSON());
+        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSONClip());
     }
 }

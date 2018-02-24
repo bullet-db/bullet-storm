@@ -8,7 +8,7 @@ package com.yahoo.bullet.storm.drpc;
 import backtype.storm.drpc.DRPCSpout;
 import backtype.storm.spout.SpoutOutputCollector;
 import backtype.storm.task.TopologyContext;
-import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.BufferingSubscriber;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubException;

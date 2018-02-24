@@ -5,6 +5,13 @@
  */
 package com.yahoo.bullet.storm;
 
+import backtype.storm.spout.SpoutOutputCollector;
+import backtype.storm.task.TopologyContext;
+import backtype.storm.topology.IRichSpout;
+import backtype.storm.topology.OutputFieldsDeclarer;
+import backtype.storm.tuple.Fields;
+import backtype.storm.tuple.Values;
+import backtype.storm.utils.Utils;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
@@ -12,38 +19,30 @@ import com.yahoo.bullet.pubsub.Subscriber;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.topology.base.BaseRichSpout;
-import backtype.storm.tuple.Fields;
-import backtype.storm.tuple.Values;
-import backtype.storm.utils.Utils;
-
 import java.util.Map;
 
-@Slf4j
-public class QuerySpout extends BaseRichSpout {
-    public static final String QUERY_STREAM = Utils.DEFAULT_STREAM_ID;
-    public static final String ID_FIELD = "id";
-    public static final String QUERY_FIELD = "query";
-    public static final String METADATA_FIELD = "metadata";
+import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.METADATA_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.QUERY_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.QUERY_STREAM;
 
-    private BulletStormConfig config;
-    private Subscriber subscriber;
-    private SpoutOutputCollector collector;
+@Slf4j
+public class QuerySpout extends ConfigComponent implements IRichSpout {
+    private static final long serialVersionUID = 504190523090872490L;
 
     /** Exposed for testing only. */
     @Getter(AccessLevel.PACKAGE)
-    private PubSub pubSub;
+    private transient Subscriber subscriber;
+    private transient SpoutOutputCollector collector;
 
     /**
-     * Creates a QuerySpout with a passed in {@link BulletStormConfig}.
+     * Creates a QuerySpout with a given {@link BulletStormConfig}.
      *
-     * @param config The BulletStormConfig to create the PubSub from.
+     * @param config The non-null BulletStormConfig to use. It should contain the settings to initialize a PubSub.
      */
     public QuerySpout(BulletStormConfig config) {
-        this.config = config;
+        super(config);
     }
 
     @Override
@@ -53,13 +52,22 @@ public class QuerySpout extends BaseRichSpout {
         config.set(BulletStormConfig.STORM_CONTEXT, context);
 
         this.collector = collector;
+    }
+
+    @Override
+    public void activate() {
         try {
-            pubSub = PubSub.from(config);
+            PubSub pubSub = PubSub.from(config);
             subscriber = pubSub.getSubscriber();
             log.info("Setup PubSub: {} with Subscriber: {}", pubSub, subscriber);
         } catch (PubSubException e) {
             throw new RuntimeException("Cannot create PubSub instance or a Subscriber for it.", e);
         }
+    }
+
+    @Override
+    public void deactivate() {
+        subscriber.close();
     }
 
     @Override
@@ -70,16 +78,23 @@ public class QuerySpout extends BaseRichSpout {
         } catch (Exception e) {
             log.error(e.getMessage());
         }
-        if (message != null) {
-            collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent(), message.getMetadata()), message.getId());
-        } else {
+        if (message == null) {
             Utils.sleep(1);
+            return;
+        }
+        String content = message.getContent();
+        // If no content, it's a metadata only message. Send it on the METADATA_STREAM.
+        if (content == null) {
+            collector.emit(METADATA_STREAM, new Values(message.getId(), message.getMetadata()), message.getId());
+        } else {
+            collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent(), message.getMetadata()), message.getId());
         }
     }
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
         declarer.declareStream(QUERY_STREAM, new Fields(ID_FIELD, QUERY_FIELD, METADATA_FIELD));
+        declarer.declareStream(METADATA_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
     }
 
     @Override
@@ -94,6 +109,5 @@ public class QuerySpout extends BaseRichSpout {
 
     @Override
     public void close() {
-        subscriber.close();
     }
 }
