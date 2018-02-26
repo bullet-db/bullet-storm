@@ -118,7 +118,7 @@ public class StormUtils {
      * @throws Exception if there were issues creating the topology.
      */
     public static void submit(TopologyBuilder builder, String spout, List<String> args, BulletStormConfig config,
-                               Number parallelism) throws Exception {
+                              Number parallelism) throws Exception {
         builder.setSpout(TopologyConstants.RECORD_COMPONENT, ReflectionUtils.getSpout(spout, args), parallelism);
         log.info("Added spout {} with Parallelism {}", spout, parallelism);
         submit(config, TopologyConstants.RECORD_COMPONENT, builder);
