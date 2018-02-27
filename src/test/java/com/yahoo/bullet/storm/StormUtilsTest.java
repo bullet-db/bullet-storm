@@ -80,6 +80,7 @@ public class StormUtilsTest {
     @BeforeMethod
     public void setup() {
         builder = new CustomTopologyBuilder();
+        builder.setThrowExceptionOnCreate(false);
         config = new BulletStormConfig();
     }
 

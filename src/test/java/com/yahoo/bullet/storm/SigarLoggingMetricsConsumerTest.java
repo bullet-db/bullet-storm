@@ -17,6 +17,14 @@ import java.util.Map;
 @SuppressWarnings("unchecked")
 public class SigarLoggingMetricsConsumerTest {
     @Test
+    public void testDefaults() {
+        SigarLoggingMetricsConsumer consumer = new SigarLoggingMetricsConsumer();
+        Map<Object, Object> config = new HashMap<>();
+        consumer.prepare(config, null, null, null);
+        Assert.assertTrue(config.isEmpty());
+    }
+
+    @Test
     public void testRegister() {
         Config config = new Config();
         Assert.assertNull(config.get(Config.TOPOLOGY_WORKER_METRICS));
