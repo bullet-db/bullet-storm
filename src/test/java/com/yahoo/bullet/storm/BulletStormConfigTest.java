@@ -124,13 +124,13 @@ public class BulletStormConfigTest {
         Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
 
         config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
-        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 200);
+        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 100);
         config.validate();
         Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
         Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), BulletConfig.DEFAULT_WINDOW_MIN_EMIT_EVERY);
 
         config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
-        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 150);
+        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 50);
         config.validate();
         Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
         Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), BulletConfig.DEFAULT_WINDOW_MIN_EMIT_EVERY);
