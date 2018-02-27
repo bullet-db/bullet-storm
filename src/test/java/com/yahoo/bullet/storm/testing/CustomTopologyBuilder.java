@@ -12,12 +12,15 @@ import backtype.storm.topology.IRichSpout;
 import backtype.storm.topology.SpoutDeclarer;
 import backtype.storm.topology.TopologyBuilder;
 import lombok.Getter;
+import lombok.Setter;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Getter
 public class CustomTopologyBuilder extends TopologyBuilder {
+    @Setter
+    private boolean throwExceptionOnCreate = true;
     private boolean topologyCreated = false;
     private List<CustomSpoutDeclarer> createdSpouts = new ArrayList<>();
     private List<CustomBoltDeclarer> createdBolts = new ArrayList<>();
@@ -25,7 +28,10 @@ public class CustomTopologyBuilder extends TopologyBuilder {
     @Override
     public StormTopology createTopology() {
         topologyCreated = true;
-        throw new RuntimeException("You should handle this exception silently since the topology should not be submitted");
+        if (throwExceptionOnCreate) {
+            throw new RuntimeException("You should handle this exception silently since the topology should not be submitted");
+        }
+        return null;
     }
 
     @Override
