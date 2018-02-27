@@ -128,8 +128,8 @@ public class FilterBolt extends QueryBolt {
         closed.entrySet().forEach(this::emitData);
         closed.values().forEach(Querier::reset);
 
-        log.info("Done: {}, Rate limited: {}, Closed: {}, Active: {}",
-                 done.size(), rateLimited.size(), closed.size(), queries.size());
+        log.debug("Done: {}, Rate limited: {}, Closed: {}, Active: {}",
+                  done.size(), rateLimited.size(), closed.size(), queries.size());
     }
 
     private void emitData(Map.Entry<String, Querier> query) {
