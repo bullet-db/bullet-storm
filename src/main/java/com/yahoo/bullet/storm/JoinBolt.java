@@ -194,7 +194,7 @@ public class JoinBolt extends QueryBolt {
         closed.entrySet().forEach(this::emitOrBufferWindow);
 
         log.debug("Done: {}, Rate limited: {}, Closed: {}, Pending Windows: {}, Pending Done: {}, Active: {}", done.size(),
-                rateLimited.size(), closed.size(), bufferedWindows.size(), bufferedQueries.size(), queries.size());
+                  rateLimited.size(), closed.size(), bufferedWindows.size(), bufferedQueries.size(), queries.size());
     }
 
     // RESULT_STREAM and METADATA_STREAM emitters
