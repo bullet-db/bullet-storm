@@ -97,9 +97,9 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final double DEFAULT_LOOP_BOLT_CPU_LOAD = 20.0;
     public static final double DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
     public static final double DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
-    public static final int DEFAULT_TICK_SPOUT_INTERVAL = 200;
+    public static final int DEFAULT_TICK_SPOUT_INTERVAL = 100;
     public static final int DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT = 5;
-    public static final int DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT = 3;
+    public static final int DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT = 2;
     public static final Map<String, Object> DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES = Collections.emptyMap();
 
     // Other constants

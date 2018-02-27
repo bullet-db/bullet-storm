@@ -1224,7 +1224,8 @@ public class JoinBoltTest {
         sent.addAll(sentFirst);
         sent.addAll(sentSecond);
         sent.addAll(sentThird);
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), EMPTY);
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(),
+                                              new Metadata(Metadata.Signal.COMPLETE, null));
         Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
 
         Tuple metadata = TupleUtils.makeTuple(TupleClassifier.Type.FEEDBACK_TUPLE, "42", new Metadata(Metadata.Signal.COMPLETE, null));

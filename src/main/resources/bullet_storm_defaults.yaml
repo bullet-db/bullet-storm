@@ -75,26 +75,26 @@ bullet.topology.loop.bolt.memory.on.heap.load: 256.0
 bullet.topology.loop.bolt.memory.off.heap.load: 160.0
 
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
-# aggregations to trickle in from the Filter Bolts. If tuples from your your Filter Bolts take longer than
+# the final windows to trickle in from the Filter Bolts. If tuples from your your Filter Bolts take longer than
 # (bullet.topology.tick.spout.interval * this setting) to get to the Join Bolt, that data will be LOST and will not
 # be in the final result for the query. If you have bullet.query.window.disable set to true, then this is the value
 # that is used in waiting for your final (and only) intermediate results to arrive from your Filter Bolts.
-# The defaults make this (200ms * 5) or ~1s after the query is done for the final results to come back.
+# The defaults make this (100ms * 5) or ~0.5s after the query is done for the final results to come back.
 bullet.topology.join.bolt.query.tick.timeout: 5
 
 # This is the number of ticks for which a window will be buffered past its expiry in order to wait for
 # the windows to trickle in from the Filter Bolts. This only applies to time based windows. If tuples from your
 # Filter Bolts take longer than your (bullet.topology.tick.spout.interval * this setting) to get to the Join Bolt,
 # that data will roll over to the next window (your query result for that window is in the next window).
-# The defaults make this (200ms * 3) or ~0.6s after the window is done for the results to come back.
-bullet.topology.join.bolt.window.tick.timeout: 3
+# The defaults make this (100ms * 2) or ~0.2s after the window is done for the results to come back.
+bullet.topology.join.bolt.window.tick.timeout: 2
 
-# Bullet uses ticks underneath the hood as a "clock"-like mechanism to do metadata and query updates (checking if queries
+# Bullet Storm uses ticks underneath the hood as a "clock"-like mechanism to do metadata and query updates (checking if queries
 # have expired) etc. This is particularly relevant if your data volume is low since your queries depend on these ticks to
 # emit data etc appropriately. This setting controls the how frequently a tick happens - number of milliseconds between ticks.
 # The bullet.query.window.min.emit.every should be at least double this value, or else the defaults for both are used.
 # Also, this cannot be lower than 10 ms
-bullet.topology.tick.spout.interval: 200
+bullet.topology.tick.spout.interval: 100
 
 # The Loop Bolt switches your PubSub into QUERY_SUBMISSION mode to loop back metadata messages to the rest of the
 # topology. If you need to change settings for your publisher in this mode that is different from the settings

@@ -319,11 +319,12 @@ public class JoinBolt extends QueryBolt {
     }
 
     private Metadata withSignal(Metadata metadata, Metadata.Signal signal) {
-        if (metadata == null) {
-            return new Metadata(signal, null);
+        // Don't change the non-readonly bits of metadata in place since that might affect tuples emitted but pending
+        Metadata copy = new Metadata(signal, null);
+        if (metadata != null) {
+            copy.setContent(metadata.getContent());
         }
-        metadata.setSignal(signal);
-        return metadata;
+        return copy;
     }
 
     private Querier getQuery(String id) {
