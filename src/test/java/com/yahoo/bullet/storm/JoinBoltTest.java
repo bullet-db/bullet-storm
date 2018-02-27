@@ -471,6 +471,7 @@ public class JoinBoltTest {
     @Test
     public void testQueryIdentifierMetadata() {
         config = configWithRawMaxAndEmptyMeta();
+        enableMetadataInConfig(config, Concept.QUERY_METADATA.getName(), "meta");
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         setup(new JoinBolt(config));
 
@@ -480,7 +481,7 @@ public class JoinBoltTest {
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
         Meta meta = new Meta();
-        meta.add("id", "42");
+        meta.add("meta", singletonMap("id", "42"));
         Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).add(meta).asJSON(), COMPLETED);
         Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
         Tuple metadata = TupleUtils.makeTuple(TupleClassifier.Type.FEEDBACK_TUPLE, "42", new Metadata(Metadata.Signal.COMPLETE, null));
@@ -492,6 +493,7 @@ public class JoinBoltTest {
     @Test
     public void testUnknownConceptMetadata() {
         config = configWithRawMaxAndEmptyMeta();
+        enableMetadataInConfig(config, Concept.QUERY_METADATA.getName(), "meta");
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         enableMetadataInConfig(config, "foo", "bar");
         setup(new JoinBolt(config));
@@ -502,7 +504,7 @@ public class JoinBoltTest {
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
 
         Meta meta = new Meta();
-        meta.add("id", "42");
+        meta.add("meta", singletonMap("id", "42"));
         Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).add(meta).asJSON(), COMPLETED);
         Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
         Tuple metadata = TupleUtils.makeTuple(TupleClassifier.Type.FEEDBACK_TUPLE, "42", new Metadata(Metadata.Signal.COMPLETE, null));
@@ -514,6 +516,7 @@ public class JoinBoltTest {
     @Test
     public void testMultipleMeta() {
         config = configWithRawMaxAndEmptyMeta();
+        enableMetadataInConfig(config, Concept.QUERY_METADATA.getName(), "meta");
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         enableMetadataInConfig(config, Concept.QUERY_BODY.getName(), "query");
         enableMetadataInConfig(config, Concept.QUERY_RECEIVE_TIME.getName(), "created");
@@ -542,10 +545,11 @@ public class JoinBoltTest {
         assertJSONEquals(actualRecords, expectedRecords);
 
         JsonObject meta = actual.get(Clip.META_KEY).getAsJsonObject();
-        String actualID = meta.get("id").getAsString();
-        String queryBody = meta.get("query").getAsString();
-        long createdTime = meta.get("created").getAsLong();
-        long finishedTime = meta.get("finished").getAsLong();
+        JsonObject queryMeta = meta.get("meta").getAsJsonObject();
+        String actualID = queryMeta.get("id").getAsString();
+        String queryBody = queryMeta.get("query").getAsString();
+        long createdTime = queryMeta.get("created").getAsLong();
+        long finishedTime = queryMeta.get("finished").getAsLong();
 
         Assert.assertEquals(actualID, "42");
         Assert.assertEquals(queryBody, "{}");
