@@ -183,8 +183,22 @@ public class QueryBoltTest {
         Map<String, Querier> queries = bolt.getQueries();
         queries.put("foo", null);
 
-        Tuple ack = makeIDTuple(Type.METADATA_TUPLE, "foo", new Metadata(Signal.ACKNOWLEDGE, null));
-        bolt.execute(ack);
+        Tuple meta = makeIDTuple(Type.METADATA_TUPLE, "foo", new Metadata(Signal.ACKNOWLEDGE, null));
+        bolt.execute(meta);
+        Assert.assertTrue(queries.containsKey("foo"));
+    }
+
+    @Test
+    public void testNullMetaTupleIgnored() {
+        CustomCollector collector = new CustomCollector();
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig());
+        ComponentUtils.prepare(bolt, collector);
+
+        Map<String, Querier> queries = bolt.getQueries();
+        queries.put("foo", null);
+
+        Tuple meta = makeIDTuple(Type.METADATA_TUPLE, "foo", null);
+        bolt.execute(meta);
         Assert.assertTrue(queries.containsKey("foo"));
     }
 }

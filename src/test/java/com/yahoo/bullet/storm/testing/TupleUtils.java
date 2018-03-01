@@ -10,6 +10,7 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.TupleImpl;
 
 import java.util.Arrays;
+import java.util.Objects;
 
 import static com.yahoo.bullet.storm.TupleClassifier.Type;
 import static org.mockito.Mockito.mock;
@@ -27,7 +28,7 @@ public class TupleUtils {
         when(mocked.size()).thenReturn(contents.length);
         for (int i = 0; i < contents.length; ++i) {
             when(mocked.getValue(i)).thenReturn(contents[i]);
-            when(mocked.getString(i)).thenReturn(contents[i].toString());
+            when(mocked.getString(i)).thenReturn(Objects.toString(contents[i]));
         }
         return mocked;
     }

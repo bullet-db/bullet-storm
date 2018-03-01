@@ -65,6 +65,9 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     protected Metadata onMeta(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.METADATA_POSITION);
+        if (metadata == null) {
+            return null;
+        }
         Metadata.Signal signal = metadata.getSignal();
         if (signal == Metadata.Signal.KILL || signal == Metadata.Signal.COMPLETE) {
             removeQuery(id);
