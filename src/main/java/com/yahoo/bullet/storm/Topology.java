@@ -89,6 +89,7 @@ public class Topology {
 
         String yamlPath = (String) options.valueOf(CONFIGURATION_ARG);
         BulletStormConfig config = new BulletStormConfig(yamlPath);
+        log.info(config.toString());
 
         StormUtils.submit(spoutClass, arguments, config, parallelism, cpuLoad, onHeapMemoryLoad, offHeapMemoryLoad);
     }

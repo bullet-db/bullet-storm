@@ -7,12 +7,12 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storm.testing.ComponentUtils;
 import com.yahoo.bullet.storm.testing.CustomCollector;
 import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
 import com.yahoo.bullet.storm.testing.CustomPublisher;
+import com.yahoo.bullet.storm.testing.MockPubSub;
 import org.apache.storm.tuple.Tuple;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -47,9 +47,11 @@ public class LoopBoltTest {
 
     @Test
     public void testSwitchingIntoQueryPublishing() {
-        Assert.assertEquals(publisher.getContext(), PubSub.Context.QUERY_SUBMISSION);
+        Assert.assertEquals(config.get(BulletStormConfig.PUBSUB_CLASS_NAME), MockPubSub.class.getName());
         // Config is modified in place
         Assert.assertEquals(config.get("fake.setting"), "foo");
+        // But original setting is preserved
+        Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_NAME), "test");
     }
 
     @Test
