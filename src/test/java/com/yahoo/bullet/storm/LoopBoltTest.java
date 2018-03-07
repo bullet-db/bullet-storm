@@ -13,7 +13,6 @@ import com.yahoo.bullet.storm.testing.ComponentUtils;
 import com.yahoo.bullet.storm.testing.CustomCollector;
 import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
 import com.yahoo.bullet.storm.testing.CustomPublisher;
-import com.yahoo.bullet.storm.testing.MockPubSub;
 import org.apache.storm.tuple.Tuple;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
