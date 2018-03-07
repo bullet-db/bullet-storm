@@ -186,7 +186,6 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         super(DEFAULT_STORM_CONFIGURATION);
         merge(other);
         VALIDATOR.validate(this);
-        log.info("Bullet Storm settings:\n {}", this.toString());
     }
 
     @Override
