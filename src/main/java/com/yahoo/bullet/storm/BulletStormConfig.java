@@ -282,7 +282,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .defaultTo(DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
 
         VALIDATOR.relate("Minimum window emit every should be >= 2 * tick interval", BulletConfig.WINDOW_MIN_EMIT_EVERY, TICK_SPOUT_INTERVAL)
-                 .checkIf(BulletStormConfig::isAtleastDouble);
+                 .checkIf(BulletStormConfig::isAtleastTwice);
         VALIDATOR.relate("Built-in metrics enabled but no intervals provided", TOPOLOGY_METRICS_BUILT_IN_ENABLE, TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING)
                  .checkIf(BulletStormConfig::areNeededIntervalsProvided);
     }
@@ -305,7 +305,8 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     }
 
     /**
-     * Constructor that loads the defaults and augments it with defaults. *
+     * Constructor that loads the defaults and augments it with defaults.
+     *
      * @param other The other config to wrap.
      */
     public BulletStormConfig(Config other) {
@@ -383,7 +384,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         }
     }
 
-    private static boolean isAtleastDouble(Object minEvery, Object tickInterval) {
+    private static boolean isAtleastTwice(Object minEvery, Object tickInterval) {
         return ((Number) minEvery).doubleValue() >= 2.0 * ((Number) tickInterval).doubleValue();
     }
 

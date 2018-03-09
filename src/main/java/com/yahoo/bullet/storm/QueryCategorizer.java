@@ -17,10 +17,11 @@ import java.util.function.Predicate;
 /**
  * This categorizes running queries into whether they are done, closed or have exceeded the rate limits. Running queries
  * are provided as a {@link Map} of String query IDs to non-null, valid, initialized {@link Querier} objects. Use
- * {@link #categorize(Map, boolean)} for categorizing such queries. The boolean tells the categorizer which method to
- * use to check if the {@link Querier} is closed. A value of true will use {@link Querier#isClosedForPartition()} and
- * false will use {@link Querier#isClosed()}. The {@link #categorize(BulletRecord, Map)} method assumes that the data
- * is partitioned and will categorize after making the querier instances {@link Querier#consume(BulletRecord)}.
+ * {@link #categorize(Map, boolean)} for categorizing such queries. The boolean tells the categorizer whether the data
+ * is partitioned or not. This is used to determine which method will be used to check if the query window is closed. If
+ * true, this will use {@link Querier#isClosedForPartition()}. If false, it will use {@link Querier#isClosed()}. The
+ * {@link #categorize(BulletRecord, Map)} method assumes that the data is partitioned and will categorize after
+ * making the querier instances {@link Querier#consume(BulletRecord)}.
  */
 @Getter @Slf4j
 public class QueryCategorizer {
