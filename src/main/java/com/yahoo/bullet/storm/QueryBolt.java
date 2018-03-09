@@ -77,7 +77,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     }
 
     /**
-     * For testing only. Create a {@link Querier} from the given query ID, body and configuration.
+     * Exposed for testing only. Create a {@link Querier} from the given query ID, body and configuration.
      *
      * @param id The ID for the query.
      * @param query The actual query JSON body.
