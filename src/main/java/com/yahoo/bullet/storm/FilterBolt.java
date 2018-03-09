@@ -104,12 +104,12 @@ public class FilterBolt extends QueryBolt {
 
     private void onRecord(Tuple tuple) {
         BulletRecord record = (BulletRecord) tuple.getValue(TopologyConstants.RECORD_POSITION);
-        handleCategorizedQueries(new QueryCategorizer().categorize(record, queries));
+        handleCategorizedQueries(new QueryCategorizer(Querier::isClosedForPartition).categorize(record, queries));
     }
 
     private void onTick() {
         // Categorize queries in partition mode.
-        handleCategorizedQueries(new QueryCategorizer().categorize(queries, Querier::isClosedForPartition));
+        handleCategorizedQueries(new QueryCategorizer(Querier::isClosedForPartition).categorize(queries));
     }
 
     private void handleCategorizedQueries(QueryCategorizer category) {
