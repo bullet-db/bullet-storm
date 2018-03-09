@@ -80,7 +80,7 @@ public class FilterBolt extends QueryBolt {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        // This is the per query data stream
+        // This is the per query data stream.
         declarer.declareStream(DATA_STREAM, new Fields(ID_FIELD, DATA_FIELD));
         // This is the where any errors per query are sent
         declarer.declareStream(ERROR_STREAM, new Fields(ID_FIELD, ERROR_FIELD));
@@ -108,7 +108,8 @@ public class FilterBolt extends QueryBolt {
     }
 
     private void onTick() {
-        handleCategorizedQueries(new QueryCategorizer().categorize(queries, true));
+        // Categorize queries in partition mode.
+        handleCategorizedQueries(new QueryCategorizer().categorize(queries, Querier::isClosedForPartition));
     }
 
     private void handleCategorizedQueries(QueryCategorizer category) {

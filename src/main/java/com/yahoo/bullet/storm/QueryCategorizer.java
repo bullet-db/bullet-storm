@@ -17,11 +17,10 @@ import java.util.function.Predicate;
 /**
  * This categorizes running queries into whether they are done, closed or have exceeded the rate limits. Running queries
  * are provided as a {@link Map} of String query IDs to non-null, valid, initialized {@link Querier} objects. Use
- * {@link #categorize(Map, boolean)} for categorizing such queries. The boolean tells the categorizer whether the data
- * is partitioned or not. This is used to determine which method will be used to check if the query window is closed. If
- * true, this will use {@link Querier#isClosedForPartition()}. If false, it will use {@link Querier#isClosed()}. The
- * {@link #categorize(BulletRecord, Map)} method assumes that the data is partitioned and will categorize after
- * making the querier instances {@link Querier#consume(BulletRecord)}.
+ * {@link #categorize(Map, Predicate)} for categorizing such queries. The Predicate is used to test if the Querier is
+ * closed or not. The {@link #categorize(BulletRecord, Map)} method assumes that the data is partitioned and will
+ * use {@link Querier#isClosedForPartition()}t st
+ * after  making the Querier instances {@link Querier#consume(BulletRecord)}.
  */
 @Getter @Slf4j
 public class QueryCategorizer {
@@ -33,14 +32,13 @@ public class QueryCategorizer {
      * Categorize the given {@link Map} of query IDs to {@link Querier} instances.
      *
      * @param queries The queries to categorize.
-     * @param isPartitioned A boolean denoting whether the queries are seeing all of the data or partitioned data. If it
-     *                      is partitioned, the {@link Querier#isClosedForPartition()} will be used instead of the
-     *                      {@link Querier#isClosed()} for checking if the querier is closed.
+     * @param isClosed A {@link Predicate} used to test if the {@link Querier} is closed. If the data the querier is
+     *                 is seeing is partitioned, you should use {@link Querier#isClosedForPartition()} otherwise you
+     *                 use {@link Querier#isClosed()}.
      * @return This object for chaining.
      */
-    public QueryCategorizer categorize(Map<String, Querier> queries, boolean isPartitioned) {
-        Predicate<Querier> closedType = isPartitioned ? Querier::isClosedForPartition : Querier::isClosed;
-        queries.entrySet().forEach(e -> classify(e, closedType));
+    public QueryCategorizer categorize(Map<String, Querier> queries, Predicate<Querier> isClosed) {
+        queries.entrySet().forEach(e -> classify(e, isClosed));
         return this;
     }
 

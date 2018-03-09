@@ -127,7 +127,7 @@ public class JoinBolt extends QueryBolt {
         forceClosed.entrySet().forEach(this::emitBufferedWindow);
 
         // Categorize all in queries in non-partition mode and do the roll over or emit as necessary
-        handleCategorizedQueries(new QueryCategorizer().categorize(queries, false));
+        handleCategorizedQueries(new QueryCategorizer().categorize(queries, Querier::isClosed));
     }
 
     private void onQuery(Tuple tuple) {
