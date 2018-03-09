@@ -90,9 +90,8 @@ public class FilterBolt extends QueryBolt {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
 
-        Querier querier;
         try {
-            querier = createQuerier(id, query, config);
+            Querier querier = createQuerier(id, query, config);
             if (!querier.initialize().isPresent()) {
                 setupQuery(id, query, null, querier);
                 return;
