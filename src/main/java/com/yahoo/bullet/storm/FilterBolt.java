@@ -90,20 +90,17 @@ public class FilterBolt extends QueryBolt {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
 
-        // No need to handle any errors in the Filter Bolt.
-        Querier querier = null;
+        Querier querier;
         try {
             querier = createQuerier(id, query, config);
-            if (querier.initialize().isPresent()) {
-                querier = null;
+            if (!querier.initialize().isPresent()) {
+                setupQuery(id, query, null, querier);
+                return;
             }
         } catch (RuntimeException ignored) {
         }
-        if (querier == null) {
-            log.error("Failed to initialize query for request {} with query {}", id, query);
-            return;
-        }
-        setupQuery(id, query, null, querier);
+        // No need to handle any errors in the Filter Bolt.
+        log.error("Failed to initialize query for request {} with query {}", id, query);
     }
 
     private void onRecord(Tuple tuple) {
