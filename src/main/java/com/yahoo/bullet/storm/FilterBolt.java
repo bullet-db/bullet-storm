@@ -5,11 +5,6 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.parsing.ParsingException;
-import com.yahoo.bullet.querying.FilterQuery;
-import com.yahoo.bullet.record.BulletRecord;
-import lombok.extern.slf4j.Slf4j;
-import backtype.storm.metric.api.MeanReducer;
 import backtype.storm.metric.api.ReducedMetric;
 import backtype.storm.task.OutputCollector;
 import backtype.storm.task.TopologyContext;
@@ -17,68 +12,62 @@ import backtype.storm.topology.OutputFieldsDeclarer;
 import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
-import backtype.storm.utils.Utils;
+import com.yahoo.bullet.querying.Querier;
+import com.yahoo.bullet.record.BulletRecord;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
 
+import static com.yahoo.bullet.storm.TopologyConstants.DATA_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.ERROR_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.ERROR_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
+
 @Slf4j
-public class FilterBolt extends QueryBolt<FilterQuery> {
-    public static final String FILTER_STREAM = Utils.DEFAULT_STREAM_ID;
-    public static final String LATENCY_METRIC = TopologyConstants.METRIC_PREFIX + "filter_latency";
+public class FilterBolt extends QueryBolt {
+    private static final long serialVersionUID = -4357269268404488793L;
 
     private String recordComponent;
     private transient ReducedMetric averageLatency;
 
     /**
-     * Default constructor.
-     */
-    public FilterBolt() {
-        this(TopologyConstants.RECORD_COMPONENT, QueryBolt.DEFAULT_TICK_INTERVAL);
-    }
-
-    /**
-     * Constructor that accepts the name of the component that the records are coming from.
+     * Constructor that accepts the name of the component that the records are coming from and the validated config.
+     *
      * @param recordComponent The source component name for records.
+     * @param config The validated {@link BulletStormConfig} to use.
      */
-    public FilterBolt(String recordComponent) {
-        this(recordComponent, QueryBolt.DEFAULT_TICK_INTERVAL);
-    }
-
-    /**
-     * Constructor that accepts the name of the component that the records are coming from and the tick interval.
-     * @param recordComponent The source component name for records.
-     * @param tickInterval The tick interval in seconds.
-     */
-    public FilterBolt(String recordComponent, Integer tickInterval) {
-        super(tickInterval);
+    public FilterBolt(String recordComponent, BulletStormConfig config) {
+        super(config);
         this.recordComponent = recordComponent;
     }
 
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         super.prepare(stormConf, context, collector);
+        // Set the record component into the classifier
+        classifier.setRecordComponent(recordComponent);
         if (metricsEnabled) {
-            averageLatency = registerAveragingMetric(LATENCY_METRIC, context);
+            averageLatency = registerAveragingMetric(TopologyConstants.LATENCY_METRIC, context);
         }
-    }
-
-    private TupleType.Type getCustomType(Tuple tuple) {
-        return recordComponent.equals(tuple.getSourceComponent()) ? TupleType.Type.RECORD_TUPLE : null;
     }
 
     @Override
     public void execute(Tuple tuple) {
-        // If it isn't any of our default TupleTypes, check if the component is from our custom source
-        TupleType.Type type = TupleType.classify(tuple).orElse(getCustomType(tuple));
+        // Check if the tuple is any known type, otherwise make it unknown
+        TupleClassifier.Type type = classifier.classify(tuple).orElse(TupleClassifier.Type.UNKNOWN_TUPLE);
         switch (type) {
             case TICK_TUPLE:
-                emitForQueries(retireQueries());
+                onTick();
+                break;
+            case METADATA_TUPLE:
+                onMeta(tuple);
                 break;
             case QUERY_TUPLE:
-                initializeQuery(tuple);
+                onQuery(tuple);
                 break;
             case RECORD_TUPLE:
-                checkQuery(tuple);
+                onRecord(tuple);
                 updateLatency(tuple);
                 break;
             default:
@@ -91,50 +80,74 @@ public class FilterBolt extends QueryBolt<FilterQuery> {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields(TopologyConstants.ID_FIELD, TopologyConstants.RECORD_FIELD));
+        // This is the per query data stream.
+        declarer.declareStream(DATA_STREAM, new Fields(ID_FIELD, DATA_FIELD));
+        // This is the where any errors per query are sent
+        declarer.declareStream(ERROR_STREAM, new Fields(ID_FIELD, ERROR_FIELD));
     }
 
-    @Override
-    protected FilterQuery createQuery(Tuple queryTuple) {
-        String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
-        // No need to handle any errors here. The JoinBolt reports all errors.
+    private void onQuery(Tuple tuple) {
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
+        String query = tuple.getString(TopologyConstants.QUERY_POSITION);
+
         try {
-            return new FilterQuery(queryString, configuration);
-        } catch (ParsingException | RuntimeException e) {
-            return null;
+            Querier querier = createQuerier(id, query, config);
+            if (!querier.initialize().isPresent()) {
+                setupQuery(id, query, null, querier);
+                return;
+            }
+        } catch (RuntimeException ignored) {
         }
+        // No need to handle any errors in the Filter Bolt.
+        log.error("Failed to initialize query for request {} with query {}", id, query);
     }
 
-    private void checkQuery(Tuple tuple) {
-        BulletRecord record = (BulletRecord) tuple.getValue(0);
-        // For each query that is satisfied, we will emit the data but we will not expire the query.
-        queriesMap.entrySet().stream().filter(e -> e.getValue().consume(record)).forEach(this::emitForQuery);
+    private void onRecord(Tuple tuple) {
+        BulletRecord record = (BulletRecord) tuple.getValue(TopologyConstants.RECORD_POSITION);
+        handleCategorizedQueries(new QueryCategorizer(Querier::isClosedForPartition).categorize(record, queries));
     }
 
-    private void emitForQueries(Map<String, FilterQuery> entries) {
-        entries.entrySet().stream().forEach(this::emitForQuery);
+    private void onTick() {
+        // Categorize queries in partition mode.
+        handleCategorizedQueries(new QueryCategorizer(Querier::isClosedForPartition).categorize(queries));
     }
 
-    private void emitForQuery(Map.Entry<String, FilterQuery> pair) {
-        // The FilterQuery will handle giving us the right data - a byte[] to emit
-        byte[] data = pair.getValue().getData();
-        if (data != null) {
-            collector.emit(new Values(pair.getKey(), data));
+    private void handleCategorizedQueries(QueryCategorizer category) {
+        Map<String, Querier> done = category.getDone();
+        done.entrySet().forEach(this::emitData);
+        queries.keySet().removeAll(done.keySet());
+
+        Map<String, Querier> rateLimited = category.getRateLimited();
+        rateLimited.entrySet().forEach(this::emitError);
+        queries.keySet().removeAll(rateLimited.keySet());
+
+        Map<String, Querier> closed = category.getClosed();
+        closed.entrySet().forEach(this::emitData);
+        closed.values().forEach(Querier::reset);
+
+        log.debug("Done: {}, Rate limited: {}, Closed: {}, Active: {}",
+                  done.size(), rateLimited.size(), closed.size(), queries.size());
+    }
+
+    private void emitData(Map.Entry<String, Querier> query) {
+        emit(DATA_STREAM, query.getKey(), query.getValue().getData());
+    }
+
+    private void emitError(Map.Entry<String, Querier> query) {
+        emit(ERROR_STREAM, query.getKey(), query.getValue().getRateLimitError());
+    }
+
+    private void emit(String stream, String id, Object value) {
+        if (value != null) {
+            collector.emit(stream, new Values(id, value));
         }
     }
 
     private void updateLatency(Tuple tuple) {
         if (metricsEnabled && tuple.size() > 1) {
             // Could use named fields instead
-            Long timestamp = (Long) tuple.getValue(1);
+            Long timestamp = (Long) tuple.getValue(TopologyConstants.RECORD_TIMESTAMP_POSITION);
             averageLatency.update(System.currentTimeMillis() - timestamp);
         }
-    }
-
-    private ReducedMetric registerAveragingMetric(String name, TopologyContext context) {
-        Number interval = metricsIntervalMapping.getOrDefault(name,
-                                                              metricsIntervalMapping.get(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY));
-        log.info("Registered {} with interval {}", name, interval);
-        return context.registerMetric(name, new ReducedMetric(new MeanReducer()), interval.intValue());
     }
 }

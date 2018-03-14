@@ -3,14 +3,16 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet.storm;
+package com.yahoo.bullet.storm.testing;
 
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.TupleImpl;
+import com.yahoo.bullet.storm.TopologyConstants;
 
 import java.util.Arrays;
+import java.util.Objects;
 
-import static com.yahoo.bullet.storm.TupleType.Type;
+import static com.yahoo.bullet.storm.TupleClassifier.Type;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -26,7 +28,7 @@ public class TupleUtils {
         when(mocked.size()).thenReturn(contents.length);
         for (int i = 0; i < contents.length; ++i) {
             when(mocked.getValue(i)).thenReturn(contents[i]);
-            when(mocked.getString(i)).thenReturn(contents[i].toString());
+            when(mocked.getString(i)).thenReturn(Objects.toString(contents[i]));
         }
         return mocked;
     }

@@ -1,12 +1,6 @@
 # The name of the Storm topology
 bullet.topology.name: "bullet-topology"
 
-# The number of topology workers to use. Applicable when the scheduler is not ras.
-bullet.topology.workers: 92
-
-# Enable Storm debug logging
-bullet.topology.debug: false
-
 # Enable metrics collection for the topology. The registered metrics classes under bullet.topology.metrics.classes are loaded.
 # This enables the default storm built-in metrics. See: http://storm.apache.org/releases/1.0.1/Metrics.html
 # Depending on your cluster configuration, things such as on/off heap usage, cpu usage, garbage collection time/types
@@ -23,6 +17,7 @@ bullet.topology.metrics.enable: false
 #                              otherwise short running queries may not be even counted.
 #   2. bullet_created_queries : A metric that counts the number of queries created per JoinBolt.
 #   3. bullet_improper_queries : A metric that counts the number of semantically incorrect queries created per JoinBolt.
+#   4. bullet_rate_exceeded_queries : A metric that counts the number of queries that exceeded the configured rate limit.
 
 # Averaging metrics: These are org.apache.storm.metric.api.ReducedMetrics
 #   1. bullet_filter_latency: A metric that computes the average latency to filter a single record in the Filter Bolt. The latency is
@@ -51,25 +46,71 @@ bullet.topology.metrics.classes:
   - "com.yahoo.bullet.storm.CustomLoggingMetricsConsumer"
 
 # The parallelism setting controls the number of executors used for each component.
-bullet.topology.query.spout.parallelism: 3
-bullet.topology.result.bolt.parallelism: 3
-bullet.topology.filter.bolt.parallelism: 35
+bullet.topology.query.spout.parallelism: 2
+bullet.topology.filter.bolt.parallelism: 16
 bullet.topology.join.bolt.parallelism: 2
-
-# Bullet uses tick tuples underneath the hood as a "clock" mechanism to do metadata and query updates (checking if queries
-# have expired) etc. This setting controls the how frequently a tick happens - number of seconds between ticks.
-bullet.topology.tick.interval.secs: 1
+bullet.topology.result.bolt.parallelism: 2
+bullet.topology.loop.bolt.parallelism: 2
 
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
-# aggregations to trickle in from the Filter Bolts.
-bullet.topology.join.bolt.query.tick.timeout: 3
+# the final windows to trickle in from the Filter Bolts. If tuples from your your Filter Bolts take longer than
+# (bullet.topology.tick.spout.interval * this setting) to get to the Join Bolt, that data will be LOST and will not
+# be in the final result for the query. If you have bullet.query.window.disable set to true, then this is the value
+# that is used in waiting for your final (and only) intermediate results to arrive from your Filter Bolts.
+# The defaults make this (100ms * 5) or ~0.5s after the query is done for the final results to come back.
+bullet.topology.join.bolt.query.tick.timeout: 5
+
+# This is the number of ticks for which a window will be buffered past its expiry in order to wait for
+# the windows to trickle in from the Filter Bolts. This only applies to time based windows. If tuples from your
+# Filter Bolts take longer than your (bullet.topology.tick.spout.interval * this setting) to get to the Join Bolt,
+# that data will roll over to the next window (your query result for that window is in the next window).
+# The defaults make this (100ms * 2) or ~0.2s after the window is done for the results to come back.
+bullet.topology.join.bolt.window.tick.timeout: 2
+
+# Bullet Storm uses ticks underneath the hood as a "clock"-like mechanism to do metadata and query updates (checking if queries
+# have expired) etc. This is particularly relevant if your data volume is low since your queries depend on these ticks to
+# emit data etc appropriately. This setting controls the how frequently a tick happens - number of milliseconds between ticks.
+# The bullet.query.window.min.emit.every should be at least double this value, or else the defaults for both are used.
+# Also, this cannot be lower than 10 ms
+bullet.topology.tick.spout.interval: 100
+
+
+# The Loop Bolt switches your PubSub into QUERY_SUBMISSION mode to loop back metadata messages to the rest of the
+# topology. If you need to change settings for your publisher in this mode that is different from the settings
+# used in the ResultBolt, override them here. They will be merged into the config and replace the existing settings in
+# your Loop Bolts. This setting needs to be a Map if provided. The example below pretends that your PubSub settings
+# start with bullet.pubsub.custom. You will provide yours.
+# Example:
+#
+# bullet.topology.loop.bolt.pubsub.overrides:
+#   bullet.pubsub.custom.publisher.setting: 1
+#   bullet.pubsub.custom.nested.publisher.setting:
+#     foo: bar
+#     bar: baz
+bullet.topology.loop.bolt.pubsub.overrides: {}
+
+########################################################################################################################
+################################################# Custom Storm Settings ################################################
+########################################################################################################################
+
+# You can add custom storm settings if you want by prefixing them with "bullet.topology.custom."
+# They will be added as is to the Storm config when submitting the topology.
+# You can also set Storm settings by adding them a "-c setting=value" when submitting your job with "storm jar ..."
 
 ########################################################################################################################
 ######################################### PubSub and PubSub Storm DRPC defaults ########################################
 ########################################################################################################################
-# This is the type of PubSub context to use
+# This is the type of PubSub context to use for the Result Bolt and the Query Spout. The Loop Bolt uses QUERY_SUBMISSION
+# since it submits messages using the query publisher of your pubsub.
 bullet.pubsub.context.name: "QUERY_PROCESSING"
-# This is the name of the concrete implementation of PubSub to use. By default, this is the DRPC implementation of PubSub that comes with bullet-storm.
+
+# This is the name of the concrete implementation of PubSub to use. By default, this is the DRPC implementation of PubSub
+# that comes with bullet-storm.
+############################################# IMPORTANT! ###################################################
+# The DRPC pubsub does not support windowing currently. You should set
+# bullet.query.window.disable: true
+# if you are using this pubsub. This setting will also cause the topology to not hook in the Loop Bolt. This is required.
+############################################# IMPORTANT! ###################################################
 bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
 
 # Common DRPC PubSub Settings
@@ -77,7 +118,8 @@ bullet.pubsub.class.name: "com.yahoo.bullet.storm.drpc.DRPCPubSub"
 # This is your DRPC servers' hostnames.
 bullet.pubsub.storm.drpc.servers:
   - "127.0.0.1"
-# This is your DRPC function name (a namespace since DRPC is shared) to use. Queries and Results will be sent to and received from here.
+# This is your DRPC function name (a namespace since DRPC is shared in your Storm  cluster) to use. Queries and Results
+# will be sent to and received from here.
 bullet.pubsub.storm.drpc.function: "bullet-query"
 
 # QUERY_SUBMISSION DRPC PubSub Settings
@@ -86,7 +128,7 @@ bullet.pubsub.storm.drpc.function: "bullet-query"
 # bullet.pubsub.storm.drpc.servers, a query will be randomly POSTed to one of them. The URL will be of the form:
 # ${drpc.http.protocol}://${random.server}:${drpc.http.port}/${drpc.http.path}/${drpc.function}
 bullet.pubsub.storm.drpc.http.protocol: "http"
-bullet.pubsub.storm.drpc.http.port: "3774"
+bullet.pubsub.storm.drpc.http.port: 3774
 bullet.pubsub.storm.drpc.http.path: "drpc"
 # This is the timeout in ms for connecting to the DRPC server to send a query.
 bullet.pubsub.storm.drpc.http.connect.timeout.ms: 5000
@@ -102,5 +144,6 @@ bullet.pubsub.storm.drpc.max.uncommitted.messages: 50
 ########################################################################################################################
 ## You can also configure the core Bullet settings here. For documentation and defaults for those settings, refer to:
 ## https://github.com/yahoo/bullet-core/blob/master/src/main/resources/bullet_defaults.yaml
+## Remember to use bullet.query.window.disable: true if you're using the DRPCPubSub!
 ########################################################################################################################
 ########################################################################################################################

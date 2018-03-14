@@ -7,7 +7,7 @@ package com.yahoo.bullet.storm;
 
 import backtype.storm.Config;
 import backtype.storm.metric.LoggingMetricsConsumer;
-import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.common.BulletConfig;
 
 public class CustomLoggingMetricsConsumer extends LoggingMetricsConsumer {
     /**

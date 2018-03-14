@@ -5,7 +5,7 @@
  */
 package com.yahoo.bullet.storm.drpc;
 
-import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.Publisher;
@@ -38,17 +38,17 @@ public class DRPCPubSub extends PubSub {
     }
 
     @Override
-    public Subscriber getSubscriber() throws PubSubException {
+    public Subscriber getSubscriber() {
         return context == QUERY_SUBMISSION ? getPubscriber() : new DRPCQuerySubscriber(config, maxUncommittedMessages);
     }
 
     @Override
-    public Publisher getPublisher() throws PubSubException {
+    public Publisher getPublisher() {
         return context == QUERY_SUBMISSION ? getPubscriber() : new DRPCResultPublisher(config);
     }
 
     @Override
-    public List<Subscriber> getSubscribers(int n) throws PubSubException {
+    public List<Subscriber> getSubscribers(int n) {
         if (context == QUERY_SUBMISSION) {
             return getPubscribers(n).stream().map(p -> (Subscriber) p).collect(Collectors.toList());
         }
@@ -57,7 +57,7 @@ public class DRPCPubSub extends PubSub {
     }
 
     @Override
-    public List<Publisher> getPublishers(int n) throws PubSubException {
+    public List<Publisher> getPublishers(int n) {
         if (context == QUERY_SUBMISSION) {
             return getPubscribers(n).stream().map(p -> (Publisher) p).collect(Collectors.toList());
         }

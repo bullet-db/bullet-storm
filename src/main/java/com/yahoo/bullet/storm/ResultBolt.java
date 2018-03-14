@@ -5,73 +5,40 @@
  */
 package com.yahoo.bullet.storm;
 
+import backtype.storm.tuple.Tuple;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
-import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.topology.base.BaseRichBolt;
-import backtype.storm.tuple.Tuple;
-
-import java.util.Map;
 
 @Slf4j
-public class ResultBolt extends BaseRichBolt {
-    private OutputCollector collector;
-    private BulletStormConfig config;
-
-    /** Exposed for testing only. */
-    @Getter(AccessLevel.PACKAGE)
-    private Publisher publisher;
+public class ResultBolt extends PublisherBolt {
+    private static final long serialVersionUID = -1927930701345251113L;
 
     /**
-     * Creates a ResultBolt and passes in a {@link BulletStormConfig}.
+     * Creates a ResultBolt with a non-null {@link BulletStormConfig}.
      *
-     * @param config The BulletStormConfig to create PubSub from.
+     * @param config The non-null BulletStormConfig to use. It should contain the settings to initialize a PubSub.
      */
     public ResultBolt(BulletStormConfig config) {
-        this.config = config;
+        super(config);
     }
 
     @Override
-    public void prepare(Map conf, TopologyContext context, OutputCollector collector) {
-        // Add the Storm Config and the context as is, in case any PubSubs need it.
-        config.set(BulletStormConfig.STORM_CONFIG, conf);
-        config.set(BulletStormConfig.STORM_CONTEXT, context);
-
-        this.collector = collector;
-        try {
-            PubSub pubSub = PubSub.from(config);
-            publisher = pubSub.getPublisher();
-            log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
-        } catch (PubSubException e) {
-            throw new RuntimeException("Cannot create PubSub instance or a Publisher for it.", e);
-        }
+    protected Publisher createPublisher() throws PubSubException {
+        PubSub pubSub = PubSub.from(config);
+        Publisher publisher = pubSub.getPublisher();
+        log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
+        return publisher;
     }
 
     @Override
     public void execute(Tuple tuple) {
-        PubSubMessage message = new PubSubMessage(tuple.getString(0), tuple.getString(1), (Metadata) tuple.getValue(2));
-        try {
-            publisher.send(message);
-        } catch (PubSubException e) {
-            log.error(e.getMessage());
-        }
-        collector.ack(tuple);
-    }
-
-    @Override
-    public void declareOutputFields(OutputFieldsDeclarer outputFieldsDeclarer) {
-    }
-
-    @Override
-    public void cleanup() {
-        publisher.close();
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
+        String result = tuple.getString(TopologyConstants.RESULT_POSITION);
+        Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.RESULT_METADATA_POSITION);
+        publish(new PubSubMessage(id, result, metadata), tuple);
     }
 }
