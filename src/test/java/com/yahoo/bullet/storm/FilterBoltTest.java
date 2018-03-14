@@ -5,23 +5,34 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.operations.AggregationOperations.DistributionType;
-import com.yahoo.bullet.operations.SerializerDeserializer;
-import com.yahoo.bullet.operations.aggregations.CountDistinct;
-import com.yahoo.bullet.operations.aggregations.CountDistinctTest;
-import com.yahoo.bullet.operations.aggregations.Distribution;
-import com.yahoo.bullet.operations.aggregations.DistributionTest;
-import com.yahoo.bullet.operations.aggregations.TopK;
-import com.yahoo.bullet.operations.aggregations.TopKTest;
-import com.yahoo.bullet.operations.aggregations.grouping.GroupData;
-import com.yahoo.bullet.operations.aggregations.grouping.GroupOperation;
-import com.yahoo.bullet.querying.FilterQuery;
+import com.yahoo.bullet.aggregations.CountDistinct;
+import com.yahoo.bullet.aggregations.CountDistinctTest;
+import com.yahoo.bullet.aggregations.Distribution;
+import com.yahoo.bullet.aggregations.DistributionTest;
+import com.yahoo.bullet.aggregations.TopK;
+import com.yahoo.bullet.aggregations.TopKTest;
+import com.yahoo.bullet.aggregations.grouping.GroupData;
+import com.yahoo.bullet.aggregations.grouping.GroupOperation;
+import com.yahoo.bullet.common.BulletConfig;
+import com.yahoo.bullet.common.SerializerDeserializer;
+import com.yahoo.bullet.parsing.Window;
+import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.querying.Querier;
+import com.yahoo.bullet.querying.RateLimitError;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.result.RecordBox;
+import com.yahoo.bullet.storm.testing.ComponentUtils;
+import com.yahoo.bullet.storm.testing.CustomCollector;
+import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
+import com.yahoo.bullet.storm.testing.CustomTopologyContext;
+import com.yahoo.bullet.storm.testing.TestHelpers;
+import com.yahoo.bullet.storm.testing.TupleUtils;
+import com.yahoo.bullet.windowing.SlidingRecord;
 import com.yahoo.sketches.frequencies.ErrorType;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
+import org.apache.storm.utils.Utils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -34,28 +45,28 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.COUNT_DISTINCT;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.DISTRIBUTION;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.GROUP;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.RAW;
-import static com.yahoo.bullet.operations.AggregationOperations.AggregationType.TOP_K;
-import static com.yahoo.bullet.operations.AggregationOperations.GroupOperationType.COUNT;
-import static com.yahoo.bullet.operations.FilterOperations.FilterType.AND;
-import static com.yahoo.bullet.operations.FilterOperations.FilterType.EQUALS;
-import static com.yahoo.bullet.operations.FilterOperations.FilterType.GREATER_THAN;
-import static com.yahoo.bullet.operations.FilterOperations.FilterType.NOT_EQUALS;
-import static com.yahoo.bullet.operations.FilterOperations.FilterType.OR;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.COUNT_FIELD;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY_END;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.PROBABILITY_FIELD;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.RANGE_FIELD;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.SEPARATOR;
-import static com.yahoo.bullet.operations.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
+import static com.yahoo.bullet.aggregations.grouping.GroupOperation.GroupOperationType.COUNT;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.COUNT_FIELD;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY_END;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.PROBABILITY_FIELD;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.RANGE_FIELD;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.SEPARATOR;
+import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
+import static com.yahoo.bullet.parsing.Aggregation.Type.COUNT_DISTINCT;
+import static com.yahoo.bullet.parsing.Aggregation.Type.DISTRIBUTION;
+import static com.yahoo.bullet.parsing.Aggregation.Type.GROUP;
+import static com.yahoo.bullet.parsing.Aggregation.Type.RAW;
+import static com.yahoo.bullet.parsing.Aggregation.Type.TOP_K;
 import static com.yahoo.bullet.parsing.AggregationUtils.makeAttributes;
-import static com.yahoo.bullet.parsing.LogicalClauseTest.clause;
-import static com.yahoo.bullet.parsing.QueryUtils.getFilterQuery;
+import static com.yahoo.bullet.parsing.Clause.Operation.AND;
+import static com.yahoo.bullet.parsing.Clause.Operation.EQUALS;
+import static com.yahoo.bullet.parsing.Clause.Operation.GREATER_THAN;
+import static com.yahoo.bullet.parsing.Clause.Operation.NOT_EQUALS;
+import static com.yahoo.bullet.parsing.Clause.Operation.OR;
+import static com.yahoo.bullet.parsing.FilterUtils.getFieldFilter;
+import static com.yahoo.bullet.parsing.FilterUtils.makeClause;
 import static com.yahoo.bullet.parsing.QueryUtils.makeAggregationQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeFieldFilterQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeFilterQuery;
@@ -63,74 +74,107 @@ import static com.yahoo.bullet.parsing.QueryUtils.makeGroupFilterQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeProjectionFilterQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeProjectionQuery;
 import static com.yahoo.bullet.parsing.QueryUtils.makeSimpleAggregationFilterQuery;
-import static com.yahoo.bullet.storm.TupleUtils.makeIDTuple;
-import static com.yahoo.bullet.storm.TupleUtils.makeTuple;
+import static com.yahoo.bullet.storm.testing.TupleUtils.makeIDTuple;
+import static com.yahoo.bullet.storm.testing.TupleUtils.makeRawTuple;
+import static com.yahoo.bullet.storm.testing.TupleUtils.makeTuple;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static org.mockito.AdditionalAnswers.returnsElementsOf;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.when;
 
 public class FilterBoltTest {
     private CustomCollector collector;
-    private CustomTopologyContext context;
     private FilterBolt bolt;
-    private static final com.yahoo.bullet.pubsub.Metadata METADATA = new com.yahoo.bullet.pubsub.Metadata();
+    private BulletStormConfig config;
+    private static final Metadata METADATA = new Metadata();
 
-    private class NoQueryFilterBolt extends FilterBolt {
+    private static class NoQueryFilterBolt extends FilterBolt {
+        NoQueryFilterBolt() {
+            super(TopologyConstants.RECORD_COMPONENT, new BulletStormConfig());
+        }
+
         @Override
-        protected FilterQuery createQuery(Tuple queryTuple) {
+        protected Querier createQuerier(String id, String query, BulletConfig config) {
             return null;
         }
     }
 
-    private class NeverExpiringFilterBolt extends FilterBolt {
-        @Override
-        protected FilterQuery createQuery(Tuple queryTuple) {
-            FilterQuery original = super.createQuery(queryTuple);
-            if (original != null) {
-                original = spy(original);
-                when(original.isExpired()).thenReturn(false);
-            }
-            return original;
-        }
-    }
+    // Spies calls to isDone and finishes (returns true) after a fixed number
+    private static class DonableFilterBolt extends FilterBolt {
+        private int doneAfter = 2;
 
-    // Spies calls to isExpired and expires (returns true) after a fixed number
-    private class ExpiringFilterBolt extends FilterBolt {
-        private int expireAfter = 2;
-
-        public ExpiringFilterBolt() {
-            // One record by default and expire on 2nd tick
-            this(1, 2);
+        DonableFilterBolt() {
+            // One record by default and done after 2nd tick
+            this(1, 2, new BulletStormConfig());
         }
 
-        public ExpiringFilterBolt(int recordsConsumed) {
-            this(recordsConsumed, 2);
+        DonableFilterBolt(int recordsConsumed, BulletStormConfig config) {
+            this(recordsConsumed, 2, config);
         }
 
-        public ExpiringFilterBolt(int recordsConsumed, int ticksConsumed) {
-            // Last tick will need to expire so subtract 1
-            expireAfter = recordsConsumed + ticksConsumed - 1;
+        private DonableFilterBolt(int recordsConsumed, int ticksConsumed, BulletStormConfig config) {
+            super(TopologyConstants.RECORD_COMPONENT, config);
+            // Last tick will need to make it done so subtract 1
+            // FilterBolt calls isDone() and consume in Querier calls isDone(), so double it
+            doneAfter = 2 * recordsConsumed + ticksConsumed - 1;
         }
 
         @Override
-        protected FilterQuery createQuery(Tuple queryTuple) {
-            String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
-            FilterQuery spied = spy(getFilterQuery(queryString, configuration));
-            List<Boolean> answers = IntStream.range(0, expireAfter).mapToObj(i -> false)
+        protected Querier createQuerier(String id, String query, BulletConfig config) {
+            Querier spied = spy(super.createQuerier(id, query, config));
+            List<Boolean> answers = IntStream.range(0, doneAfter).mapToObj(i -> false)
                                              .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);
-            when(spied.isExpired()).thenAnswer(returnsElementsOf(answers));
+            doAnswer(returnsElementsOf(answers)).when(spied).isDone();
             return spied;
         }
     }
 
-    public static Tuple makeRecordTuple(TupleType.Type type, String id, BulletRecord... records) {
+    private static class RateLimitedFilterBolt extends FilterBolt {
+        private final int limitedAfter;
+        private final RateLimitError error;
+
+        private RateLimitedFilterBolt(int recordsConsumed, RateLimitError error, BulletStormConfig config) {
+            super(TopologyConstants.RECORD_COMPONENT, config);
+            limitedAfter = recordsConsumed;
+            this.error = error;
+        }
+
+        @Override
+        protected Querier createQuerier(String id, String query, BulletConfig config) {
+            Querier spied = spy(super.createQuerier(id, query, config));
+            List<Boolean> answers = IntStream.range(0, limitedAfter).mapToObj(i -> false)
+                                             .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
+            answers.add(true);
+            doAnswer(returnsElementsOf(answers)).when(spied).isExceedingRateLimit();
+            doReturn(error).when(spied).getRateLimitError();
+            return spied;
+        }
+    }
+
+    // Helper methods
+
+    private static Tuple makeRecordTuple(BulletRecord record) {
+        return makeRawTuple(TopologyConstants.RECORD_COMPONENT, Utils.DEFAULT_STREAM_ID, record);
+    }
+
+    private static Tuple makeRecordTuple(BulletRecord record, long timestamp) {
+        return makeRawTuple(TopologyConstants.RECORD_COMPONENT, Utils.DEFAULT_STREAM_ID, record, timestamp);
+    }
+
+    private static Tuple makeDataTuple(TupleClassifier.Type type, String id, BulletRecord... records) {
         byte[] listBytes = TestHelpers.getListBytes(records);
         return makeTuple(type, id, listBytes);
     }
-    
+
+    private static Tuple makeSlidingTuple(TupleClassifier.Type type, String id, BulletRecord... records) {
+        byte[] listBytes = TestHelpers.getListBytes(records);
+        byte[] dataBytes = SerializerDeserializer.toBytes(new SlidingRecord.Data(records.length, listBytes));
+        return makeTuple(type, id, dataBytes);
+    }
+
     private boolean isSameTuple(List<Object> actual, List<Object> expected) {
         boolean result;
         result = actual.size() == 2;
@@ -162,47 +206,48 @@ public class FilterBoltTest {
 
     private byte[] getRawPayloadOfNthTuple(int tupleN) {
         // Position 1 is the raw data
-        Optional<Object> data = collector.getMthElementFromNthTupleEmittedTo(FilterBolt.FILTER_STREAM, tupleN, 1);
-        if (data.isPresent()) {
-            return (byte[]) data.get();
-        }
-        return null;
+        Optional<Object> data = collector.getMthElementFromNthTupleEmittedTo(TopologyConstants.DATA_STREAM, tupleN, 1);
+        return (byte[]) data.orElse(null);
     }
 
     private boolean isEqual(GroupData actual, BulletRecord expected) {
         return actual.getMetricsAsBulletRecord().equals(expected);
     }
 
+    private static BulletStormConfig oneRecordConfig() {
+        BulletStormConfig config = new BulletStormConfig();
+        // Set aggregation default size to 1 since most queries here are RAW with filtering and projections. This
+        // makes them isClosedForPartition even if they are not done. immediately.
+        config.set(BulletStormConfig.AGGREGATION_DEFAULT_SIZE, 1);
+        config.validate();
+        return config;
+    }
+
     @BeforeMethod
     public void setup() {
         collector = new CustomCollector();
-        bolt = ComponentUtils.prepare(new NeverExpiringFilterBolt(), collector);
-    }
-
-    public void setup(Map<String, Object> config, FilterBolt bolt) {
-        collector = new CustomCollector();
-        context = new CustomTopologyContext();
-        this.bolt = ComponentUtils.prepare(config, bolt, context, collector);
+        config = oneRecordConfig();
+        bolt = ComponentUtils.prepare(new FilterBolt(TopologyConstants.RECORD_COMPONENT, config), collector);
     }
 
     @Test
     public void testOutputFields() {
         CustomOutputFieldsDeclarer declarer = new CustomOutputFieldsDeclarer();
         bolt.declareOutputFields(declarer);
-        Fields expected = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.RECORD_FIELD);
-        Assert.assertTrue(declarer.areFieldsPresent(FilterBolt.FILTER_STREAM, false, expected));
+        Fields expected = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.DATA_FIELD);
+        Assert.assertTrue(declarer.areFieldsPresent(TopologyConstants.DATA_STREAM, false, expected));
     }
 
     @Test
     public void testUnknownTuple() {
-        Tuple query = TupleUtils.makeTuple(TupleType.Type.JOIN_TUPLE, "", "");
+        Tuple query = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "", "");
         bolt.execute(query);
         Assert.assertFalse(collector.wasAcked(query));
     }
 
     @Test
     public void testProjection() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeProjectionQuery(Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
                                   METADATA);
         bolt.execute(query);
@@ -211,54 +256,54 @@ public class FilterBoltTest {
                                              .addMap("map_field", Pair.of("id", "123"), Pair.of("bar", "foo"))
                                              .getRecord();
 
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("id", "b235gf23b").add("mid", "123").getRecord();
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", expectedRecord);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", expectedRecord);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expected));
     }
 
     @Test
     public void testBadJson() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", "'filters' : [], ", METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "'filters' : [], ", METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
         Assert.assertTrue(collector.wasAcked(query));
         Assert.assertTrue(collector.wasAcked(matching));
-        Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
+        Assert.assertFalse(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, expected));
     }
 
     @Test
     public void testFiltering() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
         BulletRecord anotherRecord = RecordBox.get().add("field", "wontmatch").getRecord();
-        Tuple nonMatching = makeTuple(TupleType.Type.RECORD_TUPLE, anotherRecord);
+        Tuple nonMatching = makeRecordTuple(anotherRecord);
         bolt.execute(nonMatching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expected));
 
-        Tuple anotherExpected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", anotherRecord);
-        Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, anotherExpected));
+        Tuple anotherExpected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", anotherRecord);
+        Assert.assertFalse(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, anotherExpected));
     }
 
     @Test
     public void testProjectionAndFiltering() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeProjectionFilterQuery("map_field.id", singletonList("123"), EQUALS,
-                                          Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
+                                                            Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
                                   METADATA);
         bolt.execute(query);
 
@@ -266,19 +311,19 @@ public class FilterBoltTest {
                                              .addMap("map_field", Pair.of("id", "123"), Pair.of("bar", "foo"))
                                              .getRecord();
 
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("id", "b235gf23b").add("mid", "123").getRecord();
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", expectedRecord);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", expectedRecord);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expected));
     }
 
     @Test
     public void testFilteringUsingProjectedName() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeProjectionFilterQuery("mid", singletonList("123"), EQUALS,
-                                          Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
+                                                             Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
                                   METADATA);
         bolt.execute(query);
 
@@ -286,19 +331,19 @@ public class FilterBoltTest {
                                              .addMap("map_field", Pair.of("id", "123"), Pair.of("bar", "foo"))
                                              .getRecord();
 
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("id", "b235gf23b").add("mid", "123").getRecord();
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", expectedRecord);
-        Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", expectedRecord);
+        Assert.assertFalse(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, expected));
     }
 
     @Test
     public void testProjectionNotLosingFilterColumn() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeProjectionFilterQuery("timestamp", singletonList("92"), EQUALS,
-                                          Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
+                                                            Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
                                   METADATA);
         bolt.execute(query);
 
@@ -306,169 +351,173 @@ public class FilterBoltTest {
                                              .addMap("map_field", Pair.of("id", "123"), Pair.of("bar", "foo"))
                                              .getRecord();
 
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("id", "b235gf23b").add("mid", "123").getRecord();
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", expectedRecord);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", expectedRecord);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, expected));
     }
 
     @Test
-    public void testMultiFiltering() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5),
+    public void testFilteringSlidingWindow() {
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5,
+                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
                                   METADATA);
         bolt.execute(query);
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
 
         bolt.execute(matching);
         bolt.execute(matching);
         bolt.execute(matching);
         bolt.execute(matching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 4, expected));
+        Tuple expected = makeSlidingTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 4, expected));
     }
 
     @Test
     public void testDifferentQueryMatchingSameTuple() {
-        Tuple queryA = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
-        Tuple queryB = makeIDTuple(TupleType.Type.QUERY_TUPLE, "43",
+        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
                                    makeFilterQuery("timestamp", asList("1", "2", "3", "45"), EQUALS), METADATA);
         bolt.execute(queryA);
         bolt.execute(queryB);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 45L).getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
 
         bolt.execute(matching);
 
-        Tuple expectedA = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Tuple expectedB = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "43", record);
+        Tuple expectedA = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Tuple expectedB = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "43", record);
 
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expectedA));
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expectedB));
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expectedA));
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expectedB));
     }
 
     @Test
     public void testDifferentQueryMatchingDifferentTuple() {
-        Tuple queryA = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
-        Tuple queryB = makeIDTuple(TupleType.Type.QUERY_TUPLE, "43",
+        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
                                    makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS), METADATA);
         bolt.execute(queryA);
         bolt.execute(queryB);
 
         BulletRecord recordA = RecordBox.get().add("field", "b235gf23b").add("timestamp", 45L).getRecord();
         BulletRecord recordB = RecordBox.get().add("field", "b235gf23b").add("timestamp", 42L).getRecord();
-        Tuple matchingA = makeTuple(TupleType.Type.RECORD_TUPLE, recordA);
-        Tuple matchingB = makeTuple(TupleType.Type.RECORD_TUPLE, recordB);
+        Tuple matchingA = makeRecordTuple(recordA);
+        Tuple matchingB = makeRecordTuple(recordB);
 
         bolt.execute(matchingA);
         bolt.execute(matchingB);
 
-        Tuple expectedAA = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", recordA);
-        Tuple expectedAB = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", recordB);
-        Tuple expectedB = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "43", recordB);
+        Tuple expectedAA = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", recordA);
+        Tuple expectedAB = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", recordB);
+        Tuple expectedB = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "43", recordB);
 
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expectedAA));
-        Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expectedAB));
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expectedB));
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expectedAA));
+        Assert.assertFalse(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, expectedAB));
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expectedB));
     }
 
     @Test
     public void testFailQueryInitialization() {
         bolt = ComponentUtils.prepare(new NoQueryFilterBolt(), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertFalse(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, expected));
     }
 
     @Test
-    public void testQueryNonExpiry() {
-        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(), collector);
+    public void testQueryNotDone() {
+        bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         bolt.execute(query);
 
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
-        bolt.execute(tick);
-
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        bolt.execute(tick);
+        bolt.execute(tick);
+
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expected));
     }
 
     @Test
-    public void testQueryExpiry() {
-        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(), collector);
+    public void testQueryDone() {
+        bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         bolt.execute(query);
 
-        // Two to flush bolt
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        BulletRecord nonMatching = RecordBox.get().add("field", "foo").getRecord();
+        Tuple notMatching = makeRecordTuple(nonMatching);
+        bolt.execute(notMatching);
+
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, expected));
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertFalse(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, expected));
     }
 
     @Test
-    public void testQueryNonExpiryAndThenExpiry() {
-        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(), collector);
+    public void testQueryNotDoneAndThenDone() {
+        bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         bolt.execute(query);
 
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
-        bolt.execute(tick);
-
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
-
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
+        bolt.execute(tick);
+
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expected));
 
         BulletRecord anotherRecord = RecordBox.get().add("field", "b235gf23b").add("mid", "2342").getRecord();
-        Tuple anotherExpected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", anotherRecord);
-        Assert.assertFalse(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, anotherExpected));
+        Tuple anotherExpected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", anotherRecord);
+        Assert.assertFalse(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, anotherExpected));
     }
 
     @SuppressWarnings("unchecked")
     @Test
     public void testComplexFilterQuery() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeFilterQuery(OR,
-                                                  clause(AND,
-                                                         clause("field", EQUALS, "abc"),
-                                                         clause(OR,
-                                                                clause(AND,
-                                                                       clause("experience", EQUALS, "app", "tv"),
-                                                                       clause("pid", EQUALS, "1", "2")),
-                                                                clause("mid", GREATER_THAN, "10"))),
-                                                  clause(AND,
-                                                         clause("demographic_map.age", GREATER_THAN, "65"),
-                                                         clause("filter_map.is_fake_event", EQUALS, "true"))),
+                                                  makeClause(AND,
+                                                             getFieldFilter("field", EQUALS, "abc"),
+                                                             makeClause(OR,
+                                                                        makeClause(AND,
+                                                                                   getFieldFilter("experience", EQUALS, "app", "tv"),
+                                                                                   getFieldFilter("pid", EQUALS, "1", "2")),
+                                                                        getFieldFilter("mid", GREATER_THAN, "10"))),
+                                                  makeClause(AND,
+                                                             getFieldFilter("demographic_map.age", GREATER_THAN, "65"),
+                                                             getFieldFilter("filter_map.is_fake_event", EQUALS, "true"))),
                                   METADATA);
         bolt.execute(query);
 
@@ -480,46 +529,46 @@ public class FilterBoltTest {
         // second clause is false: age > 65 and is_fake_event == null
         BulletRecord recordB = RecordBox.get().addMap("demographic_map", Pair.of("age", "67")).getRecord();
 
-        Tuple nonMatching = makeTuple(TupleType.Type.RECORD_TUPLE, recordB);
+        Tuple nonMatching = makeRecordTuple(recordB);
         bolt.execute(nonMatching);
         bolt.execute(nonMatching);
 
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, recordA);
+        Tuple matching = makeRecordTuple(recordA);
         bolt.execute(matching);
 
         BulletRecord expectedRecord = RecordBox.get().add("field", "abc").add("experience", "tv")
                                                      .add("mid", 11).getRecord();
         BulletRecord notExpectedRecord = RecordBox.get().addMap("demographic_map", Pair.of("age", "67")).getRecord();
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", expectedRecord);
-        Tuple notExpected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", notExpectedRecord);
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", expectedRecord);
+        Tuple notExpected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", notExpectedRecord);
 
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expected));
         Assert.assertFalse(wasRawRecordEmitted(notExpected));
     }
 
     @Test
     public void testTuplesCustomSource() {
-        FilterBolt bolt = ComponentUtils.prepare(new FilterBolt("CustomSource"), collector);
+        bolt = ComponentUtils.prepare(new FilterBolt("CustomSource", oneRecordConfig()), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
         Tuple matching = TupleUtils.makeRawTuple("CustomSource", TopologyConstants.RECORD_STREAM, record);
         bolt.execute(matching);
 
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
 
         BulletRecord anotherRecord = RecordBox.get().add("field", "wontmatch").getRecord();
         Tuple nonMatching = TupleUtils.makeRawTuple("CustomSource", TopologyConstants.RECORD_STREAM, anotherRecord);
         bolt.execute(nonMatching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expected));
 
-        Tuple notExpected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", anotherRecord);
+        Tuple notExpected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", anotherRecord);
         Assert.assertFalse(wasRawRecordEmitted(notExpected));
 
     }
@@ -527,26 +576,26 @@ public class FilterBoltTest {
     @Test
     public void testGroupAllCount() {
         // 15 Records will be consumed
-        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(15), collector);
+        bolt = ComponentUtils.prepare(new DonableFilterBolt(15, new BulletStormConfig()), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS,
                                                        GROUP, 1, singletonList(new GroupOperation(COUNT, null, "cnt"))),
                                   METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("timestamp", "1").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         IntStream.range(0, 10).forEach(i -> bolt.execute(matching));
 
         BulletRecord another = RecordBox.get().getRecord();
 
-        Tuple nonMatching = makeTuple(TupleType.Type.RECORD_TUPLE, another);
+        Tuple nonMatching = makeRecordTuple(another);
         IntStream.range(0, 5).forEach(i -> bolt.execute(nonMatching));
         bolt.execute(nonMatching);
 
         // Two to flush bolt
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
 
@@ -558,58 +607,23 @@ public class FilterBoltTest {
     }
 
     @Test
-    public void testMicroBatching() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(BulletStormConfig.RAW_AGGREGATION_MICRO_BATCH_SIZE, 3);
-        // 5 Records will be consumed
-        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(5), collector);
-
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 7),
-                                  METADATA);
-        bolt.execute(query);
-
-        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
-        bolt.execute(matching);
-        bolt.execute(matching);
-        bolt.execute(matching);
-        bolt.execute(matching);
-        bolt.execute(matching);
-
-        // We should have a single micro-batch of size 3
-        Assert.assertEquals(collector.getEmittedCount(), 1);
-
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record, record, record);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
-
-        // Two to flush bolt. When the query expires, the last two get emitted.
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
-        bolt.execute(tick);
-        bolt.execute(tick);
-
-        expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record, record);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 1, expected));
-    }
-
-    @Test
     public void testCountDistinct() {
-        Map<Object, Object> config = CountDistinctTest.makeConfiguration(8, 512);
         // 256 Records will be consumed
-        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(256), collector);
+        BulletStormConfig config = new BulletStormConfig(CountDistinctTest.makeConfiguration(8, 512));
+        bolt = ComponentUtils.prepare(new DonableFilterBolt(256, config), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeAggregationQuery(COUNT_DISTINCT, 1, null, Pair.of("field", "field")),
                                   METADATA);
         bolt.execute(query);
 
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
-                               .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                               .map(FilterBoltTest::makeRecordTuple)
                                .forEach(bolt::execute);
 
         Assert.assertEquals(collector.getEmittedCount(), 0);
 
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
 
@@ -621,58 +635,59 @@ public class FilterBoltTest {
         CountDistinct distinct = CountDistinctTest.makeCountDistinct(config, singletonList("field"));
         distinct.combine(rawData);
 
-        BulletRecord actual = distinct.getAggregation().getRecords().get(0);
+        BulletRecord actual = distinct.getRecords().get(0);
         BulletRecord expected = RecordBox.get().add(CountDistinct.DEFAULT_NEW_NAME, 256.0).getRecord();
         Assert.assertEquals(actual, expected);
     }
 
     @Test
-    public void testNoConsumptionAfterExpiry() {
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5),
+    public void testNoConsumptionAfterDone() {
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5,
+                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
                                   METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple matching = makeTuple(TupleType.Type.RECORD_TUPLE, record);
+        Tuple matching = makeRecordTuple(record);
         bolt.execute(matching);
         bolt.execute(matching);
         bolt.execute(matching);
 
-        Tuple expected = makeRecordTuple(TupleType.Type.FILTER_TUPLE, "42", record);
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 3, expected));
+        Tuple expected = makeSlidingTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 3, expected));
 
         collector = new CustomCollector();
-        // Will expire after 2 consumes (no ticks)
-        bolt = ComponentUtils.prepare(new ExpiringFilterBolt(2, 1), collector);
+        // Will be done after 2 consumes (no ticks)
+        bolt = ComponentUtils.prepare(new DonableFilterBolt(2, 1, new BulletStormConfig()), collector);
         bolt.execute(query);
         bolt.execute(matching);
         bolt.execute(matching);
-        // Now the query should be expired, so it should not consume
+        // Now the query should be done, so it should not consume
         bolt.execute(matching);
 
-        Assert.assertTrue(wasRawRecordEmittedTo(FilterBolt.FILTER_STREAM, 2, expected));
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 2, expected));
     }
 
     @Test
     public void testDistribution() {
-        Map<Object, Object> config = DistributionTest.makeConfiguration(20, 128);
         // 100 Records will be consumed
-        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(101), collector);
+        BulletStormConfig config = new BulletStormConfig(DistributionTest.makeConfiguration(20, 128));
+        bolt = ComponentUtils.prepare(new DonableFilterBolt(101, config), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
-                                  makeAggregationQuery(DISTRIBUTION, 10, DistributionType.PMF, "field", null, null,
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  makeAggregationQuery(DISTRIBUTION, 10, Distribution.Type.PMF, "field", null, null,
                                                        null, null, 3),
                                   METADATA);
         bolt.execute(query);
 
         IntStream.range(0, 101).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
-                               .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                               .map(FilterBoltTest::makeRecordTuple)
                                .forEach(bolt::execute);
 
         Assert.assertEquals(collector.getEmittedCount(), 0);
 
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
 
@@ -681,11 +696,11 @@ public class FilterBoltTest {
         byte[] rawData = getRawPayloadOfNthTuple(1);
         Assert.assertNotNull(rawData);
 
-        Distribution distribution = DistributionTest.makeDistribution(config, makeAttributes(DistributionType.PMF, 3),
+        Distribution distribution = DistributionTest.makeDistribution(config, makeAttributes(Distribution.Type.PMF, 3),
                                                                       "field", 10, null);
         distribution.combine(rawData);
 
-        List<BulletRecord> records = distribution.getAggregation().getRecords();
+        List<BulletRecord> records = distribution.getRecords();
 
         BulletRecord expectedA = RecordBox.get().add(RANGE_FIELD, NEGATIVE_INFINITY_START + SEPARATOR + 0.0 + END_EXCLUSIVE)
                                                 .add(COUNT_FIELD, 0.0)
@@ -707,26 +722,26 @@ public class FilterBoltTest {
 
     @Test
     public void testTopK() {
-        Map<Object, Object> config = TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 32);
         // 16 records
-        bolt = ComponentUtils.prepare(config, new ExpiringFilterBolt(16), collector);
+        BulletStormConfig config = new BulletStormConfig(TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 32));
+        bolt = ComponentUtils.prepare(new DonableFilterBolt(16, config), collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                   makeAggregationQuery(TOP_K, 5, null, "cnt", Pair.of("A", ""), Pair.of("B", "foo")),
                                   METADATA);
         bolt.execute(query);
 
         IntStream.range(0, 8).mapToObj(i -> RecordBox.get().add("A", i).getRecord())
-                             .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                             .map(FilterBoltTest::makeRecordTuple)
                              .forEach(bolt::execute);
         IntStream.range(0, 6).mapToObj(i -> RecordBox.get().add("A", 0).getRecord())
-                             .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                             .map(FilterBoltTest::makeRecordTuple)
                              .forEach(bolt::execute);
         IntStream.range(0, 2).mapToObj(i -> RecordBox.get().add("A", 3).getRecord())
-                             .map(r -> makeTuple(TupleType.Type.RECORD_TUPLE, r))
+                             .map(FilterBoltTest::makeRecordTuple)
                              .forEach(bolt::execute);
 
-        Tuple tick = TupleUtils.makeTuple(TupleType.Type.TICK_TUPLE);
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
         bolt.execute(tick);
 
@@ -741,7 +756,7 @@ public class FilterBoltTest {
         TopK topK = TopKTest.makeTopK(config, makeAttributes("cnt", null), fields, 2, null);
         topK.combine(rawData);
 
-        List<BulletRecord> records = topK.getAggregation().getRecords();
+        List<BulletRecord> records = topK.getRecords();
         Assert.assertEquals(records.size(), 2);
 
         BulletRecord expectedA = RecordBox.get().add("A", "0").add("foo", "null").add("cnt", 7L).getRecord();
@@ -753,19 +768,139 @@ public class FilterBoltTest {
 
     @Test
     public void testFilteringLatency() {
-        Map<String, Object> config = new HashMap<>();
-        config.put(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        setup(config, new NeverExpiringFilterBolt());
+        config = new BulletStormConfig();
+        // Don't use the overridden aggregation default size but turn on built in metrics
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        collector = new CustomCollector();
+        CustomTopologyContext context = new CustomTopologyContext();
+        bolt = new FilterBolt(TopologyConstants.RECORD_COMPONENT, config);
+        ComponentUtils.prepare(new HashMap<>(), bolt, context, collector);
 
-        Tuple query = makeIDTuple(TupleType.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("bar"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("bar"), METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "foo").getRecord();
         long start = System.currentTimeMillis();
-        IntStream.range(0, 10).mapToObj(i -> makeTuple(TupleType.Type.RECORD_TUPLE, record, System.currentTimeMillis()))
+        IntStream.range(0, 10).mapToObj(i -> makeRecordTuple(record, System.currentTimeMillis()))
                               .forEach(bolt::execute);
         long end = System.currentTimeMillis();
-        double actualLatecy = context.getDoubleMetric(FilterBolt.LATENCY_METRIC);
+        double actualLatecy = context.getDoubleMetric(TopologyConstants.LATENCY_METRIC);
         Assert.assertTrue(actualLatecy <= end - start);
+    }
+
+    @Test
+    public void testRateLimiting() {
+        config = new BulletStormConfig();
+        RateLimitError rateLimitError = new RateLimitError(42.0, config);
+        bolt = new RateLimitedFilterBolt(2, rateLimitError, config);
+        bolt = ComponentUtils.prepare(new HashMap<>(), bolt, collector);
+
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 100,
+                                                                    Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  METADATA);
+        bolt.execute(query);
+
+        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
+        Tuple matching = makeRecordTuple(record);
+        bolt.execute(matching);
+        bolt.execute(matching);
+
+        Tuple expected = makeSlidingTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 2, expected));
+
+        bolt.execute(matching);
+        Tuple error = TupleUtils.makeIDTuple(TupleClassifier.Type.ERROR_TUPLE, "42", rateLimitError);
+        Assert.assertTrue(collector.wasNthEmitted(error, 3));
+    }
+
+    @Test
+    public void testMissingRateLimit() {
+        config = new BulletStormConfig();
+        bolt = new RateLimitedFilterBolt(2, null, config);
+        bolt = ComponentUtils.prepare(new HashMap<>(), bolt, collector);
+
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 100,
+                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  METADATA);
+        bolt.execute(query);
+
+        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
+        Tuple matching = makeRecordTuple(record);
+        bolt.execute(matching);
+        bolt.execute(matching);
+
+        Tuple expected = makeSlidingTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 2, expected));
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+
+        bolt.execute(matching);
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+    }
+
+    @Test
+    public void testKillSignal() {
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5,
+                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  METADATA);
+        bolt.execute(query);
+
+        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
+        Tuple matching = makeRecordTuple(record);
+        bolt.execute(matching);
+        bolt.execute(matching);
+
+        Tuple expected = makeSlidingTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 2, expected));
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+
+        Tuple kill = makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "42", new Metadata(Metadata.Signal.KILL, null));
+        bolt.execute(kill);
+
+        bolt.execute(matching);
+        bolt.execute(matching);
+
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+    }
+
+    @Test
+    public void testCompleteSignal() {
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5,
+                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  METADATA);
+        bolt.execute(query);
+
+        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
+        Tuple matching = makeRecordTuple(record);
+        bolt.execute(matching);
+        bolt.execute(matching);
+
+        Tuple expected = makeSlidingTuple(TupleClassifier.Type.DATA_TUPLE, "42", record);
+        Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 2, expected));
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+
+        Tuple complete = makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "42", new Metadata(Metadata.Signal.COMPLETE, null));
+        bolt.execute(complete);
+
+        bolt.execute(matching);
+        bolt.execute(matching);
+
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+    }
+
+    @Test
+    public void testQueryErrorsAreSilentlyIgnored() {
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{'aggregation': { 'type': null }}");
+        bolt.execute(query);
+
+        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
+        Tuple someTuple = makeRecordTuple(record);
+        bolt.execute(someTuple);
+        bolt.execute(someTuple);
+
+        Assert.assertEquals(collector.getEmittedCount(), 0);
     }
 }

@@ -5,11 +5,11 @@
  */
 package com.yahoo.bullet.storm.drpc;
 
-import com.yahoo.bullet.Config;
+import com.yahoo.bullet.common.Config;
 import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
-import com.yahoo.bullet.storm.CustomTopologyContext;
+import com.yahoo.bullet.storm.testing.CustomTopologyContext;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

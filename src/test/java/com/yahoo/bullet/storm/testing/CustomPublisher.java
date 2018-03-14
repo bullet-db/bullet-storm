@@ -3,8 +3,9 @@
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
-package com.yahoo.bullet.storm;
+package com.yahoo.bullet.storm.testing;
 
+import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
@@ -17,6 +18,11 @@ import java.util.List;
 public class CustomPublisher implements Publisher {
     private List<PubSubMessage> sent = new ArrayList<>();
     private boolean closed = false;
+    private PubSub.Context context;
+
+    public CustomPublisher(PubSub.Context context) {
+        this.context = context;
+    }
 
     @Override
     public void send(PubSubMessage message) throws PubSubException {

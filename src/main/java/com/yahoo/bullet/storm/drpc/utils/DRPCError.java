@@ -5,18 +5,17 @@
  */
 package com.yahoo.bullet.storm.drpc.utils;
 
+import com.yahoo.bullet.common.BulletError;
 import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata;
+import com.yahoo.bullet.result.Meta;
 
-import static com.yahoo.bullet.parsing.Error.makeError;
+import java.io.Serializable;
+import java.util.Collections;
 
-public class DRPCError {
+public class DRPCError extends BulletError implements Serializable {
     public static final String GENERIC_RESOLUTION = "Please try again later";
     public static final String GENERIC_ERROR = "Cannot reach the DRPC server";
     public static final DRPCError CANNOT_REACH_DRPC = new DRPCError(GENERIC_ERROR, GENERIC_RESOLUTION);
-
-    private String error;
-    private String resolution;
 
     /**
      * Constructor that takes an error message and resolution for it.
@@ -25,16 +24,15 @@ public class DRPCError {
      * @param resolution The resolution that can be taken.
      */
     public DRPCError(String error, String resolution) {
-        this.error = error;
-        this.resolution = resolution;
+        super(error, Collections.singletonList(resolution));
     }
 
     /**
-     * Write this error as a JSON Bullet error response in the {@link Metadata} of a {@link Clip}.
+     * Write this error as a JSON Bullet error response in the {@link Meta} of a {@link Clip}.
      *
      * @return A String JSON version of this error.
      */
-    public String asJSON() {
-        return Clip.of(Metadata.of(makeError(error, resolution))).asJSON();
+    public String asJSONClip() {
+        return Clip.of(Meta.of(this)).asJSON();
     }
 }

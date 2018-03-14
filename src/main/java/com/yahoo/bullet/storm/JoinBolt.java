@@ -5,13 +5,13 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.google.gson.JsonParseException;
-import com.yahoo.bullet.parsing.Error;
-import com.yahoo.bullet.parsing.ParsingException;
-import com.yahoo.bullet.querying.AggregationQuery;
+import com.yahoo.bullet.common.BulletError;
+import com.yahoo.bullet.parsing.ParsingError;
+import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.querying.Querier;
+import com.yahoo.bullet.querying.RateLimitError;
 import com.yahoo.bullet.result.Clip;
-import com.yahoo.bullet.result.Metadata;
-import com.yahoo.bullet.result.Metadata.Concept;
+import com.yahoo.bullet.result.Meta;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -20,50 +20,43 @@ import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 import org.apache.storm.utils.RotatingMap;
-import org.apache.storm.utils.Utils;
 
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.function.Consumer;
+import java.util.Optional;
+
+import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.METADATA_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.RESULT_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.RESULT_STREAM;
 
 @Slf4j
-public class JoinBolt extends QueryBolt<AggregationQuery> {
-    public static final String JOIN_STREAM = Utils.DEFAULT_STREAM_ID;
-    public static final String JOIN_FIELD = "result";
+public class JoinBolt extends QueryBolt {
+    private static final long serialVersionUID = 3312434064971532267L;
 
-    /** This is the default number of ticks for which we will buffer a query. */
-    public static final int DEFAULT_QUERY_TICKOUT = 3;
+    private transient Map<String, Metadata> bufferedMetadata;
+    // For doing a join between Queries and intermediate windows, if the windows are time based and arriving slowly.
+    private transient RotatingMap<String, Querier> bufferedQueries;
+    // For doing a join between expired queries and final windows, if query has expired and last data is arriving slowly.
+    private transient RotatingMap<String, Querier> bufferedWindows;
 
-    private Map<String, com.yahoo.bullet.pubsub.Metadata> bufferedMetadata;
-    // For doing a LEFT OUTER JOIN between Queries and intermediate aggregation, if the aggregations are lagging.
-    private RotatingMap<String, AggregationQuery> bufferedQueries;
-
-    // Metrics
-    public static final String ACTIVE_QUERIES = TopologyConstants.METRIC_PREFIX + "active_queries";
-    public static final String CREATED_QUERIES = TopologyConstants.METRIC_PREFIX + "created_queries";
-    public static final String IMPROPER_QUERIES = TopologyConstants.METRIC_PREFIX + "improper_queries";
     // Variable
     private transient AbsoluteCountMetric activeQueriesCount;
     // Monotonically increasing
     private transient AbsoluteCountMetric createdQueriesCount;
     private transient AbsoluteCountMetric improperQueriesCount;
+    private transient AbsoluteCountMetric rateExceededQueries;
 
     /**
-     * Default constructor.
+     * Constructor that creates an instance of this JoinBolt using the given config.
+     *
+     * @param config The validated {@link BulletStormConfig} to use.
      */
-    public JoinBolt() {
-        super();
-    }
-
-    /**
-     * Constructor that accepts the tick interval.
-     * @param tickInterval The tick interval in seconds.
-     */
-    public JoinBolt(Integer tickInterval) {
-        super(tickInterval);
+    public JoinBolt(BulletStormConfig config) {
+        super(config);
     }
 
     @SuppressWarnings("unchecked")
@@ -73,30 +66,38 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
 
         bufferedMetadata = new HashMap<>();
 
-        Number queryTickoutNumber = (Number) configuration.getOrDefault(BulletStormConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT,
-                                                                        DEFAULT_QUERY_TICKOUT);
-        int queryTickout = queryTickoutNumber.intValue();
-        bufferedQueries = new RotatingMap<>(queryTickout);
+        int windowTickOut = config.getAs(BulletStormConfig.JOIN_BOLT_WINDOW_TICK_TIMEOUT, Integer.class);
+        bufferedWindows = new RotatingMap<>(windowTickOut);
+
+        int queryTickOut = config.getAs(BulletStormConfig.JOIN_BOLT_QUERY_TICK_TIMEOUT, Integer.class);
+        bufferedQueries = new RotatingMap<>(queryTickOut);
 
         if (metricsEnabled) {
-            activeQueriesCount = registerAbsoluteCountMetric(ACTIVE_QUERIES, context);
-            createdQueriesCount = registerAbsoluteCountMetric(CREATED_QUERIES, context);
-            improperQueriesCount = registerAbsoluteCountMetric(IMPROPER_QUERIES, context);
+            activeQueriesCount = registerAbsoluteCountMetric(TopologyConstants.ACTIVE_QUERIES_METRIC, context);
+            createdQueriesCount = registerAbsoluteCountMetric(TopologyConstants.CREATED_QUERIES_METRIC, context);
+            improperQueriesCount = registerAbsoluteCountMetric(TopologyConstants.IMPROPER_QUERIES_METRIC, context);
+            rateExceededQueries = registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
         }
     }
 
     @Override
     public void execute(Tuple tuple) {
-        TupleType.Type type = TupleType.classify(tuple).orElse(null);
+        TupleClassifier.Type type = classifier.classifyInternalTypes(tuple).orElse(TupleClassifier.Type.UNKNOWN_TUPLE);
         switch (type) {
             case TICK_TUPLE:
-                handleTick();
+                onTick();
+                break;
+            case METADATA_TUPLE:
+                onMeta(tuple);
                 break;
             case QUERY_TUPLE:
-                handleQuery(tuple);
+                onQuery(tuple);
                 break;
-            case FILTER_TUPLE:
-                handleFilter(tuple);
+            case ERROR_TUPLE:
+                onError(tuple);
+                break;
+            case DATA_TUPLE:
+                onData(tuple);
                 break;
             default:
                 // May want to throw an error here instead of not acking
@@ -108,142 +109,235 @@ public class JoinBolt extends QueryBolt<AggregationQuery> {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declare(new Fields(TopologyConstants.ID_FIELD, JOIN_FIELD, TopologyConstants.METADATA_FIELD));
+        // This is where the data for each queries go
+        declarer.declareStream(RESULT_STREAM, new Fields(ID_FIELD, RESULT_FIELD, METADATA_FIELD));
+        // This is where the metadata that is used for feedback is sent
+        declarer.declareStream(FEEDBACK_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
+    }
+
+    private void onTick() {
+        // Force emit all the done queries or closed queries that are being rotated out.
+        Map<String, Querier> forceDone = bufferedQueries.rotate();
+        forceDone.entrySet().forEach(this::emitFinished);
+        // The active queries count is not updated for these since these queries are not in any map, so do it here
+        updateCount(activeQueriesCount, -forceDone.size());
+
+        // Close all the buffered windows and re-add them back to queries
+        Map<String, Querier> forceClosed = bufferedWindows.rotate();
+        forceClosed.entrySet().forEach(this::emitBufferedWindow);
+
+        // Categorize all in queries in non-partition mode and do the roll over or emit as necessary
+        handleCategorizedQueries(new QueryCategorizer(Querier::isClosed).categorize(queries));
+    }
+
+    private void onQuery(Tuple tuple) {
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
+        String query = tuple.getString(TopologyConstants.QUERY_POSITION);
+        Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
+
+        Querier querier;
+        try {
+            querier = createQuerier(id, query, config);
+            Optional<List<BulletError>> optionalErrors = querier.initialize();
+            if (!optionalErrors.isPresent()) {
+                setupQuery(id, query, metadata, querier);
+                return;
+            }
+            emitErrorsAsResult(id, metadata, optionalErrors.get());
+        } catch (RuntimeException re) {
+            // Includes JSONParseException
+            emitErrorsAsResult(id, metadata, ParsingError.makeError(re, query));
+        }
+        log.error("Failed to initialize query for request {} with query {}", id, query);
+    }
+
+    private void onData(Tuple tuple) {
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
+        Querier querier = getQuery(id);
+        if (querier == null) {
+            log.debug("Received data for query {} before query. Ignoring...", id);
+            return;
+        }
+        byte[] data = (byte[]) tuple.getValue(TopologyConstants.DATA_POSITION);
+        querier.combine(data);
+
+        // If already in buffer, then don't check isClosed() and don't emit window. Tick will emit it.
+        if (querier.isDone()) {
+            emitOrBufferFinished(id, querier);
+        } else if (querier.isExceedingRateLimit()) {
+            emitRateLimitError(id, querier, querier.getRateLimitError());
+        } else if (!bufferedWindows.containsKey(id) && querier.isClosed()) {
+            emitOrBufferWindow(id, querier);
+        }
+    }
+
+    private void onError(Tuple tuple) {
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
+        Querier querier = getQuery(id);
+        if (querier == null) {
+            log.debug("Received error for {} without the query existing", id);
+            // TODO Might later create this query whose error ignored here. This is a leak.
+            return;
+        }
+        RateLimitError error = (RateLimitError) tuple.getValue(TopologyConstants.ERROR_POSITION);
+        emitRateLimitError(id, querier, error);
+    }
+
+    private void handleCategorizedQueries(QueryCategorizer category) {
+        Map<String, Querier> done = category.getDone();
+        done.entrySet().forEach(this::emitOrBufferFinished);
+
+        Map<String, Querier> rateLimited = category.getRateLimited();
+        rateLimited.entrySet().forEach(this::emitRateLimitError);
+
+        Map<String, Querier> closed = category.getClosed();
+        closed.entrySet().forEach(this::emitOrBufferWindow);
+
+        log.debug("Done: {}, Rate limited: {}, Closed: {}, Pending Windows: {}, Pending Done: {}, Active: {}", done.size(),
+                  rateLimited.size(), closed.size(), bufferedWindows.size(), bufferedQueries.size(), queries.size());
+    }
+
+    // RESULT_STREAM and METADATA_STREAM emitters
+
+    private void emitRateLimitError(Map.Entry<String, Querier> query) {
+        Querier querier = query.getValue();
+        emitRateLimitError(query.getKey(), querier, querier.getRateLimitError());
+    }
+
+    private void emitRateLimitError(String id, Querier querier, RateLimitError error) {
+        Metadata metadata = bufferedMetadata.get(id);
+        Meta meta = error.makeMeta();
+        Clip clip = querier.finish();
+        clip.getMeta().merge(meta);
+        emitResult(id, withSignal(metadata, Metadata.Signal.FAIL), clip);
+        emitMetaSignal(id, Metadata.Signal.KILL);
+        updateCount(rateExceededQueries, 1L);
+        removeQuery(id);
+    }
+
+    private void emitOrBufferFinished(Map.Entry<String, Querier> query) {
+        emitOrBufferFinished(query.getKey(), query.getValue());
+    }
+
+    private void emitOrBufferFinished(String id, Querier querier) {
+        // Only buffer if not already buffered in EITHER bufferedQueries or bufferedWindows.
+        // It might have been in bufferedWindows and a combine might have caused it to be done. If so, we should emit.
+        boolean shouldBuffer = queries.containsKey(id) && querier.shouldBuffer();
+        if (shouldBuffer) {
+            log.debug("Buffering while waiting for more final results for query {}...", id);
+            rotateInto(id, querier, bufferedQueries);
+        } else {
+            emitFinished(id, querier);
+        }
+    }
+
+    private void emitFinished(Map.Entry<String, Querier> query) {
+        emitFinished(query.getKey(), query.getValue());
+    }
+
+    private void emitFinished(String id, Querier querier) {
+        log.info("Query is done {}...", id);
+        emitResult(id, withSignal(bufferedMetadata.get(id), Metadata.Signal.COMPLETE), querier.finish());
+        emitMetaSignal(id, Metadata.Signal.COMPLETE);
+        removeQuery(id);
+    }
+
+    // RESULT_STREAM emitters
+
+    private void emitOrBufferWindow(Map.Entry<String, Querier> query) {
+        emitOrBufferWindow(query.getKey(), query.getValue());
+    }
+
+    private void emitOrBufferWindow(String id, Querier querier) {
+        if (querier.shouldBuffer()) {
+            log.debug("Buffering while waiting for more windows for query {}...", id);
+            rotateInto(id, querier, bufferedWindows);
+        } else {
+            log.debug("Emitting window for {} and resetting...", id);
+            emitResult(id, bufferedMetadata.get(id), querier.getResult());
+            querier.reset();
+        }
+    }
+
+    private void emitBufferedWindow(Map.Entry<String, Querier> query) {
+        String id = query.getKey();
+        Querier querier = query.getValue();
+        emitResult(id, bufferedMetadata.get(id), querier.getResult());
+        querier.reset();
+        bufferedWindows.remove(id);
+        queries.put(id, querier);
+    }
+
+    private void emitErrorsAsResult(String id, Metadata metadata, BulletError... errors) {
+        emitErrorsAsResult(id, metadata, Arrays.asList(errors));
+    }
+
+    private void emitErrorsAsResult(String id, Metadata metadata, List<BulletError> errors) {
+        updateCount(improperQueriesCount, 1L);
+        emitResult(id, withSignal(metadata, Metadata.Signal.FAIL), Clip.of(Meta.of(errors)));
+    }
+
+    private void emitResult(String id, Metadata metadata, Clip result) {
+        // Metadata should not be checked. It could be null.
+        collector.emit(RESULT_STREAM, new Values(id, result.asJSON(), metadata));
+    }
+
+    // METADATA_STREAM emitters
+
+    private void emitMetaSignal(String id, Metadata.Signal signal) {
+        log.error("Emitting {} signal to the feedback stream for {}", signal, id);
+        collector.emit(FEEDBACK_STREAM, new Values(id, new Metadata(signal, null)));
+    }
+
+    // Override hooks
+
+    @Override
+    protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
+        super.setupQuery(id, query, metadata, querier);
+        bufferedMetadata.put(id, metadata);
+        updateCount(createdQueriesCount, 1L);
+        updateCount(activeQueriesCount, 1L);
     }
 
     @Override
-    protected AggregationQuery createQuery(Tuple queryTuple) {
-        String queryString = queryTuple.getString(TopologyConstants.QUERY_POSITION);
-        try {
-            return new AggregationQuery(queryString, configuration);
-        } catch (JsonParseException jpe) {
-            emitError(queryTuple, Arrays.asList(Error.makeError(jpe, queryString)));
-        } catch (ParsingException pe) {
-            emitError(queryTuple, pe.getErrors());
-        } catch (RuntimeException re) {
-            log.error("Unhandled exception.", re);
-            emitError(queryTuple, Arrays.asList(Error.makeError(re, queryString)));
+    protected void removeQuery(String id) {
+        if (getQuery(id) != null) {
+            updateCount(activeQueriesCount, -1L);
         }
-        return null;
+        super.removeQuery(id);
+        bufferedWindows.remove(id);
+        bufferedQueries.remove(id);
+        bufferedMetadata.remove(id);
     }
 
-    private void emitError(Tuple queryTuple, List<Error> errors) {
-        Metadata meta = Metadata.of(errors);
-        Clip clip = Clip.of(meta);
-        updateCount(improperQueriesCount, 1L);
-        collector.emit(new Values(queryTuple.getString(TopologyConstants.ID_POSITION), clip.asJSON(), getMetadata(queryTuple)));
+    // Other helpers
+
+    private void rotateInto(String id, Querier querier, RotatingMap<String, Querier> into) {
+        // Make sure it's not in queries
+        queries.remove(id);
+        into.put(id, querier);
     }
 
-    private void handleQuery(Tuple tuple) {
-        AggregationQuery query = initializeQuery(tuple);
-        if (query != null) {
-            bufferedMetadata.put(tuple.getString(TopologyConstants.ID_POSITION), getMetadata(tuple));
-            updateCount(createdQueriesCount, 1L);
-            updateCount(activeQueriesCount, 1L);
+    private Metadata withSignal(Metadata metadata, Metadata.Signal signal) {
+        // Don't change the non-readonly bits of metadata in place since that might affect tuples emitted but pending
+        Metadata copy = new Metadata(signal, null);
+        if (metadata != null) {
+            copy.setContent(metadata.getContent());
         }
+        return copy;
     }
 
-    private void handleTick() {
-        // Buffer whatever we're retiring now and forceEmit all the bufferedQueries that are being rotated out.
-        // Whatever we're retiring now MUST not have been satisfied since we emit Queries when FILTER_TUPLES satisfy them.
-        Map<String, AggregationQuery> forceEmit = bufferedQueries.rotate();
-        long emitted = 0;
-        for (Map.Entry<String, AggregationQuery> e : forceEmit.entrySet()) {
-            String id = e.getKey();
-            AggregationQuery query = e.getValue();
-
-            if (!isNull(query, id)) {
-                emitted++;
-                emit(query, id, bufferedMetadata.remove(id));
-            }
-        }
-        // We already decreased activeQueriesCount by emitted. The others that are thrown away should decrease the count too.
-        updateCount(activeQueriesCount, -forceEmit.size() + emitted);
-
-        // For the others that were just retired, roll them over into bufferedQueries
-        retireQueries().forEach(bufferedQueries::put);
-    }
-
-    private void handleFilter(Tuple filterTuple) {
-        AggregationQuery query = getQueryFromMaps(filterTuple);
-        String id = filterTuple.getString(TopologyConstants.ID_POSITION);
-        if (isNull(query, id)) {
-            return;
-        }
-
-        byte[] data = (byte[]) filterTuple.getValue(TopologyConstants.RECORD_POSITION);
-        if (query.consume(data)) {
-            emit(query, id, bufferedMetadata.get(id));
-        }
-    }
-
-    private AggregationQuery getQueryFromMaps(Tuple tuple) {
-        String id = tuple.getString(TopologyConstants.ID_POSITION);
-
-        // JoinBolt has two places where the query might be
-        AggregationQuery query = queriesMap.get(id);
+    private Querier getQuery(String id) {
+        // JoinBolt has three places where the query might be
+        Querier query = queries.get(id);
         if (query == null) {
+            log.debug("Query might be buffered: {}", id);
+            query = bufferedWindows.get(id);
+        }
+        if (query == null) {
+            log.debug("Query might be done: {}", id);
             query = bufferedQueries.get(id);
         }
         return query;
-    }
-
-    private boolean isNull(AggregationQuery query, String id) {
-        if (query == null) {
-            log.debug("Received tuples for request {} before query or too late. Skipping...", id);
-            return true;
-        }
-        return false;
-    }
-
-    private void emit(AggregationQuery query, String id, com.yahoo.bullet.pubsub.Metadata metadata) {
-        Objects.requireNonNull(id);
-        Objects.requireNonNull(query);
-
-        Clip records = query.getData();
-        records.add(getMetadata(id, query));
-        collector.emit(new Values(id, records.asJSON(), metadata));
-        int emitted = records.getRecords().size();
-        log.info("Query {} has been satisfied with {} records. Cleaning up...", id, emitted);
-        queriesMap.remove(id);
-        bufferedQueries.remove(id);
-        bufferedMetadata.remove(id);
-        updateCount(activeQueriesCount, -1L);
-    }
-
-    private Metadata getMetadata(String id, AggregationQuery query) {
-        if (metadataKeys.isEmpty()) {
-            return null;
-        }
-        Metadata meta = new Metadata();
-        consumeRegisteredConcept(Concept.QUERY_ID, (k) -> meta.add(k, id));
-        consumeRegisteredConcept(Concept.QUERY_BODY, (k) -> meta.add(k, query.toString()));
-        consumeRegisteredConcept(Concept.QUERY_CREATION_TIME, (k) -> meta.add(k, query.getStartTime()));
-        consumeRegisteredConcept(Concept.QUERY_TERMINATION_TIME, (k) -> meta.add(k, query.getLastAggregationTime()));
-        return meta;
-    }
-
-    private void consumeRegisteredConcept(Concept concept, Consumer<String> action) {
-        // Only consume the concept if we have a key for it: i.e. it was registered
-        String key = metadataKeys.get(concept.getName());
-        if (key != null) {
-            action.accept(key);
-        }
-    }
-
-    private void updateCount(AbsoluteCountMetric metric, long updateValue) {
-        if (metricsEnabled) {
-            metric.add(updateValue);
-        }
-    }
-
-    private AbsoluteCountMetric registerAbsoluteCountMetric(String name, TopologyContext context) {
-        Number interval = metricsIntervalMapping.getOrDefault(name, metricsIntervalMapping.get(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY));
-        log.info("Registered {} with interval {}", name, interval);
-        return context.registerMetric(name, new AbsoluteCountMetric(), interval.intValue());
-    }
-
-    private com.yahoo.bullet.pubsub.Metadata getMetadata(Tuple queryTuple) {
-        return (com.yahoo.bullet.pubsub.Metadata) queryTuple.getValue(TopologyConstants.METADATA_POSITION);
     }
 }

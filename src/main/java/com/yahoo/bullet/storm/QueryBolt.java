@@ -5,127 +5,51 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.querying.AbstractQuery;
-import com.yahoo.bullet.result.Metadata;
+import com.yahoo.bullet.common.BulletConfig;
+import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.querying.Querier;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.storm.Config;
+import org.apache.storm.metric.api.IMetric;
+import org.apache.storm.metric.api.MeanReducer;
+import org.apache.storm.metric.api.ReducedMetric;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.tuple.Tuple;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.stream.Collectors;
+
+import static com.yahoo.bullet.storm.BulletStormConfig.DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY;
 
 @Slf4j
-public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
-    public static final Integer DEFAULT_TICK_INTERVAL = 5;
+public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
+    private static final long serialVersionUID = 4567140628827887965L;
 
-    public static final boolean DEFAULT_BUILT_IN_METRICS_ENABLE = false;
-    public static final String DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY = "default";
-    public static final int DEFAULT_BUILT_IN_METRICS_INTERVAL_SECS = 60;
-
-    protected boolean metricsEnabled;
-    protected Map<String, Number> metricsIntervalMapping;
-    protected int tickInterval;
-    protected Map configuration;
-    protected OutputCollector collector;
-    protected Map<String, String> metadataKeys;
-
-    // TODO consider a rotating map with multilevels and reinserts upon rotating instead for scalability
-    protected Map<String, Q> queriesMap;
+    protected transient boolean metricsEnabled;
+    protected transient Map<String, Number> metricsIntervalMapping;
+    protected transient OutputCollector collector;
+    protected transient TupleClassifier classifier;
+    protected transient Map<String, Querier> queries;
 
     /**
-     * Constructor that accepts the tick interval.
+     * Creates a QueryBolt with a given {@link BulletStormConfig}.
      *
-     * @param tickInterval The tick interval in seconds.
+     * @param config The non-null BulletStormConfig to
      */
-    public QueryBolt(Integer tickInterval) {
-        this.tickInterval = tickInterval == null ? DEFAULT_TICK_INTERVAL : tickInterval;
-    }
-
-    /**
-     * Default constructor.
-     */
-    public QueryBolt() {
-        this(DEFAULT_TICK_INTERVAL);
+    public QueryBolt(BulletStormConfig config) {
+        super(config);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
-        // stormConf is not modifiable. Need to make a copy.
-        this.configuration = new HashMap<>(stormConf);
         this.collector = collector;
-        queriesMap = new HashMap<>();
-
-        // Get all known Concepts
-        metadataKeys = Metadata.getConceptNames(configuration, new HashSet<>(Metadata.KNOWN_CONCEPTS));
-        if (!metadataKeys.isEmpty()) {
-            log.info("Metadata collection is enabled");
-            log.info("Collecting metadata for these concepts:\n{}", metadataKeys);
-            // Add all metadataKeys back to configuration for reuse so no need refetch them on every new query
-            configuration.put(BulletStormConfig.RESULT_METADATA_METRICS_MAPPING, metadataKeys);
-        }
-
+        queries = new HashMap<>();
+        classifier = new TupleClassifier();
         // Enable built in metrics
-        metricsEnabled = (Boolean) configuration.getOrDefault(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE,
-                                                              DEFAULT_BUILT_IN_METRICS_ENABLE);
-        metricsIntervalMapping = (Map<String, Number>) configuration.getOrDefault(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING,
-                                                                                  new HashMap<>());
-        metricsIntervalMapping.putIfAbsent(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, DEFAULT_BUILT_IN_METRICS_INTERVAL_SECS);
-    }
-
-    /**
-     * Retires queries that are active past the tick time.
-     *
-     * @return The map of query ids to queries that were retired.
-     */
-    protected Map<String, Q> retireQueries() {
-        Map<String, Q> retiredQueries = queriesMap.entrySet().stream().filter(e -> e.getValue().isExpired())
-                                                                      .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-        queriesMap.keySet().removeAll(retiredQueries.keySet());
-        if (retiredQueries.size() > 0) {
-            log.info("Retired queries: {}. Active queries: {}.", retiredQueries.size(), queriesMap.size());
-        }
-        return retiredQueries;
-    }
-
-    /**
-     * Initializes a query from a query tuple.
-     *
-     * @param tuple The query tuple with the query to initialize.
-     * @return The created query.
-     */
-    protected Q initializeQuery(Tuple tuple) {
-        String id = tuple.getString(TopologyConstants.ID_POSITION);
-        String queryString = tuple.getString(TopologyConstants.QUERY_POSITION);
-        Q query = createQuery(tuple);
-        if (query == null) {
-            log.error("Failed to initialize query for request {} with query {}", id, queryString);
-            return null;
-        }
-        log.info("Initialized query {} : {}", id, query.toString());
-        queriesMap.put(id, query);
-        return query;
-    }
-
-    /**
-     * Gets the default tick configuration to be used.
-     *
-     * @return A Map configuration containing the default tick configuration.
-     */
-    public Map<String, Object> getDefaultTickConfiguration() {
-        Config conf = new Config();
-        conf.put(Config.TOPOLOGY_TICK_TUPLE_FREQ_SECS, tickInterval);
-        return conf;
-    }
-
-    @Override
-    public Map<String, Object> getComponentConfiguration() {
-        return getDefaultTickConfiguration();
+        metricsEnabled = config.getAs(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, Boolean.class);
+        metricsIntervalMapping = config.getAs(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, Map.class);
     }
 
     @Override
@@ -133,11 +57,96 @@ public abstract class QueryBolt<Q extends AbstractQuery> implements IRichBolt {
     }
 
     /**
-     * Creates and returns the right type of AbstractQuery to use for this Bolt. If query cannot be
-     * created, handles the error and returns null.
+     * Handles a metadata message for a query.
      *
-     * @param queryTuple The query tuple
-     * @return The appropriate type of AbstractQuery to use for this Bolt.
+     * @param tuple The metadata tuple.
+     * @return The created {@link Metadata}.
      */
-    protected abstract Q createQuery(Tuple queryTuple);
+    protected Metadata onMeta(Tuple tuple) {
+        String id = tuple.getString(TopologyConstants.ID_POSITION);
+        Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.METADATA_POSITION);
+        if (metadata == null) {
+            return null;
+        }
+        Metadata.Signal signal = metadata.getSignal();
+        if (signal == Metadata.Signal.KILL || signal == Metadata.Signal.COMPLETE) {
+            removeQuery(id);
+            log.info("Received {} signal and killed query: {}", signal, id);
+        }
+        return metadata;
+    }
+
+    /**
+     * Exposed for testing only. Create a {@link Querier} from the given query ID, body and configuration.
+     *
+     * @param id The ID for the query.
+     * @param query The actual query JSON body.
+     * @param config The configuration to use for the query.
+     * @return A created, uninitialized instance of a querier or a RuntimeException if there were issues.
+     */
+    protected Querier createQuerier(String id, String query, BulletConfig config) {
+        return new Querier(id, query, config);
+    }
+
+    /**
+     * Setup the query with the given id and body. Override if you need to do additional setup.
+     *
+     * @param id The String ID of the query.
+     * @param query The String body of the query.
+     * @param metadata The {@link Metadata} for the query.
+     * @param querier The valid, initialized {@link Querier} for this query.
+     */
+    protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
+        queries.put(id, querier);
+        log.info("Initialized query {}", querier.toString());
+    }
+
+    /**
+     * Remove the query with this given id. Override this if you need to do additional cleanup.
+     *
+     * @param id The String id of the query.
+     */
+    protected void removeQuery(String id) {
+        queries.remove(id);
+    }
+
+    /**
+     * Adds the given count to the given metric.
+     *
+     * @param metric The {@link AbsoluteCountMetric} to add the count.
+     * @param count The count to add to it.
+     */
+    protected void updateCount(AbsoluteCountMetric metric, long count) {
+        if (metricsEnabled) {
+            metric.add(count);
+        }
+    }
+
+    /**
+     * Registers a metric that averages its values with the configured interval for it (if any).
+     *
+     * @param name The name of the metric to register.
+     * @param context The {@link TopologyContext} to register the metric for.
+     * @return The registered {@link ReducedMetric} that is averaging.
+     */
+    protected ReducedMetric registerAveragingMetric(String name, TopologyContext context) {
+        return registerMetric(new ReducedMetric(new MeanReducer()), name, context);
+    }
+
+    /**
+     * Registers a metric that counts values monotonically increasing with the configured interval for it (if any).
+     *
+     * @param name The name of the metric to register.
+     * @param context The {@link TopologyContext} to register the metric for.
+     * @return The registered {@link AbsoluteCountMetric} that is counting.
+     */
+    protected AbsoluteCountMetric registerAbsoluteCountMetric(String name, TopologyContext context) {
+        return registerMetric(new AbsoluteCountMetric(), name, context);
+    }
+
+    private <T extends IMetric> T registerMetric(T metric, String name, TopologyContext context) {
+        Number interval = metricsIntervalMapping.getOrDefault(name, metricsIntervalMapping.get(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY));
+        log.info("Registered metric: {} with interval {}", name, interval);
+        return context.registerMetric(name, metric, interval.intValue());
+    }
 }

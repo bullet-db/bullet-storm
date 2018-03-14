@@ -5,10 +5,14 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.BulletConfig;
+import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
+import com.yahoo.bullet.storm.testing.ComponentUtils;
+import com.yahoo.bullet.storm.testing.CustomEmitter;
+import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
+import com.yahoo.bullet.storm.testing.CustomSubscriber;
+import com.yahoo.bullet.storm.testing.TupleUtils;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
 import org.testng.Assert;
@@ -21,18 +25,21 @@ public class QuerySpoutTest {
     private CustomSubscriber subscriber;
 
     @BeforeMethod
-    public void setup() throws PubSubException {
+    public void setup() {
         emitter = new CustomEmitter();
         BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
         spout = ComponentUtils.open(new QuerySpout(config), emitter);
-        subscriber = (CustomSubscriber) spout.getPubSub().getSubscriber();
+        spout.activate();
+        subscriber = (CustomSubscriber) spout.getSubscriber();
     }
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Cannot create PubSub.*")
     public void testFailingToCreatePubSub() {
         BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
         config.set(BulletConfig.PUBSUB_CLASS_NAME, "fake.class");
-        ComponentUtils.open(new QuerySpout(config), emitter);
+        QuerySpout spout = new QuerySpout(config);
+        ComponentUtils.open(spout, emitter);
+        spout.activate();
     }
 
     @Test
@@ -51,7 +58,7 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getReceived().size(), 1);
         Assert.assertEquals(subscriber.getReceived().get(0), messageA);
 
-        Tuple emittedFirst = TupleUtils.makeTuple(TupleType.Type.QUERY_TUPLE, messageA.getId(), messageA.getContent(), messageA.getMetadata());
+        Tuple emittedFirst = TupleUtils.makeTuple(TupleClassifier.Type.QUERY_TUPLE, messageA.getId(), messageA.getContent(), messageA.getMetadata());
         Assert.assertEquals(emitter.getEmitted().size(), 1);
         Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
 
@@ -62,7 +69,7 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getReceived().get(0), messageA);
         Assert.assertEquals(subscriber.getReceived().get(1), messageB);
 
-        Tuple emittedSecond = TupleUtils.makeTuple(TupleType.Type.QUERY_TUPLE, messageB.getId(), messageB.getContent(), messageB.getMetadata());
+        Tuple emittedSecond = TupleUtils.makeTuple(TupleClassifier.Type.QUERY_TUPLE, messageB.getId(), messageB.getContent(), messageB.getMetadata());
         Assert.assertEquals(emitter.getEmitted().size(), 2);
         Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
         Assert.assertTrue(emitter.wasNthEmitted(emittedSecond, 2));
@@ -109,11 +116,47 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void testDeclareOutputFields() {
+    public void testSignalOnlyMessagesAreSentOnTheMetadataStream() {
+        // Add messages to be received from subscriber
+        PubSubMessage messageA = new PubSubMessage("42", Metadata.Signal.KILL);
+        PubSubMessage messageB = new PubSubMessage("43", Metadata.Signal.COMPLETE);
+        PubSubMessage messageC = new PubSubMessage("44", null, new Metadata());
+        subscriber.addMessages(messageA, messageB, messageC);
+
+        Assert.assertEquals(subscriber.getReceived().size(), 0);
+        Assert.assertEquals(emitter.getEmitted().size(), 0);
+
+        spout.nextTuple();
+        spout.nextTuple();
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 3);
+        Assert.assertEquals(subscriber.getReceived().get(0), messageA);
+        Assert.assertEquals(subscriber.getReceived().get(1), messageB);
+        Assert.assertEquals(subscriber.getReceived().get(2), messageC);
+
+        Assert.assertEquals(emitter.getEmitted().size(), 3);
+
+        Tuple emittedFirst = TupleUtils.makeTuple(TupleClassifier.Type.METADATA_TUPLE, messageA.getId(), messageA.getMetadata());
+        Tuple emittedSecond = TupleUtils.makeTuple(TupleClassifier.Type.METADATA_TUPLE, messageB.getId(), messageB.getMetadata());
+        Tuple emittedThird = TupleUtils.makeTuple(TupleClassifier.Type.METADATA_TUPLE, messageC.getId(), messageC.getMetadata());
+        Assert.assertTrue(emitter.wasTupleEmittedTo(emittedFirst, TopologyConstants.METADATA_STREAM));
+        Assert.assertTrue(emitter.wasTupleEmittedTo(emittedSecond, TopologyConstants.METADATA_STREAM));
+        Assert.assertTrue(emitter.wasTupleEmittedTo(emittedThird, TopologyConstants.METADATA_STREAM));
+
+        Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
+        Assert.assertTrue(emitter.wasNthEmitted(emittedSecond, 2));
+        Assert.assertTrue(emitter.wasNthEmitted(emittedThird, 3));
+    }
+
+    @Test
+    public void testDeclaredOutputFields() {
         CustomOutputFieldsDeclarer declarer = new CustomOutputFieldsDeclarer();
         spout.declareOutputFields(declarer);
         Fields expectedQueryFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.QUERY_FIELD, TopologyConstants.METADATA_FIELD);
-        Assert.assertTrue(declarer.areFieldsPresent(QuerySpout.QUERY_STREAM, false, expectedQueryFields));
+        Fields expectedMetadataFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.METADATA_FIELD);
+        Assert.assertTrue(declarer.areFieldsPresent(TopologyConstants.QUERY_STREAM, false, expectedQueryFields));
+        Assert.assertTrue(declarer.areFieldsPresent(TopologyConstants.METADATA_STREAM, false, expectedMetadataFields));
     }
 
     @Test
@@ -139,8 +182,14 @@ public class QuerySpoutTest {
     }
 
     @Test
-    public void testCloseCallsSubscriberClose() {
+    public void testCloseDoesNotCallSubscriberClose() {
         spout.close();
+        Assert.assertFalse(subscriber.isClosed());
+    }
+
+    @Test
+    public void testDeactiveCallsSubscriberClose() {
+        spout.deactivate();
         Assert.assertTrue(subscriber.isClosed());
     }
 }
