@@ -17,6 +17,7 @@ public abstract class ConfigComponent extends BaseComponent {
 
     /**
      * Creates an instance of this class with the given non-null config.
+     *
      * @param config The non-null {@link BulletStormConfig} which is the config for this component.
      */
     public ConfigComponent(BulletStormConfig config) {
