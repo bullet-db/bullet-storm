@@ -21,7 +21,6 @@ public class ReflectionUtils {
     public static final String REGISTER_METHOD = "register";
 
     /**
-     *
      * Creates and initializes an instance of {@link IRichSpout} using a constructor that takes a {@link List} of String
      * arguments or the default constructor if one is not available.
      *

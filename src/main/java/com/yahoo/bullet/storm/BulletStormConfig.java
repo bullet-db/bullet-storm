@@ -26,6 +26,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     private static final long serialVersionUID = -1778598395631221122L;
 
     // Settings
+
     public static final String TOPOLOGY_NAME = "bullet.topology.name";
     public static final String TOPOLOGY_METRICS_ENABLE = "bullet.topology.metrics.enable";
     public static final String TOPOLOGY_METRICS_BUILT_IN_ENABLE = "bullet.topology.metrics.built.in.enable";
