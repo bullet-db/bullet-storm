@@ -55,7 +55,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String LOOP_BOLT_CPU_LOAD = "bullet.topology.loop.bolt.cpu.load";
     public static final String LOOP_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.loop.bolt.memory.on.heap.load";
     public static final String LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.loop.bolt.memory.off.heap.load";
-    public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval";
+    public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval.ms";
     public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
     public static final String JOIN_BOLT_WINDOW_TICK_TIMEOUT = "bullet.topology.join.bolt.window.tick.timeout";
     public static final String LOOP_BOLT_PUBSUB_OVERRIDES = "bullet.topology.loop.bolt.pubsub.overrides";
