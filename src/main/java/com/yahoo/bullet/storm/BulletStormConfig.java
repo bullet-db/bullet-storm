@@ -37,7 +37,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String JOIN_BOLT_PARALLELISM = "bullet.topology.join.bolt.parallelism";
     public static final String RESULT_BOLT_PARALLELISM = "bullet.topology.result.bolt.parallelism";
     public static final String LOOP_BOLT_PARALLELISM = "bullet.topology.loop.bolt.parallelism";
-    public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval";
+    public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval.ms";
     public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
     public static final String JOIN_BOLT_WINDOW_TICK_TIMEOUT = "bullet.topology.join.bolt.window.tick.timeout";
     public static final String LOOP_BOLT_PUBSUB_OVERRIDES = "bullet.topology.loop.bolt.pubsub.overrides";
