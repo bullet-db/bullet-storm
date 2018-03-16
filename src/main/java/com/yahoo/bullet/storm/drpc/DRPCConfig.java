@@ -35,7 +35,7 @@ public class DRPCConfig extends BulletStormConfig {
     public static final String DRPC_HTTP_PATH = PREFIX + "http.path";
     /** The timeout for HTTP connections to DRPC servers. **/
 
-    public static final String DRPC_HTTP_CONNECT_TIMEOUT_MS = PREFIX + "http.connect.timeout.ms";
+    public static final String DRPC_HTTP_CONNECT_TIMEOUT = PREFIX + "http.connect.timeout.ms";
     /** The number of retries for HTTP connections to DRPC servers. **/
     public static final String DRPC_HTTP_CONNECT_RETRY_LIMIT = PREFIX + "http.connect.retry.limit";
 
@@ -49,7 +49,7 @@ public class DRPCConfig extends BulletStormConfig {
     public static final String DEFAULT_DRPC_HTTP_PROTOCOL = "http";
     public static final String DEFAULT_DRPC_HTTP_PORT = "3774";
     public static final String DEFAULT_DRPC_HTTP_PATH = "drpc";
-    public static final int DEFAULT_DRPC_HTTP_CONNECT_TIMEOUT_MS = 5000;
+    public static final int DEFAULT_DRPC_HTTP_CONNECT_TIMEOUT = 5000;
     public static final int DEFAULT_DRPC_HTTP_CONNECT_RETRY_LIMIT = 3;
     public static final int DEFAULT_DRPC_MAX_UNCOMMITED_MESSAGES = 50;
 
@@ -75,9 +75,9 @@ public class DRPCConfig extends BulletStormConfig {
                  .checkIf(Validator::isString)
                  .defaultTo(DEFAULT_DRPC_HTTP_PATH);
 
-        VALIDATOR.define(DRPC_HTTP_CONNECT_TIMEOUT_MS)
+        VALIDATOR.define(DRPC_HTTP_CONNECT_TIMEOUT)
                  .checkIf(Validator::isPositiveInt)
-                 .defaultTo(DEFAULT_DRPC_HTTP_CONNECT_TIMEOUT_MS)
+                 .defaultTo(DEFAULT_DRPC_HTTP_CONNECT_TIMEOUT)
                  .castTo(Validator::asInt);
         VALIDATOR.define(DRPC_HTTP_CONNECT_RETRY_LIMIT)
                  .checkIf(Validator::isPositiveInt)

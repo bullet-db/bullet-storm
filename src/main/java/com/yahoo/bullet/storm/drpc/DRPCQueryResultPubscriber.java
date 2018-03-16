@@ -46,7 +46,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     private static final String URL_TEMPLATE = "%1$s://%2$s:%3$s/%4$s/%5$s";
 
     /**
-     * Create an instance from a given {@link BulletConfig}. Requires {@link DRPCConfig#DRPC_HTTP_CONNECT_TIMEOUT_MS},
+     * Create an instance from a given {@link BulletConfig}. Requires {@link DRPCConfig#DRPC_HTTP_CONNECT_TIMEOUT},
      * {@link DRPCConfig#DRPC_HTTP_CONNECT_RETRY_LIMIT}, {@link DRPCConfig#DRPC_SERVERS}, {@link DRPCConfig#DRPC_HTTP_PORT},
      * and {@link DRPCConfig#DRPC_HTTP_PATH} to be set. To be used in PubSub.Context#QUERY_SUBMISSION mode.
      *
@@ -55,7 +55,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     public DRPCQueryResultPubscriber(BulletConfig config) {
         Objects.requireNonNull(config);
 
-        Number connectTimeout = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_CONNECT_TIMEOUT_MS, Number.class);
+        Number connectTimeout = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_CONNECT_TIMEOUT, Number.class);
         Number retryLimit = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_CONNECT_RETRY_LIMIT, Number.class);
         List<String> servers = (List<String>) config.getRequiredConfigAs(DRPCConfig.DRPC_SERVERS, List.class);
         String protocol = config.getRequiredConfigAs(DRPCConfig.DRPC_HTTP_PROTOCOL, String.class);
