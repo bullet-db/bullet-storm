@@ -1,8 +1,8 @@
 # The name
 bullet.topology.name: "test"
 # Overriding bullet core setting
-bullet.query.default.duration: 1000
-bullet.query.max.duration: 10000
+bullet.query.default.duration.ms: 1000
+bullet.query.max.duration.ms: 10000
 # Some random setting
 fake.setting: "bar"
 # Point to the Mock PubSub implementation.
