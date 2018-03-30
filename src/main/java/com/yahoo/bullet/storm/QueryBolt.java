@@ -79,13 +79,14 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     /**
      * Exposed for testing only. Create a {@link Querier} from the given query ID, body and configuration.
      *
+     * @param mode The {@link Querier.Mode} to use to create the instance.
      * @param id The ID for the query.
      * @param query The actual query JSON body.
      * @param config The configuration to use for the query.
      * @return A created, uninitialized instance of a querier or a RuntimeException if there were issues.
      */
-    protected Querier createQuerier(String id, String query, BulletConfig config) {
-        return new Querier(id, query, config);
+    protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
+        return new Querier(mode, id, query, config);
     }
 
     /**
