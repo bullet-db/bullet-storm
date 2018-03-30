@@ -12,34 +12,19 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Predicate;
 
 /**
  * This categorizes running queries into whether they are done, closed or have exceeded the rate limits. Running queries
  * are provided as a {@link Map} of String query IDs to non-null, valid, initialized {@link Querier} objects.
  *
- * When creating this, you provide a {@link Predicate} on {@link Querier}, which is used to test if the Querier is
- * closed or not. Use {@link #categorize(Map)} and {@link #categorize(BulletRecord, Map)}for categorizing such queries.
- * The latter categorizes after making the Querier instances {@link Querier#consume(BulletRecord)}.
+ * Use {@link #categorize(Map)} and {@link #categorize(BulletRecord, Map)}for categorizing queries. The latter
+ * categorizes after making the Querier instances {@link Querier#consume(BulletRecord)}.
  */
 @Getter @Slf4j
 public class QueryCategorizer {
     private Map<String, Querier> rateLimited = new HashMap<>();
     private Map<String, Querier> closed = new HashMap<>();
     private Map<String, Querier> done = new HashMap<>();
-
-    private final Predicate<Querier> isClosed;
-
-    /**
-     * The constructor for the categorizer that takes in a function that determines if a query is closed.
-     *
-     * @param isClosed A {@link Predicate} used to test if the {@link Querier} is closed. If the data the querier is
-     *                 is seeing is partitioned, you should use {@link Querier#isClosedForPartition()} otherwise you
-     *                 use {@link Querier#isClosed()}.
-     */
-    public QueryCategorizer(Predicate<Querier> isClosed) {
-        this.isClosed = isClosed;
-    }
 
     /**
      * Categorize the given {@link Map} of query IDs to {@link Querier} instances.
@@ -74,7 +59,7 @@ public class QueryCategorizer {
             done.put(id, querier);
         } else if (querier.isExceedingRateLimit()) {
             rateLimited.put(id, querier);
-        } else if (isClosed.test(querier)) {
+        } else if (querier.isClosed()) {
             closed.put(id, querier);
         }
     }

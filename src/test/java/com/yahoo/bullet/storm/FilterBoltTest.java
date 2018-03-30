@@ -96,7 +96,7 @@ public class FilterBoltTest {
         }
 
         @Override
-        protected Querier createQuerier(String id, String query, BulletConfig config) {
+        protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
             return null;
         }
     }
@@ -122,8 +122,8 @@ public class FilterBoltTest {
         }
 
         @Override
-        protected Querier createQuerier(String id, String query, BulletConfig config) {
-            Querier spied = spy(super.createQuerier(id, query, config));
+        protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
+            Querier spied = spy(super.createQuerier(mode, id, query, config));
             List<Boolean> answers = IntStream.range(0, doneAfter).mapToObj(i -> false)
                                              .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);
@@ -143,8 +143,8 @@ public class FilterBoltTest {
         }
 
         @Override
-        protected Querier createQuerier(String id, String query, BulletConfig config) {
-            Querier spied = spy(super.createQuerier(id, query, config));
+        protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
+            Querier spied = spy(super.createQuerier(mode, id, query, config));
             List<Boolean> answers = IntStream.range(0, limitedAfter).mapToObj(i -> false)
                                              .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);

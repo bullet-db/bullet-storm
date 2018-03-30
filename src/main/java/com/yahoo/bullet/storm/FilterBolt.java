@@ -91,7 +91,7 @@ public class FilterBolt extends QueryBolt {
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
 
         try {
-            Querier querier = createQuerier(id, query, config);
+            Querier querier = createQuerier(Querier.Mode.PARTITION, id, query, config);
             if (!querier.initialize().isPresent()) {
                 setupQuery(id, query, null, querier);
                 return;
@@ -104,12 +104,12 @@ public class FilterBolt extends QueryBolt {
 
     private void onRecord(Tuple tuple) {
         BulletRecord record = (BulletRecord) tuple.getValue(TopologyConstants.RECORD_POSITION);
-        handleCategorizedQueries(new QueryCategorizer(Querier::isClosedForPartition).categorize(record, queries));
+        handleCategorizedQueries(new QueryCategorizer().categorize(record, queries));
     }
 
     private void onTick() {
         // Categorize queries in partition mode.
-        handleCategorizedQueries(new QueryCategorizer(Querier::isClosedForPartition).categorize(queries));
+        handleCategorizedQueries(new QueryCategorizer().categorize(queries));
     }
 
     private void handleCategorizedQueries(QueryCategorizer category) {
