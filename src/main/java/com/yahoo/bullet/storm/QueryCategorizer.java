@@ -12,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Predicate;
 
 /**
  * This categorizes running queries into whether they are done, closed or have exceeded the rate limits. Running queries
