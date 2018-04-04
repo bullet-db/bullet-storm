@@ -161,12 +161,11 @@ public class JoinBolt extends QueryBolt {
         byte[] data = (byte[]) tuple.getValue(TopologyConstants.DATA_POSITION);
         querier.combine(data);
 
-        // If already in buffer, then don't check isClosed() and don't emit window. Tick will emit it.
         if (querier.isDone()) {
             emitOrBufferFinished(id, querier);
         } else if (querier.isExceedingRateLimit()) {
             emitRateLimitError(id, querier, querier.getRateLimitError());
-        } else if (!bufferedWindows.containsKey(id) && querier.isClosed()) {
+        } else if (querier.isClosed()) {
             emitOrBufferWindow(id, querier);
         }
     }
@@ -220,15 +219,22 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void emitOrBufferFinished(String id, Querier querier) {
-        // Only buffer if not already buffered in EITHER bufferedQueries or bufferedWindows.
-        // It might have been in bufferedWindows and a combine might have caused it to be done. If so, we should emit.
-        boolean shouldBuffer = queries.containsKey(id) && querier.shouldBuffer();
-        if (shouldBuffer) {
-            log.debug("Buffering while waiting for more final results for query {}...", id);
-            rotateInto(id, querier, bufferedQueries);
-        } else {
+        // If we shouldn't buffer, then emit it and return.
+        if (!querier.shouldBuffer()) {
             emitFinished(id, querier);
+            return;
         }
+        // If in queries, move it to bufferedQueries. If in bufferedWindows, move it to bufferedQueries.
+        // Otherwise (in bufferedQueries, do nothing). Tick will emit it.
+        if (queries.containsKey(id)) {
+            log.debug("Starting to buffer while waiting for more final results for query {}...", id);
+            rotateInto(id, querier, bufferedQueries);
+        } else if (bufferedWindows.containsKey(id)) {
+            log.debug("Query window was being buffered while query became done. Moving it to finished query buffer");
+            bufferedWindows.remove(id);
+            rotateInto(id, querier, bufferedQueries);
+        }
+        log.debug("Continuing to buffer query {} till tick...", id);
     }
 
     private void emitFinished(Map.Entry<String, Querier> query) {
@@ -249,8 +255,12 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void emitOrBufferWindow(String id, Querier querier) {
-        if (querier.shouldBuffer()) {
-            log.debug("Buffering while waiting for more windows for query {}...", id);
+        // If not in queries - in bufferedWindows (bufferedQueries not possible since isDone was false), do nothing.
+        // Tick will emit it. If in queries, rotate into bufferedWindows. Otherwise, emit and reset.
+        if (!queries.containsKey(id)) {
+            log.debug("Continuing to buffer while waiting for more windows for query {}...", id);
+        } else if (querier.shouldBuffer()) {
+            log.debug("Starting to buffer while waiting for more windows for query {}...", id);
             rotateInto(id, querier, bufferedWindows);
         } else {
             log.debug("Emitting window for {} and resetting...", id);

@@ -110,7 +110,6 @@ public class JoinBoltTest {
 
         @Override
         protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
-            // Each new querier will be done doneAfter more times than the last querier
             Querier spied = spy(super.createQuerier(mode, id, query, config));
             List<Boolean> doneAnswers = IntStream.range(0, doneAfter).mapToObj(i -> false)
                                                  .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
@@ -134,7 +133,6 @@ public class JoinBoltTest {
 
         @Override
         protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
-            // Each new querier will be done doneAfter more times than the last querier
             Querier spied = spy(super.createQuerier(mode, id, query, config));
             List<Boolean> closeAnswers = IntStream.range(0, closeAfter).mapToObj(i -> false)
                                                   .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
@@ -379,23 +377,25 @@ public class JoinBoltTest {
         Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 3), EMPTY);
         bolt.execute(query);
 
+        // This calls isDone twice. So the query is done on the next tick
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 2);
-
-        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
-        bolt.execute(tick);
 
         Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
 
-        // We now tick a few times to get the query rotated but not discarded
+        // Tick once to get the query done rotated into buffer.
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        bolt.execute(tick);
+
+        // Now we satisfy the aggregation and tick to see if it causes an emission
+        List<BulletRecord> sentLate = sendRawRecordTuplesTo(bolt, "42", 1);
+        sent.addAll(sentLate);
         for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
         }
-        // Now we satisfy the aggregation and see if it causes an emission
-        List<BulletRecord> sentLate = sendRawRecordTuplesTo(bolt, "42", 1);
-        sent.addAll(sentLate);
 
         // The expected record now should contain the sentLate ones too
+        bolt.execute(tick);
         expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
 
         Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
@@ -1209,14 +1209,24 @@ public class JoinBoltTest {
                                              EMPTY);
         bolt.execute(query);
 
+        // Begins buffering in window tickout buffer here
         List<BulletRecord> sentFirst = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 1);
         Assert.assertEquals(collector.getEmittedCount(), 0);
         List<BulletRecord> sentSecond = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 1);
         Assert.assertEquals(collector.getEmittedCount(), 0);
 
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
-        // Will be isDone() here and will not go into the query tickout buffer
+        // Will be isDone() here and will now be moved into query tickout buffer
         List<BulletRecord> sentThird = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 3);
+
+        // Wait to tickout
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+            Assert.assertEquals(collector.getEmittedCount(), 0);
+            bolt.execute(tick);
+        }
+        bolt.execute(tick);
+
         Assert.assertEquals(collector.getEmittedCount(), 2);
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
 
