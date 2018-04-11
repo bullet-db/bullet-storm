@@ -53,27 +53,28 @@ bullet.topology.result.bolt.parallelism: 2
 bullet.topology.loop.bolt.parallelism: 2
 
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
-# the final windows to trickle in from the Filter Bolts. If tuples from your your Filter Bolts take longer than
+# the final windows/results to trickle in from the Filter Bolts. If tuples from your your Filter Bolts take longer than
 # (bullet.topology.tick.spout.interval.ms * this setting) to get to the Join Bolt, that data will be LOST and will not
 # be in the final result for the query. If you have bullet.query.window.disable set to true, then this is the value
 # that is used in waiting for your final (and only) intermediate results to arrive from your Filter Bolts.
-# The defaults make this (100ms * 5) or ~0.5s after the query is done for the final results to come back.
-bullet.topology.join.bolt.query.tick.timeout: 5
+# The defaults make this (100ms * 3) or ~0.3s after the query is done for the final results to come back.
+# All queries without windows or record windows windows are buffered past their expiry using this.
+bullet.topology.join.bolt.query.post.finish.buffer.ticks: 3
 
-# This is the number of ticks for which a window will be buffered past its expiry in order to wait for
-# the windows to trickle in from the Filter Bolts. This only applies to time based windows. If tuples from your
-# Filter Bolts take longer than your (bullet.topology.tick.spout.interval.ms * this setting) to get to the Join Bolt,
-# that data will roll over to the next window (your query result for that window is in the next window).
-# The defaults make this (100ms * 2) or ~0.2s after the window is done for the results to come back.
-bullet.topology.join.bolt.window.tick.timeout: 2
+# This is the number of ticks for which a query will be delayed in the Join Bolts before it is marked as started. This
+# delay in the Join Bolt offsets the windows in this stage so that windows from the Filter Bolts arrive slightly before
+# the window is marked as closed in the Join Bolt. This only applies to queries with windows that are time-based.
+# If tuples from your Filter Bolts arrive sooner than this (bullet.topology.tick.spout.interval.ms * this setting), that
+# data is lost. For this reason, you should make sure the bullet.query.window.min.emit.every.ms is at least twice this.
+# The defaults make this (100ms * 2) or ~0.2s.
+bullet.topology.join.bolt.query.pre.start.delay.ticks: 2
 
 # Bullet Storm uses ticks underneath the hood as a "clock"-like mechanism to do metadata and query updates (checking if queries
 # have expired) etc. This is particularly relevant if your data volume is low since your queries depend on these ticks to
 # emit data etc appropriately. This setting controls the how frequently a tick happens - number of milliseconds between ticks.
-# The bullet.query.window.min.emit.every should be at least double this value, or else the defaults for both are used.
-# Also, this cannot be lower than 10 ms
+# The bullet.query.window.min.emit.every should be several times greater than this value. See
+# bullet.topology.join.bolt.query.pre.start.delay.ticks. Also, this cannot be lower than 10 ms.
 bullet.topology.tick.spout.interval.ms: 100
-
 
 # The Loop Bolt switches your PubSub into QUERY_SUBMISSION mode to loop back metadata messages to the rest of the
 # topology. If you need to change settings for your publisher in this mode that is different from the settings

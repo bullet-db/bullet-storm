@@ -89,9 +89,9 @@ public class DRPCConfig extends BulletStormConfig {
                  .defaultTo(DEFAULT_DRPC_MAX_UNCOMMITED_MESSAGES)
                  .castTo(Validator::asInt);
 
-        // This throws a RunTimeException if windowing is not disabled because we do not want to proceed.
-        VALIDATOR.relate("Windowing is not disabled", BulletConfig.WINDOW_DISABLE, BulletConfig.WINDOW_DISABLE)
-                 .checkIf((mustBeTrue, ignored) -> failIfNotTrue(mustBeTrue));
+        VALIDATOR.evaluate("Windowing should be disabled when using the DRPC PubSub", BulletConfig.WINDOW_DISABLE)
+                 .checkIf(DRPCConfig::windowIsDisabled)
+                 .orFail();
     }
 
     /**
@@ -136,11 +136,12 @@ public class DRPCConfig extends BulletStormConfig {
         }
     }
 
-    private static boolean failIfNotTrue(Object mustBeTrue) {
-        Boolean windowDisabled = (Boolean) mustBeTrue;
+    @SuppressWarnings("unchecked")
+    private static boolean windowIsDisabled(Object keyList) {
+        Boolean windowDisabled = (Boolean) ((List<Object>) (keyList)).get(0);
         if (!windowDisabled) {
             log.error("DRPC does not support windowing. You must set {} to true", BulletConfig.WINDOW_DISABLE);
-            throw new RuntimeException("DRPC does not support windowing. Disable windows first.");
+            return false;
         }
         return true;
     }
