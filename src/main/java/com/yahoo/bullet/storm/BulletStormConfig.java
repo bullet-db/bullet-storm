@@ -56,8 +56,8 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String LOOP_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.loop.bolt.memory.on.heap.load";
     public static final String LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.loop.bolt.memory.off.heap.load";
     public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval.ms";
-    public static final String JOIN_BOLT_QUERY_TICK_TIMEOUT = "bullet.topology.join.bolt.query.tick.timeout";
-    public static final String JOIN_BOLT_WINDOW_TICK_TIMEOUT = "bullet.topology.join.bolt.window.tick.timeout";
+    public static final String JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS = "bullet.topology.join.bolt.query.post.finish.buffer.ticks";
+    public static final String JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS = "bullet.topology.join.bolt.query.pre.start.delay.ticks";
     public static final String LOOP_BOLT_PUBSUB_OVERRIDES = "bullet.topology.loop.bolt.pubsub.overrides";
 
     // Defaults
@@ -99,8 +99,8 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final double DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
     public static final double DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
     public static final int DEFAULT_TICK_SPOUT_INTERVAL = 100;
-    public static final int DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT = 5;
-    public static final int DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT = 2;
+    public static final int DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS = 3;
+    public static final int DEFAULT_JOIN_BOLT_QUERY_PRE_START_DELAY_TICKS = 2;
     public static final Map<String, Object> DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES = Collections.emptyMap();
 
     // Other constants
@@ -118,6 +118,8 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     // The smallest value that Tick Interval can be
     public static final int TICK_INTERVAL_MINIMUM = 10;
 
+    public static final double SMALLEST_WINDOW_MIN_EMIT_EVERY_MULTIPLE = 2.0;
+    public static final int PRE_START_DELAY_BUFFER_TICKS = 2;
 
     public static final String DEFAULT_STORM_CONFIGURATION = "bullet_storm_defaults.yaml";
 
@@ -267,14 +269,14 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .defaultTo(DEFAULT_TICK_SPOUT_INTERVAL)
                  .castTo(Validator::asInt);
 
-        VALIDATOR.define(JOIN_BOLT_QUERY_TICK_TIMEOUT)
+        VALIDATOR.define(JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS)
                  .checkIf(Validator::isPositiveInt)
-                 .defaultTo(DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT)
+                 .defaultTo(DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS)
                  .castTo(Validator::asInt);
 
-        VALIDATOR.define(JOIN_BOLT_WINDOW_TICK_TIMEOUT)
+        VALIDATOR.define(JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS)
                  .checkIf(Validator::isPositiveInt)
-                 .defaultTo(DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT)
+                 .defaultTo(DEFAULT_JOIN_BOLT_QUERY_PRE_START_DELAY_TICKS)
                  .castTo(Validator::asInt);
 
         VALIDATOR.define(LOOP_BOLT_PUBSUB_OVERRIDES)
@@ -282,10 +284,15 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(BulletStormConfig::isMapWithStringKeys)
                  .defaultTo(DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
 
-        VALIDATOR.relate("Minimum window emit every should be >= 2 * tick interval", BulletConfig.WINDOW_MIN_EMIT_EVERY, TICK_SPOUT_INTERVAL)
-                 .checkIf(BulletStormConfig::isAtleastTwice);
-        VALIDATOR.relate("Built-in metrics enabled but no intervals provided", TOPOLOGY_METRICS_BUILT_IN_ENABLE, TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING)
+        VALIDATOR.relate("Built-in metrics enabled but no intervals provided", TOPOLOGY_METRICS_BUILT_IN_ENABLE,
+                          TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING)
                  .checkIf(BulletStormConfig::areNeededIntervalsProvided);
+
+        VALIDATOR.evaluate("Minimum window emit every should be >= pre-start buffer delay + " + PRE_START_DELAY_BUFFER_TICKS + " ticks",
+                           TICK_SPOUT_INTERVAL, BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS,
+                           BulletConfig.WINDOW_MIN_EMIT_EVERY)
+                 .checkIf(BulletStormConfig::isStartDelayEnough)
+                 .orFail();
     }
 
     /**
@@ -385,14 +392,20 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         }
     }
 
-    private static boolean isAtleastTwice(Object minEvery, Object tickInterval) {
-        return ((Number) minEvery).doubleValue() >= 2.0 * ((Number) tickInterval).doubleValue();
-    }
-
     @SuppressWarnings("unchecked")
     private static boolean areNeededIntervalsProvided(Object builtInEnable, Object intervalMapping) {
         boolean enabled = (boolean) builtInEnable;
         // return false when enabled and map is empty
         return !(enabled && Utilities.isEmpty((Map<String, Number>) intervalMapping));
     }
+
+    @SuppressWarnings("unchecked")
+    private static boolean isStartDelayEnough(List<Object> objects) {
+        int tickInterval = (Integer) objects.get(0);
+        int preStartDelayTicks = (Integer) objects.get(1);
+        int minEmitEvery = (Integer) objects.get(2);
+
+        return minEmitEvery >= tickInterval * (preStartDelayTicks + PRE_START_DELAY_BUFFER_TICKS);
+    }
+
 }

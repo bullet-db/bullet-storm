@@ -117,49 +117,15 @@ public class BulletStormConfigTest {
     }
 
     @Test
-    public void testTickIntervalIsLowEnough() {
+    public void testTickIntervalIsHighEnough() {
         BulletStormConfig config = new BulletStormConfig((Config) null);
-
-        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 1000);
-        config.validate();
-        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
-
-        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
-        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 100);
-        config.validate();
-        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
-        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), BulletConfig.DEFAULT_WINDOW_MIN_EMIT_EVERY);
-
-        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
-        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 50);
-        config.validate();
-        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
-        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), BulletConfig.DEFAULT_WINDOW_MIN_EMIT_EVERY);
-
-        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
-        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 200);
-        config.validate();
-        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), 100);
-        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 200);
-
-        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
-        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 5000);
-        config.validate();
-        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), 100);
-        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 5000);
-
-        // Too low
         config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 1);
-        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 5000);
         config.validate();
         Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.DEFAULT_TICK_SPOUT_INTERVAL);
-        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 5000);
 
         config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, BulletStormConfig.TICK_INTERVAL_MINIMUM);
-        config.set(BulletConfig.WINDOW_MIN_EMIT_EVERY, 5000);
         config.validate();
         Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), BulletStormConfig.TICK_INTERVAL_MINIMUM);
-        Assert.assertEquals(config.get(BulletConfig.WINDOW_MIN_EMIT_EVERY), 5000);
     }
 
     @Test
@@ -212,5 +178,54 @@ public class BulletStormConfigTest {
         config.set(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, singletonList(CustomIMetricsConsumer.class.getName()));
         config.validate();
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_METRICS_CLASSES), singletonList(CustomIMetricsConsumer.class.getName()));
+    }
+
+    @Test
+    public void testPreStartDelayIsEnoughForWindowMinEmit() {
+        BulletStormConfig config = new BulletStormConfig((Config) null);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
+        config.set(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS, 2);
+        config.set(BulletStormConfig.WINDOW_MIN_EMIT_EVERY, 400);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), 100);
+        Assert.assertEquals(config.get(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS), 2);
+        Assert.assertEquals(config.get(BulletStormConfig.WINDOW_MIN_EMIT_EVERY), 400);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
+        config.set(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS, 5);
+        config.set(BulletStormConfig.WINDOW_MIN_EMIT_EVERY, 700);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), 100);
+        Assert.assertEquals(config.get(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS), 5);
+        Assert.assertEquals(config.get(BulletStormConfig.WINDOW_MIN_EMIT_EVERY), 700);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 20);
+        config.set(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS, 3);
+        config.set(BulletStormConfig.WINDOW_MIN_EMIT_EVERY, 100);
+        config.validate();
+        Assert.assertEquals(config.get(BulletStormConfig.TICK_SPOUT_INTERVAL), 20);
+        Assert.assertEquals(config.get(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS), 3);
+        Assert.assertEquals(config.get(BulletStormConfig.WINDOW_MIN_EMIT_EVERY), 100);
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testPreStartDelayIsTooSmall() {
+        BulletStormConfig config = new BulletStormConfig((Config) null);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
+        config.set(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS, 3);
+        config.set(BulletStormConfig.WINDOW_MIN_EMIT_EVERY, 400);
+        config.validate();
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testWindowMinEmitIsTooSmall() {
+        BulletStormConfig config = new BulletStormConfig((Config) null);
+
+        config.set(BulletStormConfig.TICK_SPOUT_INTERVAL, 100);
+        config.set(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS, 3);
+        config.set(BulletStormConfig.WINDOW_MIN_EMIT_EVERY, 100);
+        config.validate();
     }
 }

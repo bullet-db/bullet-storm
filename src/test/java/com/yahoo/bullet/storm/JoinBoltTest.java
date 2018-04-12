@@ -338,7 +338,7 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testQueryNotDoneButIsTimeBased() {
+    public void testQueryNotDoneButIsDurationBased() {
         // This bolt will be done after combining RAW_MAX_SIZE - 1 times and is a shouldBuffer, so it is buffered.
         bolt = new DonableJoinBolt(config, RAW_MAX_SIZE - 1, true);
         setup(bolt);
@@ -349,13 +349,13 @@ public class JoinBoltTest {
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", RAW_MAX_SIZE - 1);
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
-        // Should make isDone true but query is a time based window so it gets buffered.
+        // Should make isDone true but query is a a shouldBuffer so it gets buffered.
         bolt.execute(tick);
 
         Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
 
         // We need to tick the default query tickout to make the query emit
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
         }
@@ -370,7 +370,7 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testJoiningAfterLateArrivalBeforeTickout() {
+    public void testJoiningAfterLateArrivalMakingQueryFinishBeforeTickout() {
         bolt = new DonableJoinBolt(config, 2, true);
         setup(bolt);
 
@@ -386,12 +386,44 @@ public class JoinBoltTest {
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
 
-        // Now we satisfy the aggregation and tick to see if it causes an emission
+        Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
+
+        // Now we satisfy the query and see if it causes an emission
         List<BulletRecord> sentLate = sendRawRecordTuplesTo(bolt, "42", 1);
         sent.addAll(sentLate);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+
+        expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
+
+        Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
+        Tuple metadata = TupleUtils.makeTuple(TupleClassifier.Type.FEEDBACK_TUPLE, "42", new Metadata(Metadata.Signal.COMPLETE, null));
+        Assert.assertTrue(wasMetadataEmittedTo(TopologyConstants.FEEDBACK_STREAM, metadata));
+        Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.RESULT_STREAM).count(), 1);
+        Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.FEEDBACK_STREAM).count(), 1);
+    }
+
+    @Test
+    public void testJoiningAfterLateArrivalWithoutFinishingQueryBeforeTickout() {
+        bolt = new DonableJoinBolt(config, 2, true);
+        setup(bolt);
+
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 5), EMPTY);
+        bolt.execute(query);
+
+        // This calls isDone twice. So the query is done on the next tick
+        List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 2);
+
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
+
+        // Tick once to get the query done rotated into buffer.
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        bolt.execute(tick);
+
+        // Now send more tuples but not enough to finish query
+        List<BulletRecord> sentLate = sendRawRecordTuplesTo(bolt, "42", 2);
+        sent.addAll(sentLate);
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
-            Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
+            Assert.assertEquals(collector.getEmittedCount(), 0);
         }
 
         // The expected record now should contain the sentLate ones too
@@ -434,7 +466,7 @@ public class JoinBoltTest {
         bolt.execute(tick);
 
         // We need to tick the default query tickout to make queryA emit
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(wasResultEmitted(emittedSecond));
         }
@@ -653,7 +685,7 @@ public class JoinBoltTest {
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         // Should starts buffering the query for the query tickout
         bolt.execute(tick);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
         }
@@ -696,7 +728,7 @@ public class JoinBoltTest {
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
         }
@@ -746,7 +778,7 @@ public class JoinBoltTest {
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
             Assert.assertEquals(collector.getEmittedCount(), 0);
         }
@@ -809,7 +841,7 @@ public class JoinBoltTest {
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
         }
@@ -858,7 +890,7 @@ public class JoinBoltTest {
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
         bolt.execute(tick);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
             Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
         }
@@ -879,7 +911,7 @@ public class JoinBoltTest {
         setup(bolt);
 
         String filterQuery = makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
-                singletonList(new GroupOperation(COUNT, null, "cnt")));
+                                                  singletonList(new GroupOperation(COUNT, null, "cnt")));
         Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", filterQuery, EMPTY);
 
         Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
@@ -901,7 +933,7 @@ public class JoinBoltTest {
         bolt.execute(tick);
 
         // We need to tick the default query tickout to make the query emit
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS - 1; ++i) {
             bolt.execute(tick);
         }
         Assert.assertFalse(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
@@ -945,11 +977,11 @@ public class JoinBoltTest {
         mapping.put(BulletStormConfig.DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, 10);
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING, mapping);
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        bolt = new DonableJoinBolt(config, BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT, false);
+        bolt = new DonableJoinBolt(config, BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS, true);
         setup(bolt);
 
         String filterQuery = makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS, GROUP, 1,
-                singletonList(new GroupOperation(COUNT, null, "cnt")));
+                                                  singletonList(new GroupOperation(COUNT, null, "cnt")));
         Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", filterQuery, EMPTY);
 
         Assert.assertEquals(context.getLongMetric(10, TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
@@ -961,7 +993,10 @@ public class JoinBoltTest {
         Assert.assertEquals(context.getLongMetric(1, TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
-        for (int i = 0; i <= BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT; ++i) {
+        // First half to make it be seen as done through the DonableJoinBolt, the last half to actually finish buffering.
+        int ticksNeeded = BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS * 2;
+        for (int i = 0; i <= ticksNeeded; ++i) {
+            Assert.assertEquals(context.getLongMetric(1, TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
             bolt.execute(tick);
         }
 
@@ -1156,107 +1191,30 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testWindowBuffering() {
-        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        config.validate();
-        // Some large number would do. Using 10 here.
-        bolt = new DonableJoinBolt(config, 10, true);
-        setup(bolt);
-
-        // This will be isClosed() every record. We are mocking the behavior of shouldBuffer here. This kind of window
-        // actually returns false for shouldBuffer so it won't work this way in practice.
-        // Aggregation size is 5 so the late arriving combines after the window is buffered will be in the result
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                             makeAggregationQuery(RAW, 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
-                                             EMPTY);
-        bolt.execute(query);
-
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
-
-        List<BulletRecord> sentFirst = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 1);
-        Assert.assertEquals(collector.getEmittedCount(), 0);
-        List<BulletRecord> sentSecond = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 1);
-        Assert.assertEquals(collector.getEmittedCount(), 0);
-        List<BulletRecord> sentThird = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 3);
-        Assert.assertEquals(collector.getEmittedCount(), 0);
-
-        List<BulletRecord> sent = new ArrayList<>();
-        sent.addAll(sentFirst);
-        sent.addAll(sentSecond);
-        sent.addAll(sentThird);
-
-        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT - 1; ++i) {
-            Assert.assertEquals(collector.getEmittedCount(), 0);
-            bolt.execute(tick);
-        }
-        bolt.execute(tick);
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), EMPTY);
-        Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
-        Assert.assertEquals(collector.getEmittedCount(), 1);
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
-    }
-
-    @Test
-    public void testWindowDoneWhileBuffering() {
-        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
-        config.validate();
-        bolt = new DonableJoinBolt(config, 2, true);
-        setup(bolt);
-
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                             makeAggregationQuery(RAW, 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
-                                             EMPTY);
-        bolt.execute(query);
-
-        // Begins buffering in window tickout buffer here
-        List<BulletRecord> sentFirst = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 1);
-        Assert.assertEquals(collector.getEmittedCount(), 0);
-        List<BulletRecord> sentSecond = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 1);
-        Assert.assertEquals(collector.getEmittedCount(), 0);
-
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
-        // Will be isDone() here and will now be moved into query tickout buffer
-        List<BulletRecord> sentThird = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 3);
-
-        // Wait to tickout
-        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_TICK_TIMEOUT - 1; ++i) {
-            Assert.assertEquals(collector.getEmittedCount(), 0);
-            bolt.execute(tick);
-        }
-        bolt.execute(tick);
-
-        Assert.assertEquals(collector.getEmittedCount(), 2);
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
-
-        List<BulletRecord> sent = new ArrayList<>();
-        sent.addAll(sentFirst);
-        sent.addAll(sentSecond);
-        sent.addAll(sentThird);
-        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(),
-                                              new Metadata(Metadata.Signal.COMPLETE, null));
-        Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
-
-        Tuple metadata = TupleUtils.makeTuple(TupleClassifier.Type.FEEDBACK_TUPLE, "42", new Metadata(Metadata.Signal.COMPLETE, null));
-        Assert.assertTrue(wasMetadataEmittedTo(TopologyConstants.FEEDBACK_STREAM, metadata));
-
-        Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.RESULT_STREAM).count(), 1);
-        Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.FEEDBACK_STREAM).count(), 1);
-    }
-
-    @Test
-    public void testWindowWithoutBuffering() {
+    public void testQueryBeingDelayed() {
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         config.validate();
         bolt = new DonableJoinBolt(config, 5, false);
         setup(bolt);
 
+        // This kind of query actually returns true for shouldBuffer but making it false using DonableJoinBolt to test
         Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                              makeAggregationQuery(RAW, 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
                                              EMPTY);
         bolt.execute(query);
 
+        // Not active yet
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_PRE_START_DELAY_TICKS - 1; ++i) {
+            bolt.execute(tick);
+            Assert.assertEquals(collector.getEmittedCount(), 0);
+            Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        }
+        bolt.execute(tick);
+        // Now active
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         Tuple expected;
@@ -1281,35 +1239,165 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testWindowBufferingOnTick() {
+    public void testQueryClosedWhileFinishedTerminatesTheQuery() {
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         config.validate();
-        bolt = new ClosableJoinBolt(config, 2, true);
+        bolt = new DonableJoinBolt(config, 2, true);
         setup(bolt);
 
-        // Using 5 here makes sure the query is not done as long as we send it less than 5 records
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 5), EMPTY);
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                             makeAggregationQuery(RAW, 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                             EMPTY);
         bolt.execute(query);
+
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        // Third tick marks it done and start buffering
+        bolt.execute(tick);
+        bolt.execute(tick);
+        // Begins buffering in query tickout buffer after here
+        bolt.execute(tick);
+        Assert.assertEquals(collector.getEmittedCount(), 0);
+
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
+
+        List<BulletRecord> sent = sendSlidingWindowWithRawRecordTuplesTo(bolt, "42", 2);
+
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(),
+                                              new Metadata(Metadata.Signal.COMPLETE, null));
+        Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
+
+        Tuple metadata = TupleUtils.makeTuple(TupleClassifier.Type.FEEDBACK_TUPLE, "42", new Metadata(Metadata.Signal.COMPLETE, null));
+        Assert.assertTrue(wasMetadataEmittedTo(TopologyConstants.FEEDBACK_STREAM, metadata));
+
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+        Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.RESULT_STREAM).count(), 1);
+        Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.FEEDBACK_STREAM).count(), 1);
+    }
+
+    @Test
+    public void testWindowClosedOnTickIsImmediatelyEmitted() {
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.validate();
+        bolt = new ClosableJoinBolt(config, 3, false);
+        setup(bolt);
+
+        // Using a time window here makes sure the query is not done but will closed after 3 calls
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                             makeAggregationQuery(RAW, 5, Window.Unit.TIME, 100000, Window.Unit.TIME, 100000),
+                                             EMPTY);
+        bolt.execute(query);
+
+        // Not active because it needs to be delayed
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_PRE_START_DELAY_TICKS - 1; ++i) {
+            bolt.execute(tick);
+            Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        }
+        bolt.execute(tick);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         List<BulletRecord> sentFirst = sendRawRecordTuplesTo(bolt, "42", 1);
         List<BulletRecord> sentSecond = sendRawRecordTuplesTo(bolt, "42", 1);
 
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
-        Assert.assertEquals(collector.getEmittedCount(), 0);
-
-        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
-        // It is now buffering
+        // This will make it closed and emitted
         bolt.execute(tick);
-        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_WINDOW_TICK_TIMEOUT - 1; ++i) {
-            Assert.assertEquals(collector.getEmittedCount(), 0);
-            bolt.execute(tick);
-        }
+        Assert.assertEquals(collector.getEmittedCount(), 1);
         List<BulletRecord> sent = new ArrayList<>(sentFirst);
         sent.addAll(sentSecond);
 
         Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), EMPTY);
 
         bolt.execute(tick);
+        Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
+
+    }
+
+    @Test
+    public void testQueryFinishedWhileBeingDelayed() {
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.validate();
+        bolt = new DonableJoinBolt(config, 2, false);
+        setup(bolt);
+
+        // This kind of query actually does not delay but making it true using DonableJoinBolt to test
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 5), EMPTY);
+        bolt.execute(query);
+
+        // Not active yet
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        for (int i = 0; i < BulletStormConfig.DEFAULT_JOIN_BOLT_QUERY_PRE_START_DELAY_TICKS - 1; ++i) {
+            bolt.execute(tick);
+            Assert.assertEquals(collector.getEmittedCount(), 0);
+            Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        }
+
+        // Still inactive
+        List<BulletRecord> sentFirst = sendRawRecordTuplesTo(bolt, "42", 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        // After this, query is done while still in the pre-start delay state
+        List<BulletRecord> sentSecond = sendRawRecordTuplesTo(bolt, "42", 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        // This will still be combined but it is now checked as being done and is emitted
+        List<BulletRecord> sentThird = sendRawRecordTuplesTo(bolt, "42", 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+        List<BulletRecord> sent = new ArrayList<>(sentFirst);
+        sent.addAll(sentSecond);
+        sent.addAll(sentThird);
+
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sent).asJSON(), COMPLETED);
+        Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
+    }
+
+    @Test
+    public void testQueryGettingDataWhileBeingDelayed() {
+        config.set(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS, 3);
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.validate();
+        bolt = new DonableJoinBolt(config, 2, false);
+        setup(bolt);
+
+        // This kind of query actually does not delay but making it true using DonableJoinBolt to test
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeAggregationQuery(RAW, 5), EMPTY);
+        bolt.execute(query);
+
+        // Not active yet
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+
+        bolt.execute(tick);
+
+        // Still inactive. First call to isDone
+        List<BulletRecord> sentFirst = sendRawRecordTuplesTo(bolt, "42", 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        // 2nd rotation (into 3rd level). isDone not called
+        bolt.execute(tick);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+
+        // This makes it rotate out pre-start and into queries. isDone is called since the queries are categorized
+        bolt.execute(tick);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(collector.getEmittedCount(), 0);
+
+        // One more tick categorizes the queries and sees it is done (because of the 3rd call to isDone)
+        bolt.execute(tick);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+
+        Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sentFirst).asJSON(), COMPLETED);
         Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
     }
 }
