@@ -17,7 +17,7 @@ public class DRPCConfigTest {
         return new DRPCConfig(config);
     }
 
-    @Test(expectedExceptions = RuntimeException.class)
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testWindowingMustBeDisabled() {
         new DRPCConfig((String) null);
     }
