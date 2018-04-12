@@ -224,7 +224,7 @@ public class JoinBolt extends QueryBolt {
          * 1) If we shouldn't buffer, then emit it and return. If it was being delayed and somehow finished, it is
          *    cleaned up and removed. There should be no query that needs delaying AND buffering.
          * 2) If the query became closed after it finished (wherever it is), we emit it. We should still honor isClosed.
-         * 3) If it shouldn't buffer and isn't closed, postFinishBuffer it till it becomes closed or ticks emit it.
+         * 3) If it should buffer and it isn't closed, postFinishBuffer it till it becomes closed or ticks emit it.
          */
         if (!querier.shouldBuffer()) {
             log.debug("Emitting query since it shouldn't be buffered {}", id);

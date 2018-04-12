@@ -80,7 +80,7 @@ bullet.topology.loop.bolt.memory.off.heap.load: 160.0
 # be in the final result for the query. If you have bullet.query.window.disable set to true, then this is the value
 # that is used in waiting for your final (and only) intermediate results to arrive from your Filter Bolts.
 # The defaults make this (100ms * 3) or ~0.3s after the query is done for the final results to come back.
-# All queries without windows or record windows windows are buffered past their expiry using this.
+# All queries without windows or with record based windows are buffered past their expiry using this.
 bullet.topology.join.bolt.query.post.finish.buffer.ticks: 3
 
 # This is the number of ticks for which a query will be delayed in the Join Bolts before it is marked as started. This
