@@ -20,6 +20,7 @@ import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.RateLimitError;
 import com.yahoo.bullet.record.BulletRecord;
+import com.yahoo.bullet.record.BulletRecordProvider;
 import com.yahoo.bullet.result.RecordBox;
 import com.yahoo.bullet.storm.testing.ComponentUtils;
 import com.yahoo.bullet.storm.testing.CustomCollector;
@@ -89,6 +90,7 @@ public class FilterBoltTest {
     private FilterBolt bolt;
     private BulletStormConfig config;
     private static final Metadata METADATA = new Metadata();
+    private static BulletRecordProvider provider = new BulletStormConfig().getBulletRecordProvider();
 
     private static class NoQueryFilterBolt extends FilterBolt {
         NoQueryFilterBolt() {
@@ -211,7 +213,7 @@ public class FilterBoltTest {
     }
 
     private boolean isEqual(GroupData actual, BulletRecord expected) {
-        return actual.getMetricsAsBulletRecord().equals(expected);
+        return actual.getMetricsAsBulletRecord(provider).equals(expected);
     }
 
     private static BulletStormConfig oneRecordConfig() {
@@ -601,7 +603,7 @@ public class FilterBoltTest {
 
         Assert.assertEquals(collector.getEmittedCount(), 1);
         GroupData actual = SerializerDeserializer.fromBytes(getRawPayloadOfNthTuple(1));
-        BulletRecord expected = RecordBox.get().add("cnt", 10).getRecord();
+        BulletRecord expected = RecordBox.get().add("cnt", 10L).getRecord();
 
         Assert.assertTrue(isEqual(actual, expected));
     }
