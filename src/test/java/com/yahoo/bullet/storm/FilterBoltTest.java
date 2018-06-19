@@ -90,7 +90,7 @@ public class FilterBoltTest {
     private FilterBolt bolt;
     private BulletStormConfig config;
     private static final Metadata METADATA = new Metadata();
-    private static BulletRecordProvider bulletRecordProvider = new BulletStormConfig().getBulletRecordProvider();
+    private static BulletRecordProvider provider = new BulletStormConfig().getBulletRecordProvider();
 
     private static class NoQueryFilterBolt extends FilterBolt {
         NoQueryFilterBolt() {
@@ -213,7 +213,7 @@ public class FilterBoltTest {
     }
 
     private boolean isEqual(GroupData actual, BulletRecord expected) {
-        return actual.getMetricsAsBulletRecord(bulletRecordProvider).equals(expected);
+        return actual.getMetricsAsBulletRecord(provider).equals(expected);
     }
 
     private static BulletStormConfig oneRecordConfig() {
