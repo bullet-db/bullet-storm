@@ -13,6 +13,7 @@ All documentation has moved to **[Github Pages here](https://bullet-db.github.io
 ## Links
 
 * [Bullet Storm Architecture](https://bullet-db.github.io/backend/storm-architecture/) to learn about Bullet Storm architecture.
+* [Bullet Storm Releases](https://bullet-db.github.io/releases/#bullet-storm) to see Bullet Kafka releases.
 
 ### Useful Links
 
