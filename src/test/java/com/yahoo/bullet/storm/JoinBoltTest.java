@@ -1071,7 +1071,7 @@ public class JoinBoltTest {
 
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
-        RateLimitError rateLimitError = new RateLimitError(2000.0, new BulletConfig());
+        RateLimitError rateLimitError = new RateLimitError(2000.0, 1000.0);
         Tuple error = TupleUtils.makeIDTuple(TupleClassifier.Type.ERROR_TUPLE, "42", rateLimitError);
 
         bolt.execute(error);
@@ -1091,7 +1091,7 @@ public class JoinBoltTest {
 
     @Test
     public void testRateLimitErrorFromUpstreamWithoutQuery() {
-        RateLimitError rateLimitError = new RateLimitError(2000.0, new BulletConfig());
+        RateLimitError rateLimitError = new RateLimitError(2000.0, 1000.0);
         Tuple error = TupleUtils.makeIDTuple(TupleClassifier.Type.ERROR_TUPLE, "42", rateLimitError);
 
         bolt.execute(error);
@@ -1100,7 +1100,7 @@ public class JoinBoltTest {
 
     @Test
     public void testRateLimitingWithTicks() {
-        RateLimitError rateLimitError = new RateLimitError(42.0, config);
+        RateLimitError rateLimitError = new RateLimitError(42.0, 5.0);
         bolt = new RateLimitedJoinBolt(2, rateLimitError, config);
         setup(bolt);
 
@@ -1124,7 +1124,7 @@ public class JoinBoltTest {
 
     @Test
     public void testRateLimitingOnCombine() {
-        RateLimitError rateLimitError = new RateLimitError(42.0, config);
+        RateLimitError rateLimitError = new RateLimitError(42.0, 5.0);
         bolt = new RateLimitedJoinBolt(2, rateLimitError, config);
         setup(bolt);
 

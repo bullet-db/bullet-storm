@@ -793,7 +793,7 @@ public class FilterBoltTest {
     @Test
     public void testRateLimiting() {
         config = new BulletStormConfig();
-        RateLimitError rateLimitError = new RateLimitError(42.0, config);
+        RateLimitError rateLimitError = new RateLimitError(42.0, 5.0);
         bolt = new RateLimitedFilterBolt(2, rateLimitError, config);
         bolt = ComponentUtils.prepare(new HashMap<>(), bolt, collector);
 
