@@ -56,9 +56,12 @@ public class TopologyConstants {
     public static final String CREATED_QUERIES_METRIC = METRIC_PREFIX + "created_queries";
     public static final String IMPROPER_QUERIES_METRIC = METRIC_PREFIX + "improper_queries";
     public static final String RATE_EXCEEDED_QUERIES_METRIC = METRIC_PREFIX + "rate_exceeded_queries";
+    public static final String DUPLICATED_QUERIES_METRIC = METRIC_PREFIX + "duplicated_queries";
+    public static final String DUPLICATED_LATENCY_METRIC = METRIC_PREFIX + "duplicated_latency";
     public static final String LATENCY_METRIC = METRIC_PREFIX + "filter_latency";
     public static final String DEFAULT_METRIC = "default";
     public static final Set<String> BUILT_IN_METRICS =
         new HashSet<>(asList(ACTIVE_QUERIES_METRIC, CREATED_QUERIES_METRIC, IMPROPER_QUERIES_METRIC,
-                             RATE_EXCEEDED_QUERIES_METRIC, LATENCY_METRIC, DEFAULT_METRIC));
+                             RATE_EXCEEDED_QUERIES_METRIC, DUPLICATED_QUERIES_METRIC, DUPLICATED_LATENCY_METRIC,
+                             LATENCY_METRIC, DEFAULT_METRIC));
 }

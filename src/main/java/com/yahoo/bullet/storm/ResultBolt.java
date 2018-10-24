@@ -28,7 +28,7 @@ public class ResultBolt extends PublisherBolt {
 
     @Override
     protected Publisher createPublisher() throws PubSubException {
-        PubSub pubSub = PubSub.from(config);
+        pubSub = PubSub.from(config);
         Publisher publisher = pubSub.getPublisher();
         log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
         return publisher;

@@ -12,6 +12,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.metric.api.IMetric;
 import org.apache.storm.metric.api.MeanReducer;
 import org.apache.storm.metric.api.ReducedMetric;
+import org.apache.storm.shade.com.google.common.cache.Cache;
+import org.apache.storm.shade.com.google.common.cache.CacheBuilder;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
@@ -19,6 +21,7 @@ import org.apache.storm.tuple.Tuple;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 import static com.yahoo.bullet.storm.BulletStormConfig.DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY;
 
@@ -31,6 +34,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     protected transient OutputCollector collector;
     protected transient TupleClassifier classifier;
     protected transient Map<String, Querier> queries;
+    protected transient Cache<String, Long> queryIds;
 
     /**
      * Creates a QueryBolt with a given {@link BulletStormConfig}.
@@ -46,6 +50,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
         queries = new HashMap<>();
+        queryIds = CacheBuilder.newBuilder().expireAfterAccess(10, TimeUnit.MINUTES).build();
         classifier = new TupleClassifier();
         // Enable built in metrics
         metricsEnabled = config.getAs(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, Boolean.class);
@@ -99,6 +104,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
      */
     protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
         queries.put(id, querier);
+        queryIds.put(id, 0L);
         log.info("Initialized query {}", querier.toString());
     }
 

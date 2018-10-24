@@ -5,6 +5,7 @@
  */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
@@ -26,6 +27,8 @@ public abstract class PublisherBolt extends ConfigComponent implements IRichBolt
     private transient OutputCollector collector;
 
     // Exposed for testing only
+    protected transient PubSub pubSub;
+
     @Getter(AccessLevel.PACKAGE)
     protected transient Publisher publisher;
 
@@ -77,7 +80,12 @@ public abstract class PublisherBolt extends ConfigComponent implements IRichBolt
 
     @Override
     public void cleanup() {
-        publisher.close();
+        try {
+            publisher.close();
+        } catch (Exception e) {
+            log.error("Could not close Publisher.", e);
+        }
+        pubSub.close();
     }
 
     @Override

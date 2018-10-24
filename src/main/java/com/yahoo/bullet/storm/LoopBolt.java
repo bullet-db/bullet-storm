@@ -30,7 +30,7 @@ public class LoopBolt extends PublisherBolt {
 
     @Override
     protected Publisher createPublisher() throws PubSubException {
-        PubSub pubSub = PubSub.from(config);
+        pubSub = PubSub.from(config);
 
         // Map is always not null and is validated to be a proper BulletStormConfig
         Map<String, Object> overrides = (Map<String, Object>) config.getAs(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, Map.class);

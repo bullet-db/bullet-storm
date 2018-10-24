@@ -90,6 +90,11 @@ public class FilterBolt extends QueryBolt {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
 
+        if (queryIds.getIfPresent(id) != null) {
+            log.error("Duplicate for request {} with query {}", id, query);
+            return;
+        }
+
         try {
             Querier querier = createQuerier(Querier.Mode.PARTITION, id, query, config);
             if (!querier.initialize().isPresent()) {
