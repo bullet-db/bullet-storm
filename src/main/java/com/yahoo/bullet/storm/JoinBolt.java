@@ -13,7 +13,6 @@ import com.yahoo.bullet.querying.RateLimitError;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Meta;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.storm.metric.api.ReducedMetric;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.OutputFieldsDeclarer;
@@ -52,8 +51,6 @@ public class JoinBolt extends QueryBolt {
     private transient AbsoluteCountMetric rateExceededQueries;
     private transient AbsoluteCountMetric duplicatedQueriesCount;
 
-    private transient ReducedMetric averageDuplicatedLatency;
-
     /**
      * Constructor that creates an instance of this JoinBolt using the given config.
      *
@@ -82,7 +79,6 @@ public class JoinBolt extends QueryBolt {
             improperQueriesCount = registerAbsoluteCountMetric(TopologyConstants.IMPROPER_QUERIES_METRIC, context);
             rateExceededQueries = registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
             duplicatedQueriesCount = registerAbsoluteCountMetric(TopologyConstants.DUPLICATED_QUERIES_METRIC, context);
-            averageDuplicatedLatency = registerAveragingMetric(TopologyConstants.DUPLICATED_LATENCY_METRIC, context);
         }
     }
 
@@ -141,10 +137,8 @@ public class JoinBolt extends QueryBolt {
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
 
-        Long timestamp = queryIds.getIfPresent(id);
-        if (timestamp != null) {
+        if (bufferedMetadata.containsKey(id)) {
             duplicatedQueriesCount.add(1L);
-            averageDuplicatedLatency.update(System.currentTimeMillis() - timestamp);
             log.error("Duplicate for request {} with query {}", id, query);
             return;
         }
@@ -305,7 +299,6 @@ public class JoinBolt extends QueryBolt {
     @Override
     protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
         updateCount(createdQueriesCount, 1L);
-        queryIds.put(id, System.currentTimeMillis());
         bufferedMetadata.put(id, metadata);
         // If the query should be post-finish buffered, it should not be pre-start delayed.
         if (querier.shouldBuffer()) {

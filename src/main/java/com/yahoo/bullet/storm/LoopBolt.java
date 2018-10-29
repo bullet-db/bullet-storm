@@ -30,19 +30,19 @@ public class LoopBolt extends PublisherBolt {
 
     @Override
     protected Publisher createPublisher() throws PubSubException {
-        pubSub = PubSub.from(config);
+        try (PubSub pubSub = PubSub.from(config)) {
+            // Map is always not null and is validated to be a proper BulletStormConfig
+            Map<String, Object> overrides = (Map<String, Object>) config.getAs(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, Map.class);
+            log.info("Loaded pubsub overrides: {}", overrides);
+            BulletStormConfig modified = new BulletStormConfig(config);
+            overrides.forEach(modified::set);
+            pubSub.switchContext(PubSub.Context.QUERY_SUBMISSION, modified);
+            log.info("Switched the PubSub into query submission mode");
 
-        // Map is always not null and is validated to be a proper BulletStormConfig
-        Map<String, Object> overrides = (Map<String, Object>) config.getAs(BulletStormConfig.LOOP_BOLT_PUBSUB_OVERRIDES, Map.class);
-        log.info("Loaded pubsub overrides: {}", overrides);
-        BulletStormConfig modified = new BulletStormConfig(config);
-        overrides.forEach(modified::set);
-        pubSub.switchContext(PubSub.Context.QUERY_SUBMISSION, modified);
-        log.info("Switched the PubSub into query submission mode");
-
-        Publisher publisher = pubSub.getPublisher();
-        log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
-        return publisher;
+            Publisher publisher = pubSub.getPublisher();
+            log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
+            return publisher;
+        }
     }
 
     @Override

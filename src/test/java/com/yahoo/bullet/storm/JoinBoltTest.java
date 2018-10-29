@@ -947,23 +947,19 @@ public class JoinBoltTest {
         Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.RESULT_STREAM).count(), 1);
         Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.FEEDBACK_STREAM).count(), 1);
 
-        Tuple query2 = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43", filterQuery, EMPTY);
-
-        bolt.execute(query2);
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(2));
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
-
-        Assert.assertEquals(context.getLongMetric(TopologyConstants.DUPLICATED_QUERIES_METRIC), Long.valueOf(0));
-        Assert.assertNull(context.getDoubleMetric(TopologyConstants.DUPLICATED_LATENCY_METRIC));
-
+        // create query again
         bolt.execute(query);
         Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(2));
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
         Assert.assertEquals(context.getLongMetric(TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.DUPLICATED_QUERIES_METRIC), Long.valueOf(0));
 
+        // query still exists so treated as duplicate
+        bolt.execute(query);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(2));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
         Assert.assertEquals(context.getLongMetric(TopologyConstants.DUPLICATED_QUERIES_METRIC), Long.valueOf(1));
-        Assert.assertTrue(context.getDoubleMetric(TopologyConstants.DUPLICATED_LATENCY_METRIC) > 0.0);
     }
 
     @Test

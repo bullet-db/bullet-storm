@@ -33,8 +33,6 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
     private static final long serialVersionUID = 504190523090872490L;
 
     /** Exposed for testing only. */
-    private transient PubSub pubSub;
-
     @Getter(AccessLevel.PACKAGE)
     private transient Subscriber subscriber;
     private transient SpoutOutputCollector collector;
@@ -59,8 +57,7 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void activate() {
-        try {
-            pubSub = PubSub.from(config);
+        try (PubSub pubSub = PubSub.from(config)) {
             subscriber = pubSub.getSubscriber();
             log.info("Setup PubSub: {} with Subscriber: {}", pubSub, subscriber);
         } catch (PubSubException e) {
@@ -75,7 +72,6 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
         } catch (Exception e) {
             log.error("Could not close Subscriber.", e);
         }
-        pubSub.close();
     }
 
     @Override

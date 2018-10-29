@@ -90,7 +90,7 @@ public class FilterBolt extends QueryBolt {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
 
-        if (queryIds.getIfPresent(id) != null) {
+        if (queries.containsKey(id)) {
             log.error("Duplicate for request {} with query {}", id, query);
             return;
         }

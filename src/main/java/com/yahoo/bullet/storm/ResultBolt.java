@@ -28,10 +28,11 @@ public class ResultBolt extends PublisherBolt {
 
     @Override
     protected Publisher createPublisher() throws PubSubException {
-        pubSub = PubSub.from(config);
-        Publisher publisher = pubSub.getPublisher();
-        log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
-        return publisher;
+        try (PubSub pubSub = PubSub.from(config)) {
+            Publisher publisher = pubSub.getPublisher();
+            log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
+            return publisher;
+        }
     }
 
     @Override
