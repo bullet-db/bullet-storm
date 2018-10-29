@@ -40,7 +40,6 @@
         <storm.metrics.version>1.0.2</storm.metrics.version>
         <bullet.record.version>0.2.1</bullet.record.version>
         <bullet.core.version>0.5.2</bullet.core.version>
-        <bullet.dsl.version>1.0-SNAPSHOT</bullet.dsl.version>
         <sketches.version>0.9.1</sketches.version>
     </properties>
 
@@ -129,11 +128,6 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.7</version>
-        </dependency>
-        <dependency>
-            <groupId>com.yahoo.bullet</groupId>
-            <artifactId>bullet-dsl</artifactId>
-            <version>${bullet.dsl.version}</version>
         </dependency>
     </dependencies>
 
