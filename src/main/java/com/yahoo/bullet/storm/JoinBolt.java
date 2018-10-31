@@ -137,6 +137,8 @@ public class JoinBolt extends QueryBolt {
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
 
+        // bufferedMetadata has an entry for each query that exists in the JoinBolt; therefore, we check bufferedMetadata
+        // for existing queries (as opposed to individually checking the queries, preStartBuffer, and postFinishBuffer maps)
         if (bufferedMetadata.containsKey(id)) {
             duplicatedQueriesCount.add(1L);
             log.error("Duplicate for request {} with query {}", id, query);
