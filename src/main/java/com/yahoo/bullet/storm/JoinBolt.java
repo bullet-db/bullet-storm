@@ -140,7 +140,7 @@ public class JoinBolt extends QueryBolt {
         // bufferedMetadata has an entry for each query that exists in the JoinBolt; therefore, we check bufferedMetadata
         // for existing queries (as opposed to individually checking the queries, preStartBuffer, and postFinishBuffer maps)
         if (bufferedMetadata.containsKey(id)) {
-            duplicatedQueriesCount.add(1L);
+            updateCount(duplicatedQueriesCount, 1L);
             log.error("Duplicate for request {} with query {}", id, query);
             return;
         }
