@@ -49,6 +49,7 @@ public class JoinBolt extends QueryBolt {
     private transient AbsoluteCountMetric createdQueriesCount;
     private transient AbsoluteCountMetric improperQueriesCount;
     private transient AbsoluteCountMetric rateExceededQueries;
+    private transient AbsoluteCountMetric duplicatedQueriesCount;
 
     /**
      * Constructor that creates an instance of this JoinBolt using the given config.
@@ -77,6 +78,7 @@ public class JoinBolt extends QueryBolt {
             createdQueriesCount = registerAbsoluteCountMetric(TopologyConstants.CREATED_QUERIES_METRIC, context);
             improperQueriesCount = registerAbsoluteCountMetric(TopologyConstants.IMPROPER_QUERIES_METRIC, context);
             rateExceededQueries = registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
+            duplicatedQueriesCount = registerAbsoluteCountMetric(TopologyConstants.DUPLICATED_QUERIES_METRIC, context);
         }
     }
 
@@ -134,6 +136,14 @@ public class JoinBolt extends QueryBolt {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
+
+        // bufferedMetadata has an entry for each query that exists in the JoinBolt; therefore, we check bufferedMetadata
+        // for existing queries (as opposed to individually checking the queries, preStartBuffer, and postFinishBuffer maps)
+        if (bufferedMetadata.containsKey(id)) {
+            updateCount(duplicatedQueriesCount, 1L);
+            log.error("Duplicate for request {} with query {}", id, query);
+            return;
+        }
 
         Querier querier;
         try {

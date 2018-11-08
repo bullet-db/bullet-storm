@@ -23,6 +23,7 @@ public class CustomSubscriber implements Subscriber {
     private List<String> committed = new ArrayList<>();
     private List<String> failed = new ArrayList<>();
     private boolean closed = false;
+    private boolean thrown = false;
     private PubSub.Context context;
 
     public CustomSubscriber(PubSub.Context context) {
@@ -46,7 +47,11 @@ public class CustomSubscriber implements Subscriber {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
+        if (closed) {
+            thrown = true;
+            throw new Exception();
+        }
         closed = true;
     }
 

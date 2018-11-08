@@ -77,7 +77,11 @@ public abstract class PublisherBolt extends ConfigComponent implements IRichBolt
 
     @Override
     public void cleanup() {
-        publisher.close();
+        try {
+            publisher.close();
+        } catch (Exception e) {
+            log.error("Could not close Publisher.", e);
+        }
     }
 
     @Override

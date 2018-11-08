@@ -426,6 +426,25 @@ public class FilterBoltTest {
     }
 
     @Test
+    public void testDuplicateQueryIds() {
+        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
+                makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS), METADATA);
+
+        Assert.assertEquals(bolt.queries.size(), 0);
+
+        bolt.execute(queryA);
+        bolt.execute(queryB);
+
+        Assert.assertEquals(bolt.queries.size(), 2);
+
+        bolt.execute(queryA);
+        bolt.execute(queryB);
+
+        Assert.assertEquals(bolt.queries.size(), 2);
+    }
+
+    @Test
     public void testFailQueryInitialization() {
         bolt = ComponentUtils.prepare(new NoQueryFilterBolt(), collector);
 
@@ -793,7 +812,7 @@ public class FilterBoltTest {
     @Test
     public void testRateLimiting() {
         config = new BulletStormConfig();
-        RateLimitError rateLimitError = new RateLimitError(42.0, config);
+        RateLimitError rateLimitError = new RateLimitError(42.0, 5.0);
         bolt = new RateLimitedFilterBolt(2, rateLimitError, config);
         bolt = ComponentUtils.prepare(new HashMap<>(), bolt, collector);
 

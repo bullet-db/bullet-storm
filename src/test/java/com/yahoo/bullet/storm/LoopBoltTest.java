@@ -72,7 +72,7 @@ public class LoopBoltTest {
     }
 
     @Test
-    public void testAcksEvenOnException() {
+    public void testAcksEvenOnException() throws Exception {
         publisher.close();
         bolt.execute(makeTuple("42", new Metadata(Metadata.Signal.KILL, null)));
         bolt.execute(makeTuple("43", new Metadata(Metadata.Signal.FAIL, null)));
@@ -83,8 +83,16 @@ public class LoopBoltTest {
     @Test
     public void testCleanupClosesPublisher() {
         Assert.assertFalse(publisher.isClosed());
+        Assert.assertFalse(publisher.isThrown());
+
         bolt.cleanup();
         Assert.assertTrue(publisher.isClosed());
+        Assert.assertFalse(publisher.isThrown());
+
+        // bolt cleanup catches publisher throw
+        bolt.cleanup();
+        Assert.assertTrue(publisher.isClosed());
+        Assert.assertTrue(publisher.isThrown());
     }
 
     @Test
