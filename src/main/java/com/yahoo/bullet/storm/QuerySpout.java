@@ -67,7 +67,11 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void deactivate() {
-        subscriber.close();
+        try {
+            subscriber.close();
+        } catch (Exception e) {
+            log.error("Could not close Subscriber.", e);
+        }
     }
 
     @Override

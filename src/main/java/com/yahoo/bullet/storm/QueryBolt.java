@@ -35,7 +35,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     /**
      * Creates a QueryBolt with a given {@link BulletStormConfig}.
      *
-     * @param config The non-null BulletStormConfig to
+     * @param config The non-null BulletStormConfig to use.
      */
     public QueryBolt(BulletStormConfig config) {
         super(config);
