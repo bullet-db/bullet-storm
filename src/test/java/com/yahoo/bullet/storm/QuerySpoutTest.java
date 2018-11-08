@@ -185,11 +185,18 @@ public class QuerySpoutTest {
     public void testCloseDoesNotCallSubscriberClose() {
         spout.close();
         Assert.assertFalse(subscriber.isClosed());
+        Assert.assertFalse(subscriber.isThrown());
     }
 
     @Test
-    public void testDeactiveCallsSubscriberClose() {
+    public void testDeactivateCallsSubscriberClose() {
         spout.deactivate();
         Assert.assertTrue(subscriber.isClosed());
+        Assert.assertFalse(subscriber.isThrown());
+
+        // spout deactivate catches subscriber throw
+        spout.deactivate();
+        Assert.assertTrue(subscriber.isClosed());
+        Assert.assertTrue(subscriber.isThrown());
     }
 }

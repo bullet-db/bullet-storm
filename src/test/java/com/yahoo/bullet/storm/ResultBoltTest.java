@@ -63,7 +63,7 @@ public class ResultBoltTest {
     }
 
     @Test
-    public void testExecuteStillAcksWhenPublisherThrows() {
+    public void testExecuteStillAcksWhenPublisherThrows() throws Exception {
         // Execute a few tuples
         // Closing the publisher will cause CustomPublisher to throw
         publisher.close();
@@ -79,8 +79,16 @@ public class ResultBoltTest {
     @Test
     public void testCleanupClosesPublisher() {
         Assert.assertFalse(publisher.isClosed());
+        Assert.assertFalse(publisher.isThrown());
+
         bolt.cleanup();
         Assert.assertTrue(publisher.isClosed());
+        Assert.assertFalse(publisher.isThrown());
+
+        // bolt cleanup catches publisher throw
+        bolt.cleanup();
+        Assert.assertTrue(publisher.isClosed());
+        Assert.assertTrue(publisher.isThrown());
     }
 
     @Test

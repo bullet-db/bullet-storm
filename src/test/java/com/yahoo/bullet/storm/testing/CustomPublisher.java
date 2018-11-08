@@ -18,6 +18,7 @@ import java.util.List;
 public class CustomPublisher implements Publisher {
     private List<PubSubMessage> sent = new ArrayList<>();
     private boolean closed = false;
+    private boolean thrown = false;
     private PubSub.Context context;
 
     public CustomPublisher(PubSub.Context context) {
@@ -33,7 +34,11 @@ public class CustomPublisher implements Publisher {
     }
 
     @Override
-    public void close() {
+    public void close() throws Exception {
+        if (closed) {
+            thrown = true;
+            throw new Exception();
+        }
         closed = true;
     }
 }
