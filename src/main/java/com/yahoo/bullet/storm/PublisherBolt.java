@@ -25,6 +25,7 @@ public abstract class PublisherBolt extends ConfigComponent implements IRichBolt
 
     private transient OutputCollector collector;
 
+    // Exposed for testing only
     @Getter(AccessLevel.PACKAGE)
     protected transient Publisher publisher;
 
