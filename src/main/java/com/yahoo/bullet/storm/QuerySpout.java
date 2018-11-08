@@ -57,7 +57,8 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void activate() {
-        try (PubSub pubSub = PubSub.from(config)) {
+        try {
+            PubSub pubSub = PubSub.from(config);
             subscriber = pubSub.getSubscriber();
             log.info("Setup PubSub: {} with Subscriber: {}", pubSub, subscriber);
         } catch (PubSubException e) {
