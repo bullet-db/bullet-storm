@@ -74,6 +74,11 @@ bullet.topology.loop.bolt.cpu.load: 20.0
 bullet.topology.loop.bolt.memory.on.heap.load: 256.0
 bullet.topology.loop.bolt.memory.off.heap.load: 160.0
 
+# This is the number of ticks after which the partitioning (if you use one - see bullet.query.partitioner.enable and
+# bullet.query.partitioner.class.name) stats will be reported. The defaults values for this and the tick interval (see
+# bullet.topology.tick.spout.interval.ms) makes this every 5 minutes (3000 ticks * 100 ms/tick)
+bullet.topology.filter.bolt.stats.report.ticks: 3000
+
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
 # the final windows/results to trickle in from the Filter Bolts. If tuples from your your Filter Bolts take longer than
 # (bullet.topology.tick.spout.interval.ms * this setting) to get to the Join Bolt, that data will be LOST and will not

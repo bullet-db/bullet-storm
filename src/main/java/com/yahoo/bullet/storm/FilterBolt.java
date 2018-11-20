@@ -38,6 +38,10 @@ public class FilterBolt extends QueryBolt {
     @Getter(AccessLevel.PACKAGE)
     private transient QueryManager manager;
     private transient ReducedMetric averageLatency;
+    private transient int statsTickInterval;
+    // Exposed for testing
+    @Getter(AccessLevel.PACKAGE)
+    private transient int statsTickCount;
 
     /**
      * Constructor that accepts the name of the component that the records are coming from and the validated config.
@@ -55,6 +59,9 @@ public class FilterBolt extends QueryBolt {
         super.prepare(stormConf, context, collector);
         // Set the record component into the classifier
         classifier.setRecordComponent(recordComponent);
+        // Set up the stats report intervals
+        statsTickInterval = config.getAs(BulletStormConfig.FILTER_BOLT_STATS_REPORT_TICKS, Integer.class);
+        statsTickCount = 0;
         // Set up the manager
         manager = new QueryManager(config);
         if (metricsEnabled) {
@@ -131,6 +138,7 @@ public class FilterBolt extends QueryBolt {
     private void onTick() {
         // Categorize queries in partition mode.
         handleCategorizedQueries(manager.categorize());
+        handleStats();
     }
 
     private void handleCategorizedQueries(QueryCategorizer category) {
@@ -148,6 +156,15 @@ public class FilterBolt extends QueryBolt {
 
         log.debug("Done: {}, Rate limited: {}, Closed: {}, Active: {}",
                   done.size(), rateLimited.size(), closed.size(), manager.size());
+    }
+
+    private void handleStats() {
+        statsTickCount++;
+        if (statsTickCount < statsTickInterval) {
+            return;
+        }
+        statsTickCount = 0;
+        log.info("Query Manager Statistics:\n{}\n", manager.getStats());
     }
 
     private void emitData(Map.Entry<String, Querier> query) {

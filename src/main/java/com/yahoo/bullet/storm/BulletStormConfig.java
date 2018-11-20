@@ -56,6 +56,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String LOOP_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.loop.bolt.memory.on.heap.load";
     public static final String LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.loop.bolt.memory.off.heap.load";
     public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval.ms";
+    public static final String FILTER_BOLT_STATS_REPORT_TICKS = "bullet.topology.filter.bolt.stats.report.ticks";
     public static final String JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS = "bullet.topology.join.bolt.query.post.finish.buffer.ticks";
     public static final String JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS = "bullet.topology.join.bolt.query.pre.start.delay.ticks";
     public static final String LOOP_BOLT_PUBSUB_OVERRIDES = "bullet.topology.loop.bolt.pubsub.overrides";
@@ -99,6 +100,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final double DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
     public static final double DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
     public static final int DEFAULT_TICK_SPOUT_INTERVAL = 100;
+    public static final int DEFAULT_FILTER_BOLT_STATS_REPORT_TICKS = 3000;
     public static final int DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS = 3;
     public static final int DEFAULT_JOIN_BOLT_QUERY_PRE_START_DELAY_TICKS = 2;
     public static final Map<String, Object> DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES = Collections.emptyMap();
@@ -267,6 +269,11 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isPositiveInt)
                  .checkIf(Validator.isInRange(TICK_INTERVAL_MINIMUM, Double.POSITIVE_INFINITY))
                  .defaultTo(DEFAULT_TICK_SPOUT_INTERVAL)
+                 .castTo(Validator::asInt);
+
+        VALIDATOR.define(FILTER_BOLT_STATS_REPORT_TICKS)
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_FILTER_BOLT_STATS_REPORT_TICKS)
                  .castTo(Validator::asInt);
 
         VALIDATOR.define(JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS)

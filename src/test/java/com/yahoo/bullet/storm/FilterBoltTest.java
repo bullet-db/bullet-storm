@@ -924,4 +924,18 @@ public class FilterBoltTest {
 
         Assert.assertEquals(collector.getEmittedCount(), 0);
     }
+
+    @Test
+    public void testStatisticsReporting() {
+        config.set(BulletStormConfig.FILTER_BOLT_STATS_REPORT_TICKS, 10);
+        config.validate();
+        bolt = ComponentUtils.prepare(new HashMap<>(), new FilterBolt(TopologyConstants.RECORD_COMPONENT, config), collector);
+
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        for (int i = 0; i < 10; ++i) {
+            Assert.assertEquals(bolt.getStatsTickCount(), i);
+            bolt.execute(tick);
+        }
+        Assert.assertEquals(bolt.getStatsTickCount(), 0);
+    }
 }
