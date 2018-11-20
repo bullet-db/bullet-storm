@@ -37,6 +37,7 @@ public class QueryBoltTest {
         private ReducedMetric averagingMetric;
         private AbsoluteCountMetric countMetric;
         private int tupleCount;
+        private Map<String, Querier> queries;
 
         TestQueryBolt(BulletStormConfig config) {
             super(config);
@@ -45,6 +46,7 @@ public class QueryBoltTest {
         @Override
         public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
             super.prepare(stormConf, context, collector);
+            queries = new HashMap<>();
             averagingMetric = registerAveragingMetric("foo", context);
             countMetric = registerAbsoluteCountMetric("bar", context);
         }
@@ -70,6 +72,11 @@ public class QueryBoltTest {
         public void cleanup() {
             super.cleanup();
             cleaned = true;
+        }
+
+        @Override
+        protected void removeQuery(String id) {
+            queries.remove(id);
         }
 
         boolean isMetricsEnabled() {

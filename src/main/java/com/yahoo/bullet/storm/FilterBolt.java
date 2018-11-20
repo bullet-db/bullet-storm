@@ -13,7 +13,11 @@ import backtype.storm.tuple.Fields;
 import backtype.storm.tuple.Tuple;
 import backtype.storm.tuple.Values;
 import com.yahoo.bullet.querying.Querier;
+import com.yahoo.bullet.querying.QueryCategorizer;
+import com.yahoo.bullet.querying.QueryManager;
 import com.yahoo.bullet.record.BulletRecord;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.Map;
@@ -29,7 +33,15 @@ public class FilterBolt extends QueryBolt {
     private static final long serialVersionUID = -4357269268404488793L;
 
     private String recordComponent;
+
+    // Exposed for testing
+    @Getter(AccessLevel.PACKAGE)
+    private transient QueryManager manager;
     private transient ReducedMetric averageLatency;
+    private transient int statsTickInterval;
+    // Exposed for testing
+    @Getter(AccessLevel.PACKAGE)
+    private transient int statsTickCount;
 
     /**
      * Constructor that accepts the name of the component that the records are coming from and the validated config.
@@ -47,6 +59,11 @@ public class FilterBolt extends QueryBolt {
         super.prepare(stormConf, context, collector);
         // Set the record component into the classifier
         classifier.setRecordComponent(recordComponent);
+        // Set up the stats report intervals
+        statsTickInterval = config.getAs(BulletStormConfig.FILTER_BOLT_STATS_REPORT_TICKS, Integer.class);
+        statsTickCount = 0;
+        // Set up the manager
+        manager = new QueryManager(config);
         if (metricsEnabled) {
             averageLatency = registerAveragingMetric(TopologyConstants.LATENCY_METRIC, context);
         }
@@ -86,11 +103,16 @@ public class FilterBolt extends QueryBolt {
         declarer.declareStream(ERROR_STREAM, new Fields(ID_FIELD, ERROR_FIELD));
     }
 
+    @Override
+    protected void removeQuery(String id) {
+        manager.removeAndGetQuery(id);
+    }
+
     private void onQuery(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         String query = tuple.getString(TopologyConstants.QUERY_POSITION);
 
-        if (queries.containsKey(id)) {
+        if (manager.hasQuery(id)) {
             log.error("Duplicate for request {} with query {}", id, query);
             return;
         }
@@ -98,7 +120,8 @@ public class FilterBolt extends QueryBolt {
         try {
             Querier querier = createQuerier(Querier.Mode.PARTITION, id, query, config);
             if (!querier.initialize().isPresent()) {
-                setupQuery(id, query, null, querier);
+                manager.addQuery(id, querier);
+                log.info("Initialized query {}", querier.toString());
                 return;
             }
         } catch (RuntimeException ignored) {
@@ -109,29 +132,39 @@ public class FilterBolt extends QueryBolt {
 
     private void onRecord(Tuple tuple) {
         BulletRecord record = (BulletRecord) tuple.getValue(TopologyConstants.RECORD_POSITION);
-        handleCategorizedQueries(new QueryCategorizer().categorize(record, queries));
+        handleCategorizedQueries(manager.categorize(record));
     }
 
     private void onTick() {
         // Categorize queries in partition mode.
-        handleCategorizedQueries(new QueryCategorizer().categorize(queries));
+        handleCategorizedQueries(manager.categorize());
+        handleStats();
     }
 
     private void handleCategorizedQueries(QueryCategorizer category) {
         Map<String, Querier> done = category.getDone();
         done.entrySet().forEach(this::emitData);
-        queries.keySet().removeAll(done.keySet());
+        manager.removeQueries(done.keySet());
 
         Map<String, Querier> rateLimited = category.getRateLimited();
         rateLimited.entrySet().forEach(this::emitError);
-        queries.keySet().removeAll(rateLimited.keySet());
+        manager.removeQueries(rateLimited.keySet());
 
         Map<String, Querier> closed = category.getClosed();
         closed.entrySet().forEach(this::emitData);
         closed.values().forEach(Querier::reset);
 
         log.debug("Done: {}, Rate limited: {}, Closed: {}, Active: {}",
-                  done.size(), rateLimited.size(), closed.size(), queries.size());
+                  done.size(), rateLimited.size(), closed.size(), manager.size());
+    }
+
+    private void handleStats() {
+        statsTickCount++;
+        if (statsTickCount < statsTickInterval) {
+            return;
+        }
+        statsTickCount = 0;
+        log.info("Query Manager Statistics:\n{}\n", manager.getStats());
     }
 
     private void emitData(Map.Entry<String, Querier> query) {
