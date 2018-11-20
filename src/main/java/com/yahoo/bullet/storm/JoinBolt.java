@@ -16,6 +16,7 @@ import com.yahoo.bullet.common.BulletError;
 import com.yahoo.bullet.parsing.ParsingError;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.querying.Querier;
+import com.yahoo.bullet.querying.QueryCategorizer;
 import com.yahoo.bullet.querying.RateLimitError;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Meta;
@@ -38,6 +39,7 @@ public class JoinBolt extends QueryBolt {
     private static final long serialVersionUID = 3312434064971532267L;
 
     private transient Map<String, Metadata> bufferedMetadata;
+    private transient Map<String, Querier> queries;
     // For buffering queries for their final windows or results, if the query windows are record based or have no windows.
     private transient RotatingMap<String, Querier> postFinishBuffer;
     // For buffering queries initially before they are restarted to offset windows if they are time based.
@@ -66,6 +68,7 @@ public class JoinBolt extends QueryBolt {
         super.prepare(stormConf, context, collector);
 
         bufferedMetadata = new HashMap<>();
+        queries = new HashMap<>();
 
         int preStartDelayTicks = config.getAs(BulletStormConfig.JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS, Integer.class);
         preStartBuffer = new RotatingMap<>(preStartDelayTicks);
@@ -128,7 +131,7 @@ public class JoinBolt extends QueryBolt {
         Map<String, Querier> delayed = preStartBuffer.rotate();
         delayed.entrySet().forEach(this::startDelayed);
 
-        // Categorize all the active queries in non-partition mode and do the buffering or emit as necessary
+        // Categorize all the active queries and do the buffering or emit as necessary
         handleCategorizedQueries(new QueryCategorizer().categorize(queries));
     }
 
@@ -299,7 +302,21 @@ public class JoinBolt extends QueryBolt {
     // Override hooks
 
     @Override
-    protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
+    protected void removeQuery(String id) {
+        // Only update count if query was in queries or postFinishBuffer.
+        if (queries.containsKey(id) || postFinishBuffer.containsKey(id)) {
+            updateCount(activeQueriesCount, -1L);
+        }
+        queries.remove(id);
+        postFinishBuffer.remove(id);
+        bufferedMetadata.remove(id);
+        // It should not be in the preStartBuffer under normal operations but could be if it was killed.
+        preStartBuffer.remove(id);
+    }
+
+    // Other helpers
+
+    private void setupQuery(String id, String query, Metadata metadata, Querier querier) {
         updateCount(createdQueriesCount, 1L);
         bufferedMetadata.put(id, metadata);
         // If the query should be post-finish buffered, it should not be pre-start delayed.
@@ -312,21 +329,6 @@ public class JoinBolt extends QueryBolt {
             log.info("Received but delaying starting query {}", id);
         }
     }
-
-    @Override
-    protected void removeQuery(String id) {
-        // Only update count if query was in queries or postFinishBuffer.
-        if (queries.containsKey(id) || postFinishBuffer.containsKey(id)) {
-            updateCount(activeQueriesCount, -1L);
-        }
-        super.removeQuery(id);
-        postFinishBuffer.remove(id);
-        bufferedMetadata.remove(id);
-        // It should not be in the preStartBuffer under normal operations but could be if it was killed.
-        preStartBuffer.remove(id);
-    }
-
-    // Other helpers
 
     private void startDelayed(Map.Entry<String, Querier> query) {
         String id = query.getKey();

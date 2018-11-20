@@ -37,8 +37,7 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <storm.version>0.10.2</storm.version>
-        <bullet.core.version>0.6.0</bullet.core.version>
-        <sketches.version>0.9.1</sketches.version>
+        <bullet.core.version>0.6.2</bullet.core.version>
     </properties>
 
     <dependencies>
@@ -90,11 +89,6 @@
             <groupId>com.yahoo.bullet</groupId>
             <artifactId>bullet-core</artifactId>
             <version>${bullet.core.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>com.yahoo.datasketches</groupId>
-            <artifactId>sketches-core</artifactId>
-            <version>${sketches.version}</version>
         </dependency>
         <dependency>
             <groupId>org.asynchttpclient</groupId>
