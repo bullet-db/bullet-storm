@@ -17,7 +17,6 @@ import org.apache.storm.task.TopologyContext;
 import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.tuple.Tuple;
 
-import java.util.HashMap;
 import java.util.Map;
 
 import static com.yahoo.bullet.storm.BulletStormConfig.DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY;
@@ -30,7 +29,6 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     protected transient Map<String, Number> metricsIntervalMapping;
     protected transient OutputCollector collector;
     protected transient TupleClassifier classifier;
-    protected transient Map<String, Querier> queries;
 
     /**
      * Creates a QueryBolt with a given {@link BulletStormConfig}.
@@ -45,7 +43,6 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     @Override
     public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
         this.collector = collector;
-        queries = new HashMap<>();
         classifier = new TupleClassifier();
         // Enable built in metrics
         metricsEnabled = config.getAs(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, Boolean.class);
@@ -90,26 +87,11 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     }
 
     /**
-     * Setup the query with the given id and body. Override if you need to do additional setup.
-     *
-     * @param id The String ID of the query.
-     * @param query The String body of the query.
-     * @param metadata The {@link Metadata} for the query.
-     * @param querier The valid, initialized {@link Querier} for this query.
-     */
-    protected void setupQuery(String id, String query, Metadata metadata, Querier querier) {
-        queries.put(id, querier);
-        log.info("Initialized query {}", querier.toString());
-    }
-
-    /**
      * Remove the query with this given id. Override this if you need to do additional cleanup.
      *
      * @param id The String id of the query.
      */
-    protected void removeQuery(String id) {
-        queries.remove(id);
-    }
+    protected abstract void removeQuery(String id);
 
     /**
      * Adds the given count to the given metric.

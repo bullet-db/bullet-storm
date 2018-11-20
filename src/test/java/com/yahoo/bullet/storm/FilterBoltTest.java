@@ -429,19 +429,19 @@ public class FilterBoltTest {
     public void testDuplicateQueryIds() {
         Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
-                makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS), METADATA);
+                                   makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS), METADATA);
 
-        Assert.assertEquals(bolt.queries.size(), 0);
-
-        bolt.execute(queryA);
-        bolt.execute(queryB);
-
-        Assert.assertEquals(bolt.queries.size(), 2);
+        Assert.assertEquals(bolt.getManager().size(), 0);
 
         bolt.execute(queryA);
         bolt.execute(queryB);
 
-        Assert.assertEquals(bolt.queries.size(), 2);
+        Assert.assertEquals(bolt.getManager().size(), 2);
+
+        bolt.execute(queryA);
+        bolt.execute(queryB);
+
+        Assert.assertEquals(bolt.getManager().size(), 2);
     }
 
     @Test
@@ -923,5 +923,19 @@ public class FilterBoltTest {
         bolt.execute(someTuple);
 
         Assert.assertEquals(collector.getEmittedCount(), 0);
+    }
+
+    @Test
+    public void testStatisticsReporting() {
+        config.set(BulletStormConfig.FILTER_BOLT_STATS_REPORT_TICKS, 10);
+        config.validate();
+        bolt = ComponentUtils.prepare(new HashMap<>(), new FilterBolt(TopologyConstants.RECORD_COMPONENT, config), collector);
+
+        Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
+        for (int i = 0; i < 10; ++i) {
+            Assert.assertEquals(bolt.getStatsTickCount(), i);
+            bolt.execute(tick);
+        }
+        Assert.assertEquals(bolt.getStatsTickCount(), 0);
     }
 }
