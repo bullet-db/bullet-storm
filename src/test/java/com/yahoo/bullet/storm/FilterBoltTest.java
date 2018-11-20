@@ -429,19 +429,19 @@ public class FilterBoltTest {
     public void testDuplicateQueryIds() {
         Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
         Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
-                makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS), METADATA);
+                                   makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS), METADATA);
 
-        Assert.assertEquals(bolt.queries.size(), 0);
-
-        bolt.execute(queryA);
-        bolt.execute(queryB);
-
-        Assert.assertEquals(bolt.queries.size(), 2);
+        Assert.assertEquals(bolt.getManager().size(), 0);
 
         bolt.execute(queryA);
         bolt.execute(queryB);
 
-        Assert.assertEquals(bolt.queries.size(), 2);
+        Assert.assertEquals(bolt.getManager().size(), 2);
+
+        bolt.execute(queryA);
+        bolt.execute(queryB);
+
+        Assert.assertEquals(bolt.getManager().size(), 2);
     }
 
     @Test
