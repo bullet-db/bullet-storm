@@ -95,74 +95,74 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
 
     static {
         VALIDATOR.define(TOPOLOGY_NAME)
-                .defaultTo(DEFAULT_TOPOLOGY_NAME)
-                .checkIf(Validator::isString);
+                 .defaultTo(DEFAULT_TOPOLOGY_NAME)
+                 .checkIf(Validator::isString);
 
         VALIDATOR.define(TOPOLOGY_METRICS_ENABLE)
-                .defaultTo(DEFAULT_TOPOLOGY_METRICS_ENABLE)
-                .checkIf(Validator::isBoolean);
+                 .defaultTo(DEFAULT_TOPOLOGY_METRICS_ENABLE)
+                 .checkIf(Validator::isBoolean);
         VALIDATOR.define(TOPOLOGY_METRICS_BUILT_IN_ENABLE)
-                .defaultTo(DEFAULT_TOPOLOGY_METRICS_BUILT_IN_ENABLE)
-                .checkIf(Validator::isBoolean);
+                 .defaultTo(DEFAULT_TOPOLOGY_METRICS_BUILT_IN_ENABLE)
+                 .checkIf(Validator::isBoolean);
         VALIDATOR.define(TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING)
-                .checkIf(Validator::isMap)
-                .checkIf(BulletStormConfig::isMetricMapping)
-                .defaultTo(DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING);
+                 .checkIf(Validator::isMap)
+                 .checkIf(BulletStormConfig::isMetricMapping)
+                 .defaultTo(DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING);
         VALIDATOR.define(TOPOLOGY_METRICS_CLASSES)
-                .checkIf(Validator::isList)
-                .checkIf(BulletStormConfig::areMetricsConsumerClasses)
-                .defaultTo(DEFAULT_TOPOLOGY_METRICS_CLASSES);
+                 .checkIf(Validator::isList)
+                 .checkIf(BulletStormConfig::areMetricsConsumerClasses)
+                 .defaultTo(DEFAULT_TOPOLOGY_METRICS_CLASSES);
 
         VALIDATOR.define(QUERY_SPOUT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_QUERY_SPOUT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_QUERY_SPOUT_PARALLELISM)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(FILTER_BOLT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_FILTER_BOLT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_FILTER_BOLT_PARALLELISM)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(JOIN_BOLT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_JOIN_BOLT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_JOIN_BOLT_PARALLELISM)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(RESULT_BOLT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_RESULT_BOLT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_RESULT_BOLT_PARALLELISM)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(LOOP_BOLT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_LOOP_BOLT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_LOOP_BOLT_PARALLELISM)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(TICK_SPOUT_INTERVAL)
-                .checkIf(Validator::isPositiveInt)
-                .checkIf(Validator.isInRange(TICK_INTERVAL_MINIMUM, Double.POSITIVE_INFINITY))
-                .defaultTo(DEFAULT_TICK_SPOUT_INTERVAL)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .checkIf(Validator.isInRange(TICK_INTERVAL_MINIMUM, Double.POSITIVE_INFINITY))
+                 .defaultTo(DEFAULT_TICK_SPOUT_INTERVAL)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(FILTER_BOLT_STATS_REPORT_TICKS)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_FILTER_BOLT_STATS_REPORT_TICKS)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_FILTER_BOLT_STATS_REPORT_TICKS)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(JOIN_BOLT_WINDOW_PRE_START_DELAY_TICKS)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_JOIN_BOLT_QUERY_PRE_START_DELAY_TICKS)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_JOIN_BOLT_QUERY_PRE_START_DELAY_TICKS)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(LOOP_BOLT_PUBSUB_OVERRIDES)
-                .checkIf(Validator::isMap)
-                .checkIf(BulletStormConfig::isMapWithStringKeys)
-                .defaultTo(DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
+                 .checkIf(Validator::isMap)
+                 .checkIf(BulletStormConfig::isMapWithStringKeys)
+                 .defaultTo(DEFAULT_LOOP_BOLT_PUBSUB_OVERRIDES);
 
 
         VALIDATOR.relate("Built-in metrics enabled but no intervals provided", TOPOLOGY_METRICS_BUILT_IN_ENABLE,
