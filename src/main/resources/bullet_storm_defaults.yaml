@@ -55,7 +55,7 @@ bullet.topology.loop.bolt.parallelism: 2
 # This is the number of ticks after which the partitioning (if you use one - see bullet.query.partitioner.enable and
 # bullet.query.partitioner.class.name) stats will be reported. The defaults values for this and the tick interval (see
 # bullet.topology.tick.spout.interval.ms) makes this every 5 minutes (3000 ticks * 100 ms/tick)
-bullet.topology.filter.bolt.stats.report.ticks: 30
+bullet.topology.filter.bolt.stats.report.ticks: 3000
 
 # This is the number of ticks for which a query will be buffered past its expiry in order to wait for
 # the final windows/results to trickle in from the Filter Bolts. If tuples from your your Filter Bolts take longer than
