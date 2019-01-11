@@ -1,22 +1,18 @@
 /*
- *  Copyright 2019, Verizon Media.
+ *  Copyright 2018, Yahoo Inc.
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.dsl.converter.MapBulletRecordConverter;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.storm.testing.ComponentUtils;
 import com.yahoo.bullet.storm.testing.CustomEmitter;
 import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
-import com.yahoo.bullet.storm.testing.MockConnector;
 import org.apache.storm.tuple.Fields;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import java.util.Collections;
 
 public class DSLSpoutTest {
     private DSLSpout dslSpout;
@@ -27,14 +23,6 @@ public class DSLSpoutTest {
         emitter = new CustomEmitter();
         dslSpout = ComponentUtils.open(new DSLSpout(new BulletStormConfig("src/test/resources/test_dsl_config.yaml")), emitter);
         dslSpout.activate();
-    }
-
-    @Test
-    public void testListConstructor() {
-        dslSpout = new DSLSpout(Collections.singletonList("src/test/resources/test_dsl_config.yaml"));
-
-        Assert.assertTrue(dslSpout.getConnector() instanceof MockConnector);
-        Assert.assertTrue(dslSpout.getConverter() instanceof MapBulletRecordConverter);
     }
 
     @Test
@@ -72,17 +60,15 @@ public class DSLSpoutTest {
 
     @Test
     public void testDeactivate() {
-        dslSpout.deactivate();
-
         // coverage - second MockConnector close() will throw
+        dslSpout.deactivate();
         dslSpout.deactivate();
     }
 
     @Test
     public void testClose() {
-        dslSpout.close();
-
         // coverage - second MockConnector close() will throw
+        dslSpout.close();
         dslSpout.close();
     }
 

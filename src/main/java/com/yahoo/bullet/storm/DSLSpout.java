@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019, Verizon Media.
+ *  Copyright 2018, Yahoo Inc.
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
@@ -10,8 +10,6 @@ import com.yahoo.bullet.dsl.BulletDSLException;
 import com.yahoo.bullet.dsl.connector.BulletConnector;
 import com.yahoo.bullet.dsl.converter.BulletRecordConverter;
 import com.yahoo.bullet.record.BulletRecord;
-import lombok.AccessLevel;
-import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -23,6 +21,7 @@ import org.apache.storm.tuple.Values;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 @Slf4j
 public class DSLSpout extends ConfigComponent implements IRichSpout {
@@ -32,23 +31,8 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     private SpoutOutputCollector collector;
     private TopologyContext context;
     private BulletDSLConfig bulletDSLConfig;
-
-    // Exposed for testing only
-    @Getter(AccessLevel.PACKAGE)
     private BulletConnector connector;
-
-    @Getter(AccessLevel.PACKAGE)
     private BulletRecordConverter converter;
-
-    /**
-     * Creates a DSLSpout with a {@link BulletStormConfig} constructed from a configuration file. This constructor is
-     * used in the {@link Topology} class.
-     *
-     * @param args A list of arguments where the first argument is expected to be the path to a configuration file.
-     */
-    public DSLSpout(List<String> args) {
-        this(new BulletStormConfig(args.get(0)));
-    }
 
     /**
      * Creates a DSLSpout with a given {@link BulletStormConfig}.
@@ -90,23 +74,27 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void nextTuple() {
-        List<Object> objects = Collections.emptyList();
+        readObjects().stream().filter(Objects::nonNull).forEach(
+            object -> {
+                BulletRecord record;
+                try {
+                    record = converter.convert(object);
+                } catch (BulletDSLException e) {
+                    log.error("Could not convert object.", e);
+                    return;
+                }
+                collector.emit(new Values(record, System.currentTimeMillis()), DUMMY_ID);
+            }
+        );
+    }
+
+    private List<Object> readObjects() {
         try {
-            objects = connector.read();
+            return connector.read();
         } catch (BulletDSLException e) {
             log.error("Could not read from BulletConnector.", e);
         }
-        long time = System.currentTimeMillis();
-        for (Object object : objects) {
-            try {
-                if (object != null) {
-                    BulletRecord record = converter.convert(object);
-                    collector.emit(new Values(record, time), DUMMY_ID);
-                }
-            } catch (BulletDSLException e) {
-                log.error("Could not convert object.", e);
-            }
-        }
+        return Collections.emptyList();
     }
 
     @Override
@@ -116,12 +104,10 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void ack(Object id) {
-
     }
 
     @Override
     public void fail(Object id) {
-
     }
 
     @Override

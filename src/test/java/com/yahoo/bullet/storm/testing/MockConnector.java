@@ -1,5 +1,5 @@
 /*
- *  Copyright 2019, Verizon Media.
+ *  Copyright 2018, Yahoo Inc.
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
@@ -25,7 +25,6 @@ public class MockConnector extends BulletConnector {
      * @param config Not used.
      */
     public MockConnector(BulletConfig config) {
-
     }
 
     @Override
