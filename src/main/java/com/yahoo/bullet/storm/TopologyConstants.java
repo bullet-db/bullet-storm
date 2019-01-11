@@ -21,6 +21,7 @@ public class TopologyConstants {
     public static final String ERROR_FIELD = "error";
     public static final String RESULT_FIELD = "result";
     public static final String RECORD_FIELD = "record";
+    public static final String RECORD_TIMESTAMP_FIELD = "timestamp";
 
     public static final int ID_POSITION = 0;
     public static final int QUERY_POSITION = 1;
