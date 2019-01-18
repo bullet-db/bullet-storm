@@ -30,8 +30,9 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
     private BulletRecordConverter converter;
 
     /**
+     * Creates a DSLBolt with a given {@link BulletStormConfig}.
      *
-     * @param config
+     * @param config The non-null BulletStormConfig to use. It should contain the settings to initialize a BulletRecordConverter.
      */
     public DSLBolt(BulletStormConfig config) {
         super(config);

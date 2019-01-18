@@ -135,12 +135,7 @@ public class StormUtils {
         StormSubmitter.submitTopology(name, stormConfig, builder.createTopology());
     }
 
-    /**
-     *
-     * @param config
-     * @param builder
-     */
-    public static void addDSLSpout(BulletStormConfig config, TopologyBuilder builder) {
+    private static void addDSLSpout(BulletStormConfig config, TopologyBuilder builder) {
         Number dslSpoutParallelism = config.getAs(BulletStormConfig.DSL_SPOUT_PARALLELISM, Number.class);
         Number dslSpoutCPULoad = config.getAs(BulletStormConfig.DSL_SPOUT_CPU_LOAD, Number.class);
         Number dslSpoutMemoryOnHeapLoad = config.getAs(BulletStormConfig.DSL_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
@@ -171,13 +166,7 @@ public class StormUtils {
         }
     }
 
-    /**
-     *
-     * @param config
-     * @param builder
-     * @throws Exception
-     */
-    public static void addBulletSpout(BulletStormConfig config, TopologyBuilder builder) throws Exception {
+    private static void addBulletSpout(BulletStormConfig config, TopologyBuilder builder) throws Exception {
         String bulletSpoutClassName = config.getAs(BulletStormConfig.BULLET_SPOUT_CLASS_NAME, String.class);
         List<String> bulletSpoutArgs = config.getAs(BulletStormConfig.BULLET_SPOUT_ARGS, List.class);
         Number bulletSpoutParallelism = config.getAs(BulletStormConfig.BULLET_SPOUT_PARALLELISM, Number.class);
@@ -213,8 +202,12 @@ public class StormUtils {
     }
 
     /**
+     * This submits a topology after loading the configured Spout (and optionally, bolt), which is either the {@link DSLSpout}
+     * and {@link DSLBolt} or a custom Spout and Bolt. The topology is submitted with the given configuration as the source
+     * of {@link com.yahoo.bullet.record.BulletRecord} using the given {@link TopologyBuilder}
      *
-     * @param config
+     * @param config The Storm settings for this Bullet topology.
+     * @param builder The {@link TopologyBuilder} to use to add the topology to.
      * @throws Exception
      */
     public static void submit(BulletStormConfig config, TopologyBuilder builder) throws Exception {

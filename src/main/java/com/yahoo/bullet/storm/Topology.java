@@ -21,7 +21,7 @@ public class Topology {
         {
             accepts(CONFIGURATION_ARG, "The configuration YAML file for Bullet")
                     .withRequiredArg()
-                    .describedAs("Configuration file used to specify your spout/bolt and override Bullet's default settings");
+                    .describedAs("Configuration file used to override Bullet's default settings");
             accepts(HELP_ARG, "Shows the help message")
                     .withOptionalArg()
                     .describedAs("Print help message");
@@ -63,26 +63,26 @@ public class Topology {
                            " - bullet.topology.dsl.spout.memory.off.heap.load: (The off-heap memory given to the DSL spout in the Storm RAS scheduler)\n\n" +
                            "If you want to use a DSL Bolt in addition to the DSL Spout, set the following:\n" +
                            " - bullet.topology.dsl.bolt.enable: true\n" +
-                           " - bullet.topology.dsl.bolt.parallelism: 10\n" +
-                           " - bullet.topology.dsl.bolt.cpu.load: 50.0\n" +
-                           " - bullet.topology.dsl.bolt.memory.on.heap.load: 256.0\n" +
-                           " - bullet.topology.dsl.bolt.memory.off.heap.load: 160.0\n\n" +
-                           "If you wish to connect a Spout that implements IRichSpout and emits\n" +
+                           " - bullet.topology.dsl.bolt.parallelism: (The parallelism hint for the DSL bolt)\n" +
+                           " - bullet.topology.dsl.bolt.cpu.load: (The CPU load given to the DSL bolt in the Storm RAS scheduler)\n" +
+                           " - bullet.topology.dsl.bolt.memory.on.heap.load: (The on-heap memory given to the DSL bolt in the Storm RAS scheduler)\n" +
+                           " - bullet.topology.dsl.bolt.memory.off.heap.load: (The off-heap memory given to the DSL bolt in the Storm RAS scheduler)\n\n" +
+                           "If instead you want to connect a custom Spout that implements IRichSpout and emits\n" +
                            "BulletRecords, set the following:\n" +
                            " - bullet.topology.bullet.spout.class.name: \"your-bullet-spout\"\n" +
                            " - bullet.topology.bullet.spout.args: []\n" +
-                           " - bullet.topology.bullet.spout.parallelism: 10\n" +
-                           " - bullet.topology.bullet.spout.cpu.load: 50.0\n" +
-                           " - bullet.topology.bullet.spout.memory.on.heap.load: 256.0\n" +
-                           " - bullet.topology.bullet.spout.memory.off.heap.load: 160.0\n\n" +
-                           "If you wish to direct your Spout to your Bolt, set the following:\n" +
-                           " - bullet.topology.bullet.bolt.enable: false\n" +
+                           " - bullet.topology.bullet.spout.parallelism: (The parallelism hint for your spout)\n" +
+                           " - bullet.topology.bullet.spout.cpu.load: (The CPU load given to your spout in the Storm RAS scheduler)\n" +
+                           " - bullet.topology.bullet.spout.memory.on.heap.load: (The on-heap memory given to your spout in the Storm RAS scheduler)\n" +
+                           " - bullet.topology.bullet.spout.memory.off.heap.load: (The off-heap memory given to your spout in the Storm RAS scheduler)\n\n" +
+                           "If want to direct your spout output to a custom Bolt, set the following:\n" +
+                           " - bullet.topology.bullet.bolt.enable: true\n" +
                            " - bullet.topology.bullet.bolt.class.name: \"your-bullet-bolt\"\n" +
                            " - bullet.topology.bullet.bolt.args: []\n" +
-                           " - bullet.topology.bullet.bolt.parallelism: 10\n" +
-                           " - bullet.topology.bullet.bolt.cpu.load: 50.0\n" +
-                           " - bullet.topology.bullet.bolt.memory.on.heap.load: 256.0\n" +
-                           " - bullet.topology.bullet.bolt.memory.off.heap.load: 160.0");
+                           " - bullet.topology.bullet.bolt.parallelism: (The parallelism hint for your bolt)\n" +
+                           " - bullet.topology.bullet.bolt.cpu.load: (The CPU load given to your bolt in the Storm RAS scheduler)\n" +
+                           " - bullet.topology.bullet.bolt.memory.on.heap.load: (The on-heap memory given to your bolt in the Storm RAS scheduler)\n" +
+                           " - bullet.topology.bullet.bolt.memory.off.heap.load: (The off-heap memory given to your bolt in the Storm RAS scheduler)");
         PARSER.printHelpOn(System.out);
     }
 }
