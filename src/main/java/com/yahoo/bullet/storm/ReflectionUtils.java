@@ -8,6 +8,7 @@ package com.yahoo.bullet.storm;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
 import org.apache.storm.metric.api.IMetricsConsumer;
+import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.IRichSpout;
 
 import java.lang.reflect.Constructor;
@@ -41,6 +42,28 @@ public class ReflectionUtils {
             initialized = spout.newInstance();
         }
         log.info("Initialized spout class {}", className);
+        return initialized;
+    }
+
+    /**
+     *
+     * @param className
+     * @param args
+     * @return
+     * @throws Exception
+     */
+    public static IRichBolt getBolt(String className, List<String> args) throws Exception {
+        Class<? extends IRichBolt> bolt = (Class<? extends IRichBolt>) Class.forName(className);
+        IRichBolt initialized;
+        try {
+            Constructor constructor = bolt.getConstructor(List.class);
+            log.info("Initializing bolt using constructor {} with args {}", constructor.toGenericString(), args);
+            initialized = (IRichBolt) constructor.newInstance(args);
+        } catch (Exception e) {
+            log.info("Could not find or initialize a constructor taking a List. Trying default constructor...", e);
+            initialized = bolt.newInstance();
+        }
+        log.info("Initialized bolt class {}", className);
         return initialized;
     }
 

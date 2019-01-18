@@ -6,10 +6,13 @@
 package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.storm.testing.CustomIMetricsConsumer;
+import com.yahoo.bullet.storm.testing.CustomIRichBolt;
 import com.yahoo.bullet.storm.testing.CustomIRichSpout;
+import com.yahoo.bullet.storm.testing.TestBolt;
 import com.yahoo.bullet.storm.testing.TestSpout;
 import org.apache.storm.Config;
 import org.apache.storm.metric.LoggingMetricsConsumer;
+import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.topology.IRichSpout;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -34,6 +37,25 @@ public class ReflectionUtilsTest {
         IRichSpout spout = ReflectionUtils.getSpout(TestSpout.class.getName(), Collections.singletonList("foo"));
         Assert.assertTrue(spout instanceof TestSpout);
         Assert.assertEquals(((TestSpout) spout).getArgs(), Collections.singletonList("foo"));
+    }
+
+    @Test(expectedExceptions = ClassNotFoundException.class)
+    public void testGettingNonExistentBolt() throws Exception {
+        ReflectionUtils utils = new ReflectionUtils();
+        utils.getBolt("does.not.exist", null);
+    }
+
+    @Test
+    public void testGettingBoltWithDefaultConstructor() throws Exception {
+        IRichBolt bolt = ReflectionUtils.getBolt(CustomIRichBolt.class.getName(), null);
+        Assert.assertTrue(bolt instanceof CustomIRichBolt);
+    }
+
+    @Test
+    public void testGettingBoltWithArguments() throws Exception {
+        IRichBolt bolt = ReflectionUtils.getBolt(TestBolt.class.getName(), Collections.singletonList("foo"));
+        Assert.assertTrue(bolt instanceof TestBolt);
+        Assert.assertEquals(((TestBolt) bolt).getArgs(), Collections.singletonList("foo"));
     }
 
     @Test

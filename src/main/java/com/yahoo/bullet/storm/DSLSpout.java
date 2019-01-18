@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 @Slf4j
 public class DSLSpout extends ConfigComponent implements IRichSpout {
@@ -29,10 +30,10 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     private static final Long DUMMY_ID = 42L;
 
     private SpoutOutputCollector collector;
-    private TopologyContext context;
-    private BulletDSLConfig bulletDSLConfig;
+    private BulletDSLConfig dslConfig;
     private BulletConnector connector;
     private BulletRecordConverter converter;
+    private boolean dslBoltEnable;
 
     /**
      * Creates a DSLSpout with a given {@link BulletStormConfig}.
@@ -41,15 +42,17 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
      */
     public DSLSpout(BulletStormConfig config) {
         super(config);
-        bulletDSLConfig = new BulletDSLConfig(config);
-        connector = BulletConnector.from(bulletDSLConfig);
-        converter = BulletRecordConverter.from(bulletDSLConfig);
+        dslConfig = new BulletDSLConfig(config);
+        connector = BulletConnector.from(dslConfig);
+        dslBoltEnable = config.getAs(BulletStormConfig.DSL_BOLT_ENABLE, Boolean.class);
+        if (!dslBoltEnable) {
+            converter = BulletRecordConverter.from(dslConfig);
+        }
     }
 
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         this.collector = collector;
-        this.context = context;
     }
 
     @Override
@@ -74,7 +77,15 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void nextTuple() {
-        readObjects().stream().filter(Objects::nonNull).forEach(
+        List<Object> objects = readObjects();
+        if (objects.isEmpty()) {
+            return;
+        }
+        if (dslBoltEnable) {
+            collector.emit(new Values(objects, System.currentTimeMillis()), DUMMY_ID);
+            return;
+        }
+        objects.forEach(
             object -> {
                 BulletRecord record;
                 try {
@@ -90,7 +101,7 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
 
     private List<Object> readObjects() {
         try {
-            return connector.read();
+            return connector.read().stream().filter(Objects::nonNull).collect(Collectors.toList());
         } catch (BulletDSLException e) {
             log.error("Could not read from BulletConnector.", e);
         }
@@ -99,6 +110,7 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
+        // TODO Keep this the same even if DSL bolt is enabled?
         declarer.declare(new Fields(TopologyConstants.RECORD_FIELD, TopologyConstants.RECORD_TIMESTAMP_FIELD));
     }
 

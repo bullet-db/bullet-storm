@@ -14,14 +14,18 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.List;
+
 public class DSLSpoutTest {
     private DSLSpout dslSpout;
+    private BulletStormConfig config;
     private CustomEmitter emitter;
 
     @BeforeMethod
     public void setup() {
         emitter = new CustomEmitter();
-        dslSpout = ComponentUtils.open(new DSLSpout(new BulletStormConfig("src/test/resources/test_dsl_config.yaml")), emitter);
+        config = new BulletStormConfig("src/test/resources/test_dsl_config.yaml");
+        dslSpout = ComponentUtils.open(new DSLSpout(config), emitter);
         dslSpout.activate();
     }
 
@@ -41,6 +45,20 @@ public class DSLSpoutTest {
 
         // nothing new emitted
         Assert.assertEquals(emitter.getEmitted().size(), 1);
+    }
+
+    @Test
+    public void testNextTupleWithDSLBolt() {
+        config.set(BulletStormConfig.DSL_BOLT_ENABLE, true);
+
+        dslSpout = ComponentUtils.open(new DSLSpout(config), emitter);
+        dslSpout.activate();
+        dslSpout.nextTuple();
+
+        Assert.assertEquals(emitter.getEmitted().size(), 1);
+
+        List<Object> objects = (List<Object>) emitter.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);
+        Assert.assertEquals(objects.size(), 2);
     }
 
     @Test

@@ -7,6 +7,7 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.storm.testing.CustomBoltDeclarer;
 import com.yahoo.bullet.storm.testing.CustomIMetricsConsumer;
+import com.yahoo.bullet.storm.testing.CustomIRichBolt;
 import com.yahoo.bullet.storm.testing.CustomIRichSpout;
 import com.yahoo.bullet.storm.testing.CustomSpoutDeclarer;
 import com.yahoo.bullet.storm.testing.CustomTopologyBuilder;
@@ -54,6 +55,13 @@ public class StormUtilsTest {
         }
     }
 
+    private void submitWithConfig(BulletStormConfig config) {
+        try {
+            StormUtils.submit(config, builder);
+        } catch (Exception ignored) {
+        }
+    }
+
     private CustomBoltDeclarer getBolt(String name)  {
         return builder.getCreatedBolts().stream().filter(b -> name.equals(b.getId())).findFirst().get();
     }
@@ -87,7 +95,7 @@ public class StormUtilsTest {
     @Test(expectedExceptions = ClassNotFoundException.class)
     public void testFailingSubmitOnMissingSpout() throws Exception {
         StormUtils utils = new StormUtils();
-        utils.submit("non.existant.spout", null, new BulletStormConfig(), null, null, null, null);
+        utils.submit("non.existent.spout", null, new BulletStormConfig(), null, null, null, null);
     }
 
     @Test
@@ -209,6 +217,439 @@ public class StormUtilsTest {
         Assert.assertEquals(source.getCpuLoad(), 100.0);
         Assert.assertEquals(source.getOnHeap(), 96.0);
         Assert.assertEquals(source.getOffHeap(), 0.0);
+
+        CustomSpoutDeclarer tickSpout = getSpout(TopologyConstants.TICK_COMPONENT);
+        Assert.assertNotNull(tickSpout);
+        Assert.assertEquals(tickSpout.getSpout().getClass(), TickSpout.class);
+        Assert.assertEquals(tickSpout.getParallelism(), BulletStormConfig.TICK_SPOUT_PARALLELISM);
+        Assert.assertEquals(tickSpout.getCpuLoad(), BulletStormConfig.DEFAULT_TICK_SPOUT_CPU_LOAD);
+        Assert.assertEquals(tickSpout.getOnHeap(), BulletStormConfig.DEFAULT_TICK_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(tickSpout.getOffHeap(), BulletStormConfig.DEFAULT_TICK_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomSpoutDeclarer querySpout = getSpout(TopologyConstants.QUERY_COMPONENT);
+        Assert.assertNotNull(querySpout);
+        Assert.assertEquals(querySpout.getSpout().getClass(), QuerySpout.class);
+        Assert.assertEquals(querySpout.getParallelism(), BulletStormConfig.DEFAULT_QUERY_SPOUT_PARALLELISM);
+        Assert.assertEquals(querySpout.getCpuLoad(), BulletStormConfig.DEFAULT_QUERY_SPOUT_CPU_LOAD);
+        Assert.assertEquals(querySpout.getOnHeap(), BulletStormConfig.DEFAULT_QUERY_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(querySpout.getOffHeap(), BulletStormConfig.DEFAULT_QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomBoltDeclarer filterBolt = getBolt(FILTER_COMPONENT);
+        Assert.assertNotNull(filterBolt);
+        Assert.assertEquals(filterBolt.getBolt().getClass(), FilterBolt.class);
+        Assert.assertEquals(filterBolt.getParallelism(), BulletStormConfig.DEFAULT_FILTER_BOLT_PARALLELISM);
+        Assert.assertEquals(filterBolt.getCpuLoad(), BulletStormConfig.DEFAULT_FILTER_BOLT_CPU_LOAD);
+        Assert.assertEquals(filterBolt.getOnHeap(), BulletStormConfig.DEFAULT_FILTER_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(filterBolt.getOffHeap(), BulletStormConfig.DEFAULT_FILTER_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> filterAllGroupings = filterBolt.getAllGroupings();
+        Assert.assertEquals(filterAllGroupings.size(), 3);
+        assertContains(filterAllGroupings, TICK_COMPONENT, TICK_STREAM);
+        assertContains(filterAllGroupings, QUERY_COMPONENT, QUERY_STREAM);
+        assertContains(filterAllGroupings, QUERY_COMPONENT, METADATA_STREAM);
+        List<Pair<String, String>> filterShuffleGroupings = filterBolt.getShuffleGroupings();
+        assertContains(filterShuffleGroupings, TopologyConstants.RECORD_COMPONENT, Utils.DEFAULT_STREAM_ID);
+        Map<Pair<String, String>, List<Fields>> filterFieldGroupings = filterBolt.getFieldsGroupings();
+        Assert.assertTrue(filterFieldGroupings.isEmpty());
+
+        CustomBoltDeclarer joinBolt = getBolt(JOIN_COMPONENT);
+        Assert.assertNotNull(joinBolt);
+        Assert.assertEquals(joinBolt.getBolt().getClass(), JoinBolt.class);
+        Assert.assertEquals(joinBolt.getParallelism(), BulletStormConfig.DEFAULT_JOIN_BOLT_PARALLELISM);
+        Assert.assertEquals(joinBolt.getCpuLoad(), BulletStormConfig.DEFAULT_JOIN_BOLT_CPU_LOAD);
+        Assert.assertEquals(joinBolt.getOnHeap(), BulletStormConfig.DEFAULT_JOIN_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(joinBolt.getOffHeap(), BulletStormConfig.DEFAULT_JOIN_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> joinAllGroupings = joinBolt.getAllGroupings();
+        Assert.assertEquals(joinAllGroupings.size(), 1);
+        assertContains(joinAllGroupings, TICK_COMPONENT, TICK_STREAM);
+        List<Pair<String, String>> joinShuffleGroupings = joinBolt.getShuffleGroupings();
+        Assert.assertTrue(joinShuffleGroupings.isEmpty());
+        Map<Pair<String, String>, List<Fields>> joinFieldGroupings = joinBolt.getFieldsGroupings();
+        Assert.assertEquals(joinFieldGroupings.size(), 3);
+        assertContains(joinFieldGroupings, QUERY_COMPONENT, QUERY_STREAM, new Fields(ID_FIELD));
+        assertContains(joinFieldGroupings, QUERY_COMPONENT, METADATA_STREAM, new Fields(ID_FIELD));
+        assertContains(joinFieldGroupings, FILTER_COMPONENT, DATA_STREAM, new Fields(ID_FIELD));
+
+        CustomBoltDeclarer resultBolt = getBolt(RESULT_COMPONENT);
+        Assert.assertNotNull(resultBolt);
+        Assert.assertEquals(resultBolt.getBolt().getClass(), ResultBolt.class);
+        Assert.assertEquals(resultBolt.getParallelism(), BulletStormConfig.DEFAULT_RESULT_BOLT_PARALLELISM);
+        Assert.assertEquals(resultBolt.getCpuLoad(), BulletStormConfig.DEFAULT_RESULT_BOLT_CPU_LOAD);
+        Assert.assertEquals(resultBolt.getOnHeap(), BulletStormConfig.DEFAULT_RESULT_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(resultBolt.getOffHeap(), BulletStormConfig.DEFAULT_RESULT_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> resultAllGroupings = resultBolt.getAllGroupings();
+        Assert.assertTrue(resultAllGroupings.isEmpty());
+        List<Pair<String, String>> resultShuffleGroupings = resultBolt.getShuffleGroupings();
+        Assert.assertEquals(resultShuffleGroupings.size(), 1);
+        assertContains(resultShuffleGroupings, JOIN_COMPONENT, RESULT_STREAM);
+        Map<Pair<String, String>, List<Fields>> resultFieldGroupings = resultBolt.getFieldsGroupings();
+        Assert.assertTrue(resultFieldGroupings.isEmpty());
+
+        CustomBoltDeclarer loopBolt = getBolt(LOOP_COMPONENT);
+        Assert.assertNotNull(loopBolt);
+        Assert.assertEquals(loopBolt.getBolt().getClass(), LoopBolt.class);
+        Assert.assertEquals(loopBolt.getParallelism(), BulletStormConfig.DEFAULT_LOOP_BOLT_PARALLELISM);
+        Assert.assertEquals(loopBolt.getCpuLoad(), BulletStormConfig.DEFAULT_LOOP_BOLT_CPU_LOAD);
+        Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> loopAllGroupings = loopBolt.getAllGroupings();
+        Assert.assertTrue(loopAllGroupings.isEmpty());
+        List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
+        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
+        Map<Pair<String, String>, List<Fields>> loopFieldGroupings = loopBolt.getFieldsGroupings();
+        Assert.assertTrue(loopFieldGroupings.isEmpty());
+    }
+
+    @Test
+    public void testHookingInDSLSpout() {
+        config = new BulletStormConfig("src/test/resources/test_dsl_config.yaml");
+        config.set(BulletStormConfig.DSL_SPOUT_ENABLE, true);
+
+        Assert.assertFalse(builder.isTopologyCreated());
+        submitWithConfig(config);
+
+        Assert.assertTrue(builder.isTopologyCreated());
+
+        Assert.assertEquals(builder.getCreatedSpouts().size(), 3);
+        Assert.assertEquals(builder.getCreatedBolts().size(), 4);
+
+        CustomSpoutDeclarer source = getSpout(TopologyConstants.RECORD_COMPONENT);
+        Assert.assertNotNull(source);
+        Assert.assertEquals(source.getSpout().getClass(), DSLSpout.class);
+        Assert.assertEquals(source.getParallelism(), BulletStormConfig.DEFAULT_DSL_SPOUT_PARALLELISM);
+        Assert.assertEquals(source.getCpuLoad(), BulletStormConfig.DEFAULT_DSL_SPOUT_CPU_LOAD);
+        Assert.assertEquals(source.getOnHeap(), BulletStormConfig.DEFAULT_DSL_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(source.getOffHeap(), BulletStormConfig.DEFAULT_DSL_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomSpoutDeclarer tickSpout = getSpout(TopologyConstants.TICK_COMPONENT);
+        Assert.assertNotNull(tickSpout);
+        Assert.assertEquals(tickSpout.getSpout().getClass(), TickSpout.class);
+        Assert.assertEquals(tickSpout.getParallelism(), BulletStormConfig.TICK_SPOUT_PARALLELISM);
+        Assert.assertEquals(tickSpout.getCpuLoad(), BulletStormConfig.DEFAULT_TICK_SPOUT_CPU_LOAD);
+        Assert.assertEquals(tickSpout.getOnHeap(), BulletStormConfig.DEFAULT_TICK_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(tickSpout.getOffHeap(), BulletStormConfig.DEFAULT_TICK_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomSpoutDeclarer querySpout = getSpout(TopologyConstants.QUERY_COMPONENT);
+        Assert.assertNotNull(querySpout);
+        Assert.assertEquals(querySpout.getSpout().getClass(), QuerySpout.class);
+        Assert.assertEquals(querySpout.getParallelism(), BulletStormConfig.DEFAULT_QUERY_SPOUT_PARALLELISM);
+        Assert.assertEquals(querySpout.getCpuLoad(), BulletStormConfig.DEFAULT_QUERY_SPOUT_CPU_LOAD);
+        Assert.assertEquals(querySpout.getOnHeap(), BulletStormConfig.DEFAULT_QUERY_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(querySpout.getOffHeap(), BulletStormConfig.DEFAULT_QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomBoltDeclarer filterBolt = getBolt(FILTER_COMPONENT);
+        Assert.assertNotNull(filterBolt);
+        Assert.assertEquals(filterBolt.getBolt().getClass(), FilterBolt.class);
+        Assert.assertEquals(filterBolt.getParallelism(), BulletStormConfig.DEFAULT_FILTER_BOLT_PARALLELISM);
+        Assert.assertEquals(filterBolt.getCpuLoad(), BulletStormConfig.DEFAULT_FILTER_BOLT_CPU_LOAD);
+        Assert.assertEquals(filterBolt.getOnHeap(), BulletStormConfig.DEFAULT_FILTER_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(filterBolt.getOffHeap(), BulletStormConfig.DEFAULT_FILTER_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> filterAllGroupings = filterBolt.getAllGroupings();
+        Assert.assertEquals(filterAllGroupings.size(), 3);
+        assertContains(filterAllGroupings, TICK_COMPONENT, TICK_STREAM);
+        assertContains(filterAllGroupings, QUERY_COMPONENT, QUERY_STREAM);
+        assertContains(filterAllGroupings, QUERY_COMPONENT, METADATA_STREAM);
+        List<Pair<String, String>> filterShuffleGroupings = filterBolt.getShuffleGroupings();
+        assertContains(filterShuffleGroupings, TopologyConstants.RECORD_COMPONENT, Utils.DEFAULT_STREAM_ID);
+        Map<Pair<String, String>, List<Fields>> filterFieldGroupings = filterBolt.getFieldsGroupings();
+        Assert.assertTrue(filterFieldGroupings.isEmpty());
+
+        CustomBoltDeclarer joinBolt = getBolt(JOIN_COMPONENT);
+        Assert.assertNotNull(joinBolt);
+        Assert.assertEquals(joinBolt.getBolt().getClass(), JoinBolt.class);
+        Assert.assertEquals(joinBolt.getParallelism(), BulletStormConfig.DEFAULT_JOIN_BOLT_PARALLELISM);
+        Assert.assertEquals(joinBolt.getCpuLoad(), BulletStormConfig.DEFAULT_JOIN_BOLT_CPU_LOAD);
+        Assert.assertEquals(joinBolt.getOnHeap(), BulletStormConfig.DEFAULT_JOIN_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(joinBolt.getOffHeap(), BulletStormConfig.DEFAULT_JOIN_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> joinAllGroupings = joinBolt.getAllGroupings();
+        Assert.assertEquals(joinAllGroupings.size(), 1);
+        assertContains(joinAllGroupings, TICK_COMPONENT, TICK_STREAM);
+        List<Pair<String, String>> joinShuffleGroupings = joinBolt.getShuffleGroupings();
+        Assert.assertTrue(joinShuffleGroupings.isEmpty());
+        Map<Pair<String, String>, List<Fields>> joinFieldGroupings = joinBolt.getFieldsGroupings();
+        Assert.assertEquals(joinFieldGroupings.size(), 3);
+        assertContains(joinFieldGroupings, QUERY_COMPONENT, QUERY_STREAM, new Fields(ID_FIELD));
+        assertContains(joinFieldGroupings, QUERY_COMPONENT, METADATA_STREAM, new Fields(ID_FIELD));
+        assertContains(joinFieldGroupings, FILTER_COMPONENT, DATA_STREAM, new Fields(ID_FIELD));
+
+        CustomBoltDeclarer resultBolt = getBolt(RESULT_COMPONENT);
+        Assert.assertNotNull(resultBolt);
+        Assert.assertEquals(resultBolt.getBolt().getClass(), ResultBolt.class);
+        Assert.assertEquals(resultBolt.getParallelism(), BulletStormConfig.DEFAULT_RESULT_BOLT_PARALLELISM);
+        Assert.assertEquals(resultBolt.getCpuLoad(), BulletStormConfig.DEFAULT_RESULT_BOLT_CPU_LOAD);
+        Assert.assertEquals(resultBolt.getOnHeap(), BulletStormConfig.DEFAULT_RESULT_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(resultBolt.getOffHeap(), BulletStormConfig.DEFAULT_RESULT_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> resultAllGroupings = resultBolt.getAllGroupings();
+        Assert.assertTrue(resultAllGroupings.isEmpty());
+        List<Pair<String, String>> resultShuffleGroupings = resultBolt.getShuffleGroupings();
+        Assert.assertEquals(resultShuffleGroupings.size(), 1);
+        assertContains(resultShuffleGroupings, JOIN_COMPONENT, RESULT_STREAM);
+        Map<Pair<String, String>, List<Fields>> resultFieldGroupings = resultBolt.getFieldsGroupings();
+        Assert.assertTrue(resultFieldGroupings.isEmpty());
+
+        CustomBoltDeclarer loopBolt = getBolt(LOOP_COMPONENT);
+        Assert.assertNotNull(loopBolt);
+        Assert.assertEquals(loopBolt.getBolt().getClass(), LoopBolt.class);
+        Assert.assertEquals(loopBolt.getParallelism(), BulletStormConfig.DEFAULT_LOOP_BOLT_PARALLELISM);
+        Assert.assertEquals(loopBolt.getCpuLoad(), BulletStormConfig.DEFAULT_LOOP_BOLT_CPU_LOAD);
+        Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> loopAllGroupings = loopBolt.getAllGroupings();
+        Assert.assertTrue(loopAllGroupings.isEmpty());
+        List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
+        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
+        Map<Pair<String, String>, List<Fields>> loopFieldGroupings = loopBolt.getFieldsGroupings();
+        Assert.assertTrue(loopFieldGroupings.isEmpty());
+    }
+
+    @Test
+    public void testHookingInDSLSpoutAndBolt() {
+        config = new BulletStormConfig("src/test/resources/test_dsl_config.yaml");
+        config.set(BulletStormConfig.DSL_SPOUT_ENABLE, true);
+        config.set(BulletStormConfig.DSL_BOLT_ENABLE, true);
+
+        Assert.assertFalse(builder.isTopologyCreated());
+        submitWithConfig(config);
+
+        Assert.assertTrue(builder.isTopologyCreated());
+
+        Assert.assertEquals(builder.getCreatedSpouts().size(), 3);
+        Assert.assertEquals(builder.getCreatedBolts().size(), 5);
+
+        CustomSpoutDeclarer data = getSpout(TopologyConstants.DATA_COMPONENT);
+        Assert.assertNotNull(data);
+        Assert.assertEquals(data.getSpout().getClass(), DSLSpout.class);
+        Assert.assertEquals(data.getParallelism(), BulletStormConfig.DEFAULT_DSL_SPOUT_PARALLELISM);
+        Assert.assertEquals(data.getCpuLoad(), BulletStormConfig.DEFAULT_DSL_SPOUT_CPU_LOAD);
+        Assert.assertEquals(data.getOnHeap(), BulletStormConfig.DEFAULT_DSL_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(data.getOffHeap(), BulletStormConfig.DEFAULT_DSL_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomBoltDeclarer source = getBolt(TopologyConstants.RECORD_COMPONENT);
+        Assert.assertNotNull(source);
+        Assert.assertEquals(source.getBolt().getClass(), DSLBolt.class);
+        Assert.assertEquals(source.getParallelism(), BulletStormConfig.DEFAULT_DSL_BOLT_PARALLELISM);
+        Assert.assertEquals(source.getCpuLoad(), BulletStormConfig.DEFAULT_DSL_BOLT_CPU_LOAD);
+        Assert.assertEquals(source.getOnHeap(), BulletStormConfig.DEFAULT_DSL_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(source.getOffHeap(), BulletStormConfig.DEFAULT_DSL_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> sourceShuffleGroupings = source.getShuffleGroupings();
+        assertContains(sourceShuffleGroupings, TopologyConstants.DATA_COMPONENT, Utils.DEFAULT_STREAM_ID);
+
+        CustomSpoutDeclarer tickSpout = getSpout(TopologyConstants.TICK_COMPONENT);
+        Assert.assertNotNull(tickSpout);
+        Assert.assertEquals(tickSpout.getSpout().getClass(), TickSpout.class);
+        Assert.assertEquals(tickSpout.getParallelism(), BulletStormConfig.TICK_SPOUT_PARALLELISM);
+        Assert.assertEquals(tickSpout.getCpuLoad(), BulletStormConfig.DEFAULT_TICK_SPOUT_CPU_LOAD);
+        Assert.assertEquals(tickSpout.getOnHeap(), BulletStormConfig.DEFAULT_TICK_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(tickSpout.getOffHeap(), BulletStormConfig.DEFAULT_TICK_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomSpoutDeclarer querySpout = getSpout(TopologyConstants.QUERY_COMPONENT);
+        Assert.assertNotNull(querySpout);
+        Assert.assertEquals(querySpout.getSpout().getClass(), QuerySpout.class);
+        Assert.assertEquals(querySpout.getParallelism(), BulletStormConfig.DEFAULT_QUERY_SPOUT_PARALLELISM);
+        Assert.assertEquals(querySpout.getCpuLoad(), BulletStormConfig.DEFAULT_QUERY_SPOUT_CPU_LOAD);
+        Assert.assertEquals(querySpout.getOnHeap(), BulletStormConfig.DEFAULT_QUERY_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(querySpout.getOffHeap(), BulletStormConfig.DEFAULT_QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomBoltDeclarer filterBolt = getBolt(FILTER_COMPONENT);
+        Assert.assertNotNull(filterBolt);
+        Assert.assertEquals(filterBolt.getBolt().getClass(), FilterBolt.class);
+        Assert.assertEquals(filterBolt.getParallelism(), BulletStormConfig.DEFAULT_FILTER_BOLT_PARALLELISM);
+        Assert.assertEquals(filterBolt.getCpuLoad(), BulletStormConfig.DEFAULT_FILTER_BOLT_CPU_LOAD);
+        Assert.assertEquals(filterBolt.getOnHeap(), BulletStormConfig.DEFAULT_FILTER_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(filterBolt.getOffHeap(), BulletStormConfig.DEFAULT_FILTER_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> filterAllGroupings = filterBolt.getAllGroupings();
+        Assert.assertEquals(filterAllGroupings.size(), 3);
+        assertContains(filterAllGroupings, TICK_COMPONENT, TICK_STREAM);
+        assertContains(filterAllGroupings, QUERY_COMPONENT, QUERY_STREAM);
+        assertContains(filterAllGroupings, QUERY_COMPONENT, METADATA_STREAM);
+        List<Pair<String, String>> filterShuffleGroupings = filterBolt.getShuffleGroupings();
+        assertContains(filterShuffleGroupings, TopologyConstants.RECORD_COMPONENT, Utils.DEFAULT_STREAM_ID);
+        Map<Pair<String, String>, List<Fields>> filterFieldGroupings = filterBolt.getFieldsGroupings();
+        Assert.assertTrue(filterFieldGroupings.isEmpty());
+
+        CustomBoltDeclarer joinBolt = getBolt(JOIN_COMPONENT);
+        Assert.assertNotNull(joinBolt);
+        Assert.assertEquals(joinBolt.getBolt().getClass(), JoinBolt.class);
+        Assert.assertEquals(joinBolt.getParallelism(), BulletStormConfig.DEFAULT_JOIN_BOLT_PARALLELISM);
+        Assert.assertEquals(joinBolt.getCpuLoad(), BulletStormConfig.DEFAULT_JOIN_BOLT_CPU_LOAD);
+        Assert.assertEquals(joinBolt.getOnHeap(), BulletStormConfig.DEFAULT_JOIN_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(joinBolt.getOffHeap(), BulletStormConfig.DEFAULT_JOIN_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> joinAllGroupings = joinBolt.getAllGroupings();
+        Assert.assertEquals(joinAllGroupings.size(), 1);
+        assertContains(joinAllGroupings, TICK_COMPONENT, TICK_STREAM);
+        List<Pair<String, String>> joinShuffleGroupings = joinBolt.getShuffleGroupings();
+        Assert.assertTrue(joinShuffleGroupings.isEmpty());
+        Map<Pair<String, String>, List<Fields>> joinFieldGroupings = joinBolt.getFieldsGroupings();
+        Assert.assertEquals(joinFieldGroupings.size(), 3);
+        assertContains(joinFieldGroupings, QUERY_COMPONENT, QUERY_STREAM, new Fields(ID_FIELD));
+        assertContains(joinFieldGroupings, QUERY_COMPONENT, METADATA_STREAM, new Fields(ID_FIELD));
+        assertContains(joinFieldGroupings, FILTER_COMPONENT, DATA_STREAM, new Fields(ID_FIELD));
+
+        CustomBoltDeclarer resultBolt = getBolt(RESULT_COMPONENT);
+        Assert.assertNotNull(resultBolt);
+        Assert.assertEquals(resultBolt.getBolt().getClass(), ResultBolt.class);
+        Assert.assertEquals(resultBolt.getParallelism(), BulletStormConfig.DEFAULT_RESULT_BOLT_PARALLELISM);
+        Assert.assertEquals(resultBolt.getCpuLoad(), BulletStormConfig.DEFAULT_RESULT_BOLT_CPU_LOAD);
+        Assert.assertEquals(resultBolt.getOnHeap(), BulletStormConfig.DEFAULT_RESULT_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(resultBolt.getOffHeap(), BulletStormConfig.DEFAULT_RESULT_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> resultAllGroupings = resultBolt.getAllGroupings();
+        Assert.assertTrue(resultAllGroupings.isEmpty());
+        List<Pair<String, String>> resultShuffleGroupings = resultBolt.getShuffleGroupings();
+        Assert.assertEquals(resultShuffleGroupings.size(), 1);
+        assertContains(resultShuffleGroupings, JOIN_COMPONENT, RESULT_STREAM);
+        Map<Pair<String, String>, List<Fields>> resultFieldGroupings = resultBolt.getFieldsGroupings();
+        Assert.assertTrue(resultFieldGroupings.isEmpty());
+
+        CustomBoltDeclarer loopBolt = getBolt(LOOP_COMPONENT);
+        Assert.assertNotNull(loopBolt);
+        Assert.assertEquals(loopBolt.getBolt().getClass(), LoopBolt.class);
+        Assert.assertEquals(loopBolt.getParallelism(), BulletStormConfig.DEFAULT_LOOP_BOLT_PARALLELISM);
+        Assert.assertEquals(loopBolt.getCpuLoad(), BulletStormConfig.DEFAULT_LOOP_BOLT_CPU_LOAD);
+        Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> loopAllGroupings = loopBolt.getAllGroupings();
+        Assert.assertTrue(loopAllGroupings.isEmpty());
+        List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
+        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
+        Map<Pair<String, String>, List<Fields>> loopFieldGroupings = loopBolt.getFieldsGroupings();
+        Assert.assertTrue(loopFieldGroupings.isEmpty());
+    }
+
+    @Test
+    public void testHookingInBulletSpout() {
+        config.set(BulletStormConfig.BULLET_SPOUT_CLASS_NAME, CustomIRichSpout.class.getName());
+
+        Assert.assertFalse(builder.isTopologyCreated());
+        submitWithConfig(config);
+
+        Assert.assertTrue(builder.isTopologyCreated());
+
+        Assert.assertEquals(builder.getCreatedSpouts().size(), 3);
+        Assert.assertEquals(builder.getCreatedBolts().size(), 4);
+
+        CustomSpoutDeclarer source = getSpout(TopologyConstants.RECORD_COMPONENT);
+        Assert.assertNotNull(source);
+        Assert.assertEquals(source.getSpout().getClass(), CustomIRichSpout.class);
+        Assert.assertEquals(source.getParallelism(), BulletStormConfig.DEFAULT_BULLET_SPOUT_PARALLELISM);
+        Assert.assertEquals(source.getCpuLoad(), BulletStormConfig.DEFAULT_BULLET_SPOUT_CPU_LOAD);
+        Assert.assertEquals(source.getOnHeap(), BulletStormConfig.DEFAULT_BULLET_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(source.getOffHeap(), BulletStormConfig.DEFAULT_BULLET_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomSpoutDeclarer tickSpout = getSpout(TopologyConstants.TICK_COMPONENT);
+        Assert.assertNotNull(tickSpout);
+        Assert.assertEquals(tickSpout.getSpout().getClass(), TickSpout.class);
+        Assert.assertEquals(tickSpout.getParallelism(), BulletStormConfig.TICK_SPOUT_PARALLELISM);
+        Assert.assertEquals(tickSpout.getCpuLoad(), BulletStormConfig.DEFAULT_TICK_SPOUT_CPU_LOAD);
+        Assert.assertEquals(tickSpout.getOnHeap(), BulletStormConfig.DEFAULT_TICK_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(tickSpout.getOffHeap(), BulletStormConfig.DEFAULT_TICK_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomSpoutDeclarer querySpout = getSpout(TopologyConstants.QUERY_COMPONENT);
+        Assert.assertNotNull(querySpout);
+        Assert.assertEquals(querySpout.getSpout().getClass(), QuerySpout.class);
+        Assert.assertEquals(querySpout.getParallelism(), BulletStormConfig.DEFAULT_QUERY_SPOUT_PARALLELISM);
+        Assert.assertEquals(querySpout.getCpuLoad(), BulletStormConfig.DEFAULT_QUERY_SPOUT_CPU_LOAD);
+        Assert.assertEquals(querySpout.getOnHeap(), BulletStormConfig.DEFAULT_QUERY_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(querySpout.getOffHeap(), BulletStormConfig.DEFAULT_QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomBoltDeclarer filterBolt = getBolt(FILTER_COMPONENT);
+        Assert.assertNotNull(filterBolt);
+        Assert.assertEquals(filterBolt.getBolt().getClass(), FilterBolt.class);
+        Assert.assertEquals(filterBolt.getParallelism(), BulletStormConfig.DEFAULT_FILTER_BOLT_PARALLELISM);
+        Assert.assertEquals(filterBolt.getCpuLoad(), BulletStormConfig.DEFAULT_FILTER_BOLT_CPU_LOAD);
+        Assert.assertEquals(filterBolt.getOnHeap(), BulletStormConfig.DEFAULT_FILTER_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(filterBolt.getOffHeap(), BulletStormConfig.DEFAULT_FILTER_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> filterAllGroupings = filterBolt.getAllGroupings();
+        Assert.assertEquals(filterAllGroupings.size(), 3);
+        assertContains(filterAllGroupings, TICK_COMPONENT, TICK_STREAM);
+        assertContains(filterAllGroupings, QUERY_COMPONENT, QUERY_STREAM);
+        assertContains(filterAllGroupings, QUERY_COMPONENT, METADATA_STREAM);
+        List<Pair<String, String>> filterShuffleGroupings = filterBolt.getShuffleGroupings();
+        assertContains(filterShuffleGroupings, TopologyConstants.RECORD_COMPONENT, Utils.DEFAULT_STREAM_ID);
+        Map<Pair<String, String>, List<Fields>> filterFieldGroupings = filterBolt.getFieldsGroupings();
+        Assert.assertTrue(filterFieldGroupings.isEmpty());
+
+        CustomBoltDeclarer joinBolt = getBolt(JOIN_COMPONENT);
+        Assert.assertNotNull(joinBolt);
+        Assert.assertEquals(joinBolt.getBolt().getClass(), JoinBolt.class);
+        Assert.assertEquals(joinBolt.getParallelism(), BulletStormConfig.DEFAULT_JOIN_BOLT_PARALLELISM);
+        Assert.assertEquals(joinBolt.getCpuLoad(), BulletStormConfig.DEFAULT_JOIN_BOLT_CPU_LOAD);
+        Assert.assertEquals(joinBolt.getOnHeap(), BulletStormConfig.DEFAULT_JOIN_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(joinBolt.getOffHeap(), BulletStormConfig.DEFAULT_JOIN_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> joinAllGroupings = joinBolt.getAllGroupings();
+        Assert.assertEquals(joinAllGroupings.size(), 1);
+        assertContains(joinAllGroupings, TICK_COMPONENT, TICK_STREAM);
+        List<Pair<String, String>> joinShuffleGroupings = joinBolt.getShuffleGroupings();
+        Assert.assertTrue(joinShuffleGroupings.isEmpty());
+        Map<Pair<String, String>, List<Fields>> joinFieldGroupings = joinBolt.getFieldsGroupings();
+        Assert.assertEquals(joinFieldGroupings.size(), 3);
+        assertContains(joinFieldGroupings, QUERY_COMPONENT, QUERY_STREAM, new Fields(ID_FIELD));
+        assertContains(joinFieldGroupings, QUERY_COMPONENT, METADATA_STREAM, new Fields(ID_FIELD));
+        assertContains(joinFieldGroupings, FILTER_COMPONENT, DATA_STREAM, new Fields(ID_FIELD));
+
+        CustomBoltDeclarer resultBolt = getBolt(RESULT_COMPONENT);
+        Assert.assertNotNull(resultBolt);
+        Assert.assertEquals(resultBolt.getBolt().getClass(), ResultBolt.class);
+        Assert.assertEquals(resultBolt.getParallelism(), BulletStormConfig.DEFAULT_RESULT_BOLT_PARALLELISM);
+        Assert.assertEquals(resultBolt.getCpuLoad(), BulletStormConfig.DEFAULT_RESULT_BOLT_CPU_LOAD);
+        Assert.assertEquals(resultBolt.getOnHeap(), BulletStormConfig.DEFAULT_RESULT_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(resultBolt.getOffHeap(), BulletStormConfig.DEFAULT_RESULT_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> resultAllGroupings = resultBolt.getAllGroupings();
+        Assert.assertTrue(resultAllGroupings.isEmpty());
+        List<Pair<String, String>> resultShuffleGroupings = resultBolt.getShuffleGroupings();
+        Assert.assertEquals(resultShuffleGroupings.size(), 1);
+        assertContains(resultShuffleGroupings, JOIN_COMPONENT, RESULT_STREAM);
+        Map<Pair<String, String>, List<Fields>> resultFieldGroupings = resultBolt.getFieldsGroupings();
+        Assert.assertTrue(resultFieldGroupings.isEmpty());
+
+        CustomBoltDeclarer loopBolt = getBolt(LOOP_COMPONENT);
+        Assert.assertNotNull(loopBolt);
+        Assert.assertEquals(loopBolt.getBolt().getClass(), LoopBolt.class);
+        Assert.assertEquals(loopBolt.getParallelism(), BulletStormConfig.DEFAULT_LOOP_BOLT_PARALLELISM);
+        Assert.assertEquals(loopBolt.getCpuLoad(), BulletStormConfig.DEFAULT_LOOP_BOLT_CPU_LOAD);
+        Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> loopAllGroupings = loopBolt.getAllGroupings();
+        Assert.assertTrue(loopAllGroupings.isEmpty());
+        List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
+        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
+        Map<Pair<String, String>, List<Fields>> loopFieldGroupings = loopBolt.getFieldsGroupings();
+        Assert.assertTrue(loopFieldGroupings.isEmpty());
+    }
+
+    @Test
+    public void testHookingInBulletSpoutAndBolt() {
+        config.set(BulletStormConfig.BULLET_SPOUT_CLASS_NAME, CustomIRichSpout.class.getName());
+        config.set(BulletStormConfig.BULLET_BOLT_ENABLE, true);
+        config.set(BulletStormConfig.BULLET_BOLT_CLASS_NAME, CustomIRichBolt.class.getName());
+
+        Assert.assertFalse(builder.isTopologyCreated());
+        submitWithConfig(config);
+
+        Assert.assertTrue(builder.isTopologyCreated());
+
+        Assert.assertEquals(builder.getCreatedSpouts().size(), 3);
+        Assert.assertEquals(builder.getCreatedBolts().size(), 5);
+
+        CustomSpoutDeclarer data = getSpout(TopologyConstants.DATA_COMPONENT);
+        Assert.assertNotNull(data);
+        Assert.assertEquals(data.getSpout().getClass(), CustomIRichSpout.class);
+        Assert.assertEquals(data.getParallelism(), BulletStormConfig.DEFAULT_BULLET_SPOUT_PARALLELISM);
+        Assert.assertEquals(data.getCpuLoad(), BulletStormConfig.DEFAULT_BULLET_SPOUT_CPU_LOAD);
+        Assert.assertEquals(data.getOnHeap(), BulletStormConfig.DEFAULT_BULLET_SPOUT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(data.getOffHeap(), BulletStormConfig.DEFAULT_BULLET_SPOUT_MEMORY_OFF_HEAP_LOAD);
+
+        CustomBoltDeclarer source = getBolt(TopologyConstants.RECORD_COMPONENT);
+        Assert.assertNotNull(source);
+        Assert.assertEquals(source.getBolt().getClass(), CustomIRichBolt.class);
+        Assert.assertEquals(source.getParallelism(), BulletStormConfig.DEFAULT_BULLET_BOLT_PARALLELISM);
+        Assert.assertEquals(source.getCpuLoad(), BulletStormConfig.DEFAULT_BULLET_BOLT_CPU_LOAD);
+        Assert.assertEquals(source.getOnHeap(), BulletStormConfig.DEFAULT_BULLET_BOLT_MEMORY_ON_HEAP_LOAD);
+        Assert.assertEquals(source.getOffHeap(), BulletStormConfig.DEFAULT_BULLET_BOLT_MEMORY_OFF_HEAP_LOAD);
+        List<Pair<String, String>> sourceShuffleGroupings = source.getShuffleGroupings();
+        assertContains(sourceShuffleGroupings, TopologyConstants.DATA_COMPONENT, Utils.DEFAULT_STREAM_ID);
 
         CustomSpoutDeclarer tickSpout = getSpout(TopologyConstants.TICK_COMPONENT);
         Assert.assertNotNull(tickSpout);
