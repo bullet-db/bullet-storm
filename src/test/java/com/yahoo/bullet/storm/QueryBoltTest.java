@@ -124,6 +124,9 @@ public class QueryBoltTest {
         Tuple tuple = mock(Tuple.class);
         doReturn(TopologyConstants.RECORD_COMPONENT).when(tuple).getSourceComponent();
         Assert.assertEquals(bolt.getClassifier().classify(tuple), Optional.of(Type.RECORD_TUPLE));
+
+        // coverage
+        Assert.assertEquals(Type.valueOf("RECORD_TUPLE"), Type.RECORD_TUPLE);
     }
 
     @Test

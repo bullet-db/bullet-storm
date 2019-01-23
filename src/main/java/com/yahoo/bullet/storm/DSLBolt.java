@@ -26,7 +26,6 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
     private static final long serialVersionUID = -5431511003546624594L;
 
     private OutputCollector collector;
-    private BulletDSLConfig dslConfig;
     private BulletRecordConverter converter;
 
     /**
@@ -36,8 +35,7 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
      */
     public DSLBolt(BulletStormConfig config) {
         super(config);
-        dslConfig = new BulletDSLConfig(config);
-        converter = BulletRecordConverter.from(dslConfig);
+        converter = BulletRecordConverter.from(new BulletDSLConfig(config));
     }
 
     @Override
