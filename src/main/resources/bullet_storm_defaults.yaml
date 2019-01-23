@@ -66,13 +66,6 @@ bullet.topology.bullet.spout.parallelism: 10
 bullet.topology.bullet.spout.cpu.load: 50.0
 bullet.topology.bullet.spout.memory.on.heap.load: 256.0
 bullet.topology.bullet.spout.memory.off.heap.load: 160.0
-bullet.topology.bullet.bolt.enable: false
-bullet.topology.bullet.bolt.class.name: ""
-bullet.topology.bullet.bolt.args: []
-bullet.topology.bullet.bolt.parallelism: 10
-bullet.topology.bullet.bolt.cpu.load: 50.0
-bullet.topology.bullet.bolt.memory.on.heap.load: 256.0
-bullet.topology.bullet.bolt.memory.off.heap.load: 160.0
 bullet.topology.query.spout.parallelism: 2
 bullet.topology.query.spout.cpu.load: 20.0
 bullet.topology.query.spout.memory.on.heap.load: 256.0

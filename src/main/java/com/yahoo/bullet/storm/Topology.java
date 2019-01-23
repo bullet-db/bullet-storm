@@ -50,7 +50,6 @@ public class Topology {
     }
 
     private static void printHelp() throws IOException  {
-        // TODO requesting help with this help message
         System.out.println("If you want to connect your existing topology to Bullet, you should compile in\n" +
                            "the Bullet jar and use the submit() method in the StormUtils class to wire up\n" +
                            "Bullet to the tail end of your topology (that should be producing BulletRecords).\n\n" +
@@ -74,15 +73,7 @@ public class Topology {
                            " - bullet.topology.bullet.spout.parallelism: (The parallelism hint for your spout)\n" +
                            " - bullet.topology.bullet.spout.cpu.load: (The CPU load given to your spout in the Storm RAS scheduler)\n" +
                            " - bullet.topology.bullet.spout.memory.on.heap.load: (The on-heap memory given to your spout in the Storm RAS scheduler)\n" +
-                           " - bullet.topology.bullet.spout.memory.off.heap.load: (The off-heap memory given to your spout in the Storm RAS scheduler)\n\n" +
-                           "If want to direct your spout output to a custom Bolt, set the following:\n" +
-                           " - bullet.topology.bullet.bolt.enable: true\n" +
-                           " - bullet.topology.bullet.bolt.class.name: \"your-bullet-bolt\"\n" +
-                           " - bullet.topology.bullet.bolt.args: []\n" +
-                           " - bullet.topology.bullet.bolt.parallelism: (The parallelism hint for your bolt)\n" +
-                           " - bullet.topology.bullet.bolt.cpu.load: (The CPU load given to your bolt in the Storm RAS scheduler)\n" +
-                           " - bullet.topology.bullet.bolt.memory.on.heap.load: (The on-heap memory given to your bolt in the Storm RAS scheduler)\n" +
-                           " - bullet.topology.bullet.bolt.memory.off.heap.load: (The off-heap memory given to your bolt in the Storm RAS scheduler)");
+                           " - bullet.topology.bullet.spout.memory.off.heap.load: (The off-heap memory given to your spout in the Storm RAS scheduler)");
         PARSER.printHelpOn(System.out);
     }
 }

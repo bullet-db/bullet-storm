@@ -30,7 +30,6 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     private static final Long DUMMY_ID = 42L;
 
     private SpoutOutputCollector collector;
-    private BulletDSLConfig dslConfig;
     private BulletConnector connector;
     private BulletRecordConverter converter;
     private boolean dslBoltEnable;
@@ -42,7 +41,7 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
      */
     public DSLSpout(BulletStormConfig config) {
         super(config);
-        dslConfig = new BulletDSLConfig(config);
+        BulletDSLConfig dslConfig = new BulletDSLConfig(config);
         connector = BulletConnector.from(dslConfig);
         dslBoltEnable = config.getAs(BulletStormConfig.DSL_BOLT_ENABLE, Boolean.class);
         if (!dslBoltEnable) {
