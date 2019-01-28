@@ -52,25 +52,20 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     @Override
     public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
         this.collector = collector;
+        try {
+            connector.initialize();
+        } catch (BulletDSLException e) {
+            throw new RuntimeException("Could not open DSLSpout.", e);
+        }
     }
 
     @Override
     public void activate() {
-        try {
-            connector.initialize();
-        } catch (BulletDSLException e) {
-            throw new RuntimeException("Could not activate DSLSpout.", e);
-        }
         log.info("DSLSpout activated");
     }
 
     @Override
     public void deactivate() {
-        try {
-            connector.close();
-        } catch (Exception e) {
-            log.error("Could not close BulletConnector.", e);
-        }
         log.info("DSLSpout deactivated");
     }
 

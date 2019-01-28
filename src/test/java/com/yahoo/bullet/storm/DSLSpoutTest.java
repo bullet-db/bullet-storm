@@ -70,16 +70,15 @@ public class DSLSpoutTest {
         Assert.assertTrue(declarer.areFieldsPresent(expectedFields));
     }
 
-    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Could not activate DSLSpout\\.")
-    public void testActivateThrows() {
-        // second MockConnector initialize will throw
-        dslSpout.activate();
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Could not open DSLSpout\\.")
+    public void testOpen() {
+        // coverage - second MockConnector initialize() will throw
+        dslSpout.open(null, null, null);
     }
 
     @Test
     public void testDeactivate() {
-        // coverage - second MockConnector close() will throw
-        dslSpout.deactivate();
+        // coverage - does nothing
         dslSpout.deactivate();
     }
 
@@ -92,13 +91,13 @@ public class DSLSpoutTest {
 
     @Test
     public void testAck() {
-        // coverage
+        // coverage - does nothing
         dslSpout.ack(null);
     }
 
     @Test
     public void testFail() {
-        // coverage
+        // coverage - does nothing
         dslSpout.fail(null);
     }
 }
