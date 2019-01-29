@@ -37,7 +37,8 @@
         <maven.compiler.source>1.8</maven.compiler.source>
         <maven.compiler.target>1.8</maven.compiler.target>
         <storm.version>0.10.2</storm.version>
-        <bullet.core.version>0.6.4</bullet.core.version>
+        <bullet.core.version>0.6.5</bullet.core.version>
+        <bullet.dsl.version>0.0.2-SNAPSHOT</bullet.dsl.version>
     </properties>
 
     <dependencies>
@@ -83,6 +84,12 @@
             <groupId>org.apache.storm</groupId>
             <artifactId>storm-core</artifactId>
             <version>${storm.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.yahoo.bullet</groupId>
+            <artifactId>bullet-dsl</artifactId>
+            <version>${bullet.dsl.version}</version>
             <scope>provided</scope>
         </dependency>
         <dependency>
