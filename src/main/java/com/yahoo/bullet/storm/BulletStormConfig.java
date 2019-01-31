@@ -184,32 +184,32 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .defaultTo(DEFAULT_DSL_SPOUT_ENABLE)
                  .checkIf(Validator::isBoolean);
         VALIDATOR.define(DSL_SPOUT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_DSL_SPOUT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_DSL_SPOUT_PARALLELISM)
+                 .castTo(Validator::asInt);
         VALIDATOR.define(DSL_SPOUT_CPU_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_DSL_SPOUT_CPU_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_DSL_SPOUT_CPU_LOAD)
+                 .castTo(Validator::asDouble);
         VALIDATOR.define(DSL_SPOUT_MEMORY_ON_HEAP_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_DSL_SPOUT_MEMORY_ON_HEAP_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_DSL_SPOUT_MEMORY_ON_HEAP_LOAD)
+                 .castTo(Validator::asDouble);
         VALIDATOR.define(DSL_SPOUT_MEMORY_OFF_HEAP_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_DSL_SPOUT_MEMORY_OFF_HEAP_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_DSL_SPOUT_MEMORY_OFF_HEAP_LOAD)
+                 .castTo(Validator::asDouble);
 
         VALIDATOR.define(DSL_BOLT_ENABLE)
                  .defaultTo(DEFAULT_DSL_BOLT_ENABLE)
                  .checkIf(Validator::isBoolean);
         VALIDATOR.define(DSL_BOLT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_DSL_BOLT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_DSL_BOLT_PARALLELISM)
+                 .castTo(Validator::asInt);
         VALIDATOR.define(DSL_BOLT_CPU_LOAD)
                  .checkIf(Validator::isPositive)
                  .checkIf(Validator::isFloat)
@@ -231,9 +231,9 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         VALIDATOR.define(BULLET_SPOUT_ARGS)
                  .checkIf(Validator::isList);
         VALIDATOR.define(BULLET_SPOUT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_BULLET_SPOUT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_BULLET_SPOUT_PARALLELISM)
+                 .castTo(Validator::asInt);
         VALIDATOR.define(BULLET_SPOUT_CPU_LOAD)
                  .checkIf(Validator::isPositive)
                  .checkIf(Validator::isFloat)
@@ -271,20 +271,20 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .castTo(Validator::asDouble);
 
         VALIDATOR.define(TICK_SPOUT_CPU_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_TICK_SPOUT_CPU_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_TICK_SPOUT_CPU_LOAD)
+                 .castTo(Validator::asDouble);
         VALIDATOR.define(TICK_SPOUT_MEMORY_ON_HEAP_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_TICK_SPOUT_MEMORY_ON_HEAP_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_TICK_SPOUT_MEMORY_ON_HEAP_LOAD)
+                 .castTo(Validator::asDouble);
         VALIDATOR.define(TICK_SPOUT_MEMORY_OFF_HEAP_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_TICK_SPOUT_MEMORY_OFF_HEAP_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_TICK_SPOUT_MEMORY_OFF_HEAP_LOAD)
+                 .castTo(Validator::asDouble);
 
         VALIDATOR.define(FILTER_BOLT_PARALLELISM)
                  .checkIf(Validator::isPositiveInt)
@@ -347,24 +347,24 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .castTo(Validator::asDouble);
 
         VALIDATOR.define(LOOP_BOLT_PARALLELISM)
-                .checkIf(Validator::isPositiveInt)
-                .defaultTo(DEFAULT_LOOP_BOLT_PARALLELISM)
-                .castTo(Validator::asInt);
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_LOOP_BOLT_PARALLELISM)
+                 .castTo(Validator::asInt);
         VALIDATOR.define(LOOP_BOLT_CPU_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_LOOP_BOLT_CPU_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_LOOP_BOLT_CPU_LOAD)
+                 .castTo(Validator::asDouble);
         VALIDATOR.define(LOOP_BOLT_MEMORY_ON_HEAP_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD)
+                 .castTo(Validator::asDouble);
         VALIDATOR.define(LOOP_BOLT_MEMORY_OFF_HEAP_LOAD)
-                .checkIf(Validator::isPositive)
-                .checkIf(Validator::isFloat)
-                .defaultTo(DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD)
-                .castTo(Validator::asDouble);
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD)
+                 .castTo(Validator::asDouble);
 
         VALIDATOR.define(TICK_SPOUT_INTERVAL)
                  .checkIf(Validator::isPositiveInt)

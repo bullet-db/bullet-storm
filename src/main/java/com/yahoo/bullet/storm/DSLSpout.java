@@ -37,15 +37,15 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     /**
      * Creates a DSLSpout with a given {@link BulletStormConfig}.
      *
-     * @param config The non-null BulletStormConfig to use. It should contain the settings to initialize a BulletConnector and a BulletRecordConverter.
+     * @param bulletStormConfig The non-null BulletStormConfig to use. It should contain the settings to initialize a BulletConnector and a BulletRecordConverter.
      */
-    public DSLSpout(BulletStormConfig config) {
-        super(config);
-        BulletDSLConfig dslConfig = new BulletDSLConfig(config);
-        connector = BulletConnector.from(dslConfig);
+    public DSLSpout(BulletStormConfig bulletStormConfig) {
+        super(bulletStormConfig);
+        BulletDSLConfig config = new BulletDSLConfig(bulletStormConfig);
+        connector = BulletConnector.from(config);
         dslBoltEnable = config.getAs(BulletStormConfig.DSL_BOLT_ENABLE, Boolean.class);
         if (!dslBoltEnable) {
-            converter = BulletRecordConverter.from(dslConfig);
+            converter = BulletRecordConverter.from(config);
         }
     }
 
@@ -104,7 +104,6 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        // TODO Keep this the same even if DSL bolt is enabled?
         declarer.declare(new Fields(TopologyConstants.RECORD_FIELD, TopologyConstants.RECORD_TIMESTAMP_FIELD));
     }
 
