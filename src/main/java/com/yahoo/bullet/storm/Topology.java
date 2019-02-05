@@ -66,6 +66,8 @@ public class Topology {
                            "bullet.topology.dsl.bolt.cpu.load: --\n" +
                            "bullet.topology.dsl.bolt.memory.on.heap.load: --\n" +
                            "bullet.topology.dsl.bolt.memory.off.heap.load: --\n\n" +
+                           "Also, if you want to enable a BulletDeserializer for DSLSpout or DSLBolt, set the following:\n\n" +
+                           "bullet.topology.dsl.deserializer.enable: true\n\n" +
                            "If instead you want to connect a custom Spout that implements IRichSpout and emits\n" +
                            "BulletRecords, set the following:\n\n" +
                            "bullet.topology.bullet.spout.class.name: \"your-bullet-spout\"\n" +
