@@ -48,6 +48,23 @@ public class DSLSpoutTest {
     }
 
     @Test
+    public void testNextTupleWithDeserialize() {
+        config.set(BulletStormConfig.DSL_DESERIALIZER_ENABLE, true);
+
+        dslSpout = ComponentUtils.open(new DSLSpout(config), emitter);
+        dslSpout.activate();
+        dslSpout.nextTuple();
+
+        // MockDeserializer changes "foo" key to "bar"
+        Assert.assertEquals(emitter.getEmitted().size(), 1);
+
+        BulletRecord record = (BulletRecord) emitter.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);
+
+        Assert.assertNull(record.get("foo"));
+        Assert.assertEquals(record.get("bar"), "bar");
+    }
+
+    @Test
     public void testNextTupleWithDSLBolt() {
         config.set(BulletStormConfig.DSL_BOLT_ENABLE, true);
 

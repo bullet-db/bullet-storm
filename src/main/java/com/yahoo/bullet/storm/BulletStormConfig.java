@@ -42,6 +42,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String DSL_BOLT_CPU_LOAD = "bullet.topology.dsl.bolt.cpu.load";
     public static final String DSL_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.dsl.bolt.memory.on.heap.load";
     public static final String DSL_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.dsl.bolt.memory.off.heap.load";
+    public static final String DSL_DESERIALIZER_ENABLE = "bullet.topology.dsl.deserializer.enable";
     public static final String BULLET_SPOUT_CLASS_NAME = "bullet.topology.bullet.spout.class.name";
     public static final String BULLET_SPOUT_ARGS = "bullet.topology.bullet.spout.args";
     public static final String BULLET_SPOUT_PARALLELISM = "bullet.topology.bullet.spout.parallelism";
@@ -103,6 +104,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final double DEFAULT_DSL_BOLT_CPU_LOAD = 50.0;
     public static final double DEFAULT_DSL_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
     public static final double DEFAULT_DSL_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
+    public static final boolean DEFAULT_DSL_DESERIALIZER_ENABLE = false;
     public static final int DEFAULT_BULLET_SPOUT_PARALLELISM = 10;
     public static final double DEFAULT_BULLET_SPOUT_CPU_LOAD = 50.0;
     public static final double DEFAULT_BULLET_SPOUT_MEMORY_ON_HEAP_LOAD = 256.0;
@@ -225,6 +227,10 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isFloat)
                  .defaultTo(DEFAULT_DSL_BOLT_MEMORY_OFF_HEAP_LOAD)
                  .castTo(Validator::asDouble);
+
+        VALIDATOR.define(DSL_DESERIALIZER_ENABLE)
+                 .checkIf(Validator::isBoolean)
+                 .defaultTo(DEFAULT_DSL_DESERIALIZER_ENABLE);
 
         VALIDATOR.define(BULLET_SPOUT_CLASS_NAME)
                  .checkIf(Validator::isString);

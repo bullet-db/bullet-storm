@@ -8,6 +8,7 @@ package com.yahoo.bullet.storm;
 import com.yahoo.bullet.dsl.BulletDSLConfig;
 import com.yahoo.bullet.dsl.BulletDSLException;
 import com.yahoo.bullet.dsl.converter.BulletRecordConverter;
+import com.yahoo.bullet.dsl.deserializer.BulletDeserializer;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
@@ -27,15 +28,22 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
 
     private OutputCollector collector;
     private BulletRecordConverter converter;
+    private BulletDeserializer deserializer;
+    private boolean dslDeserializerEnable;
 
     /**
      * Creates a DSLBolt with a given {@link BulletStormConfig}.
      *
-     * @param config The non-null BulletStormConfig to use. It should contain the settings to initialize a BulletRecordConverter.
+     * @param bulletStormConfig The non-null BulletStormConfig to use. It should contain the settings to initialize a BulletRecordConverter.
      */
-    public DSLBolt(BulletStormConfig config) {
-        super(config);
-        converter = BulletRecordConverter.from(new BulletDSLConfig(config));
+    public DSLBolt(BulletStormConfig bulletStormConfig) {
+        super(bulletStormConfig);
+        BulletDSLConfig config = new BulletDSLConfig(bulletStormConfig);
+        converter = BulletRecordConverter.from(config);
+        dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
+        if (dslDeserializerEnable) {
+            deserializer = BulletDeserializer.from(config);
+        }
     }
 
     @Override
@@ -46,6 +54,30 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
     @Override
     public void execute(Tuple tuple) {
         List<Object> objects = (List<Object>) tuple.getValue(TopologyConstants.RECORD_POSITION);
+        if (dslDeserializerEnable) {
+            deserializeConvertAndEmit(objects);
+        } else {
+            convertAndEmit(objects);
+        }
+        collector.ack(tuple);
+    }
+
+    private void deserializeConvertAndEmit(List<Object> objects) {
+        objects.forEach(
+            object -> {
+                BulletRecord record;
+                try {
+                    record = converter.convert(deserializer.deserialize(object));
+                } catch (BulletDSLException e) {
+                    log.error("Could not convert/deserialize object.", e);
+                    return;
+                }
+                collector.emit(new Values(record, System.currentTimeMillis()));
+            }
+        );
+    }
+
+    private void convertAndEmit(List<Object> objects) {
         objects.forEach(
             object -> {
                 BulletRecord record;
@@ -58,7 +90,6 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
                 collector.emit(new Values(record, System.currentTimeMillis()));
             }
         );
-        collector.ack(tuple);
     }
 
     @Override

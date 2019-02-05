@@ -3,6 +3,10 @@
     {
       "name": "foo",
       "type": "STRING"
+    },
+    {
+      "name": "bar",
+      "type": "STRING"
     }
   ]
 }

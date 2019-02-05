@@ -9,6 +9,7 @@ import com.yahoo.bullet.dsl.BulletDSLConfig;
 import com.yahoo.bullet.dsl.BulletDSLException;
 import com.yahoo.bullet.dsl.connector.BulletConnector;
 import com.yahoo.bullet.dsl.converter.BulletRecordConverter;
+import com.yahoo.bullet.dsl.deserializer.BulletDeserializer;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.spout.SpoutOutputCollector;
@@ -32,7 +33,9 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     private SpoutOutputCollector collector;
     private BulletConnector connector;
     private BulletRecordConverter converter;
+    private BulletDeserializer deserializer;
     private boolean dslBoltEnable;
+    private boolean dslDeserializerEnable;
 
     /**
      * Creates a DSLSpout with a given {@link BulletStormConfig}.
@@ -44,8 +47,12 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
         BulletDSLConfig config = new BulletDSLConfig(bulletStormConfig);
         connector = BulletConnector.from(config);
         dslBoltEnable = config.getAs(BulletStormConfig.DSL_BOLT_ENABLE, Boolean.class);
+        dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
         if (!dslBoltEnable) {
             converter = BulletRecordConverter.from(config);
+            if (dslDeserializerEnable) {
+                deserializer = BulletDeserializer.from(config);
+            }
         }
     }
 
@@ -77,8 +84,38 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
         }
         if (dslBoltEnable) {
             collector.emit(new Values(objects, System.currentTimeMillis()), DUMMY_ID);
-            return;
+        } else if (dslDeserializerEnable) {
+            deserializeConvertAndEmit(objects);
+        } else {
+            convertAndEmit(objects);
         }
+    }
+
+    private List<Object> readObjects() {
+        try {
+            return connector.read().stream().filter(Objects::nonNull).collect(Collectors.toList());
+        } catch (BulletDSLException e) {
+            log.error("Could not read from BulletConnector.", e);
+        }
+        return Collections.emptyList();
+    }
+
+    private void deserializeConvertAndEmit(List<Object> objects) {
+        objects.forEach(
+            object -> {
+                BulletRecord record;
+                try {
+                    record = converter.convert(deserializer.deserialize(object));
+                } catch (BulletDSLException e) {
+                    log.error("Could not convert/deserialize object.", e);
+                    return;
+                }
+                collector.emit(new Values(record, System.currentTimeMillis()), DUMMY_ID);
+            }
+        );
+    }
+
+    private void convertAndEmit(List<Object> objects) {
         objects.forEach(
             object -> {
                 BulletRecord record;
@@ -91,15 +128,6 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
                 collector.emit(new Values(record, System.currentTimeMillis()), DUMMY_ID);
             }
         );
-    }
-
-    private List<Object> readObjects() {
-        try {
-            return connector.read().stream().filter(Objects::nonNull).collect(Collectors.toList());
-        } catch (BulletDSLException e) {
-            log.error("Could not read from BulletConnector.", e);
-        }
-        return Collections.emptyList();
     }
 
     @Override

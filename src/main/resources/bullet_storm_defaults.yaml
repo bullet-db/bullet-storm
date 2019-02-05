@@ -60,6 +60,7 @@ bullet.topology.dsl.bolt.parallelism: 10
 bullet.topology.dsl.bolt.cpu.load: 50.0
 bullet.topology.dsl.bolt.memory.on.heap.load: 256.0
 bullet.topology.dsl.bolt.memory.off.heap.load: 160.0
+bullet.topology.dsl.deserializer.enable: false
 bullet.topology.bullet.spout.class.name: ""
 bullet.topology.bullet.spout.args: []
 bullet.topology.bullet.spout.parallelism: 10

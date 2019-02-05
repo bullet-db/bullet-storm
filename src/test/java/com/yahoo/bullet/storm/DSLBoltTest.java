@@ -47,6 +47,27 @@ public class DSLBoltTest {
         Assert.assertEquals(collector.getAckedCount(), 1);
     }
 
+    @Test
+    public void testExecuteWithDeserialize() {
+        config.set(BulletStormConfig.DSL_DESERIALIZER_ENABLE, true);
+
+        dslBolt = ComponentUtils.prepare(new DSLBolt(config), collector);
+
+        Tuple tuple = makeTuple(Arrays.asList(Collections.singletonMap("foo", "bar"), Collections.singletonMap("foo", 5)));
+
+        dslBolt.execute(tuple);
+
+        // MockDeserializer changes "foo" key to "bar"
+        Assert.assertEquals(collector.getEmitted().size(), 1);
+
+        BulletRecord record = (BulletRecord) collector.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);
+
+        Assert.assertNull(record.get("foo"));
+        Assert.assertEquals(record.get("bar"), "bar");
+
+        Assert.assertEquals(collector.getAckedCount(), 1);
+    }
+
 
     @Test
     public void testOutputFields() {
