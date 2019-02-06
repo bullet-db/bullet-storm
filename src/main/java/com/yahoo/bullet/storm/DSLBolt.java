@@ -29,7 +29,6 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
     private OutputCollector collector;
     private BulletRecordConverter converter;
     private BulletDeserializer deserializer;
-    private boolean dslDeserializerEnable;
 
     /**
      * Creates a DSLBolt with a given {@link BulletStormConfig}.
@@ -40,10 +39,8 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
         super(bulletStormConfig);
         BulletDSLConfig config = new BulletDSLConfig(bulletStormConfig);
         converter = BulletRecordConverter.from(config);
-        dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
-        if (dslDeserializerEnable) {
-            deserializer = BulletDeserializer.from(config);
-        }
+        boolean dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
+        deserializer = dslDeserializerEnable ? BulletDeserializer.from(config) : new IdentityDeserializer();
     }
 
     @Override
@@ -54,42 +51,19 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
     @Override
     public void execute(Tuple tuple) {
         List<Object> objects = (List<Object>) tuple.getValue(TopologyConstants.RECORD_POSITION);
-        if (dslDeserializerEnable) {
-            deserializeConvertAndEmit(objects);
-        } else {
-            convertAndEmit(objects);
-        }
+        objects.forEach(this::convertAndEmit);
         collector.ack(tuple);
     }
 
-    private void deserializeConvertAndEmit(List<Object> objects) {
-        objects.forEach(
-            object -> {
-                BulletRecord record;
-                try {
-                    record = converter.convert(deserializer.deserialize(object));
-                } catch (BulletDSLException e) {
-                    log.error("Could not convert/deserialize object.", e);
-                    return;
-                }
-                collector.emit(new Values(record, System.currentTimeMillis()));
-            }
-        );
-    }
-
-    private void convertAndEmit(List<Object> objects) {
-        objects.forEach(
-            object -> {
-                BulletRecord record;
-                try {
-                    record = converter.convert(object);
-                } catch (BulletDSLException e) {
-                    log.error("Could not convert object.", e);
-                    return;
-                }
-                collector.emit(new Values(record, System.currentTimeMillis()));
-            }
-        );
+    private void convertAndEmit(Object object) {
+        BulletRecord record;
+        try {
+            record = converter.convert(deserializer.deserialize(object));
+        } catch (BulletDSLException e) {
+            log.error("Could not convert object.", e);
+            return;
+        }
+        collector.emit(new Values(record, System.currentTimeMillis()));
     }
 
     @Override

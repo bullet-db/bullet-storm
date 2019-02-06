@@ -35,7 +35,6 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     private BulletRecordConverter converter;
     private BulletDeserializer deserializer;
     private boolean dslBoltEnable;
-    private boolean dslDeserializerEnable;
 
     /**
      * Creates a DSLSpout with a given {@link BulletStormConfig}.
@@ -47,12 +46,10 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
         BulletDSLConfig config = new BulletDSLConfig(bulletStormConfig);
         connector = BulletConnector.from(config);
         dslBoltEnable = config.getAs(BulletStormConfig.DSL_BOLT_ENABLE, Boolean.class);
-        dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
         if (!dslBoltEnable) {
+            boolean dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
             converter = BulletRecordConverter.from(config);
-            if (dslDeserializerEnable) {
-                deserializer = BulletDeserializer.from(config);
-            }
+            deserializer = dslDeserializerEnable ? BulletDeserializer.from(config) : new IdentityDeserializer();
         }
     }
 
@@ -84,11 +81,9 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
         }
         if (dslBoltEnable) {
             collector.emit(new Values(objects, System.currentTimeMillis()), DUMMY_ID);
-        } else if (dslDeserializerEnable) {
-            deserializeConvertAndEmit(objects);
-        } else {
-            convertAndEmit(objects);
+            return;
         }
+        objects.forEach(this::convertAndEmit);
     }
 
     private List<Object> readObjects() {
@@ -100,34 +95,15 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
         return Collections.emptyList();
     }
 
-    private void deserializeConvertAndEmit(List<Object> objects) {
-        objects.forEach(
-            object -> {
-                BulletRecord record;
-                try {
-                    record = converter.convert(deserializer.deserialize(object));
-                } catch (BulletDSLException e) {
-                    log.error("Could not convert/deserialize object.", e);
-                    return;
-                }
-                collector.emit(new Values(record, System.currentTimeMillis()), DUMMY_ID);
-            }
-        );
-    }
-
-    private void convertAndEmit(List<Object> objects) {
-        objects.forEach(
-            object -> {
-                BulletRecord record;
-                try {
-                    record = converter.convert(object);
-                } catch (BulletDSLException e) {
-                    log.error("Could not convert object.", e);
-                    return;
-                }
-                collector.emit(new Values(record, System.currentTimeMillis()), DUMMY_ID);
-            }
-        );
+    private void convertAndEmit(Object object) {
+        BulletRecord record;
+        try {
+            record = converter.convert(deserializer.deserialize(object));
+        } catch (BulletDSLException e) {
+            log.error("Could not convert object.", e);
+            return;
+        }
+        collector.emit(new Values(record, System.currentTimeMillis()), DUMMY_ID);
     }
 
     @Override

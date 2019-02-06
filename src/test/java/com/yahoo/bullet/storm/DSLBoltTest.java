@@ -57,7 +57,7 @@ public class DSLBoltTest {
 
         dslBolt.execute(tuple);
 
-        // MockDeserializer changes "foo" key to "bar"
+        // MockDeserializer changes key "foo" to "bar"
         Assert.assertEquals(collector.getEmitted().size(), 1);
 
         BulletRecord record = (BulletRecord) collector.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);

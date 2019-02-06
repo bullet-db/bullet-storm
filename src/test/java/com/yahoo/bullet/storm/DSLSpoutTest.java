@@ -55,7 +55,7 @@ public class DSLSpoutTest {
         dslSpout.activate();
         dslSpout.nextTuple();
 
-        // MockDeserializer changes "foo" key to "bar"
+        // MockDeserializer changes key "foo" to "bar"
         Assert.assertEquals(emitter.getEmitted().size(), 1);
 
         BulletRecord record = (BulletRecord) emitter.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);
