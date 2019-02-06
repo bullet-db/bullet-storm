@@ -21,6 +21,7 @@ public class TopologyConstants {
     public static final String ERROR_FIELD = "error";
     public static final String RESULT_FIELD = "result";
     public static final String RECORD_FIELD = "record";
+    public static final String RECORD_TIMESTAMP_FIELD = "timestamp";
 
     public static final int ID_POSITION = 0;
     public static final int QUERY_POSITION = 1;
@@ -34,6 +35,7 @@ public class TopologyConstants {
     public static final int RESULT_METADATA_POSITION = 2;
 
     // This is the default name.
+    public static final String SPOUT_COMPONENT = "DataSpout";
     public static final String RECORD_COMPONENT = "DataSource";
     public static final String TICK_COMPONENT = TickSpout.class.getSimpleName();
     public static final String QUERY_COMPONENT = QuerySpout.class.getSimpleName();
