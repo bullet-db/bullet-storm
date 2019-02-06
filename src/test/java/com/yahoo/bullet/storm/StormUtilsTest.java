@@ -84,12 +84,6 @@ public class StormUtilsTest {
         config = new BulletStormConfig();
     }
 
-    //@Test(expectedExceptions = ClassNotFoundException.class)
-    //public void testFailingSubmitOnMissingSpout() throws Exception {
-    //    StormUtils utils = new StormUtils();
-    //    utils.submit("non.existent.spout", null, new BulletStormConfig(), null, null, null, null);
-    //}
-
     @Test
     public void testHookingIntoExistingRecordSource() {
         builder.setSpout("source", new CustomIRichSpout(), 10);

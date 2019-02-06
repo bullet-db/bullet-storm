@@ -233,7 +233,9 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .defaultTo(DEFAULT_DSL_DESERIALIZER_ENABLE);
 
         VALIDATOR.define(BULLET_SPOUT_CLASS_NAME)
-                 .checkIf(Validator::isString);
+                 .checkIf(Validator::isClassName)
+                 .orFail()
+                 .unless(Validator::isNull);
         VALIDATOR.define(BULLET_SPOUT_ARGS)
                  .checkIf(Validator::isList);
         VALIDATOR.define(BULLET_SPOUT_PARALLELISM)
@@ -245,7 +247,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isFloat)
                  .defaultTo(DEFAULT_BULLET_SPOUT_CPU_LOAD)
                  .castTo(Validator::asDouble);
-        VALIDATOR.define(DSL_SPOUT_MEMORY_ON_HEAP_LOAD)
+        VALIDATOR.define(BULLET_SPOUT_MEMORY_ON_HEAP_LOAD)
                  .checkIf(Validator::isPositive)
                  .checkIf(Validator::isFloat)
                  .defaultTo(DEFAULT_BULLET_SPOUT_MEMORY_ON_HEAP_LOAD)

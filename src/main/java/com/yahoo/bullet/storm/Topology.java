@@ -49,7 +49,7 @@ public class Topology {
         StormUtils.submit(config, new TopologyBuilder());
     }
 
-    private static void printHelp() throws IOException  {
+    private static void printHelp() throws IOException {
         System.out.println("If you want to connect your existing topology to Bullet, you should compile in\n" +
                            "the Bullet jar and use the submit() method in the StormUtils class to wire up\n" +
                            "Bullet to the tail end of your topology (that should be producing BulletRecords).\n\n" +
@@ -75,7 +75,7 @@ public class Topology {
                            "bullet.topology.bullet.spout.parallelism: --\n" +
                            "bullet.topology.bullet.spout.cpu.load: --\n" +
                            "bullet.topology.bullet.spout.memory.on.heap.load: --\n" +
-                           "bullet.topology.bullet.spout.memory.off.heap.load: --");
+                           "bullet.topology.bullet.spout.memory.off.heap.load: --\n");
         PARSER.printHelpOn(System.out);
     }
 }

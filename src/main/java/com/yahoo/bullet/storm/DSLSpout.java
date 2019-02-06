@@ -10,6 +10,7 @@ import com.yahoo.bullet.dsl.BulletDSLException;
 import com.yahoo.bullet.dsl.connector.BulletConnector;
 import com.yahoo.bullet.dsl.converter.BulletRecordConverter;
 import com.yahoo.bullet.dsl.deserializer.BulletDeserializer;
+import com.yahoo.bullet.dsl.deserializer.IdentityDeserializer;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.spout.SpoutOutputCollector;
@@ -49,7 +50,7 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
         if (!dslBoltEnable) {
             boolean dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
             converter = BulletRecordConverter.from(config);
-            deserializer = dslDeserializerEnable ? BulletDeserializer.from(config) : new IdentityDeserializer();
+            deserializer = dslDeserializerEnable ? BulletDeserializer.from(config) : new IdentityDeserializer(config);
         }
     }
 

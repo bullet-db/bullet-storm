@@ -25,6 +25,7 @@ public class MockConnector extends BulletConnector {
      * @param config Not used.
      */
     public MockConnector(BulletConfig config) {
+        super(config);
     }
 
     @Override

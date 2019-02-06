@@ -19,6 +19,7 @@ public class MockDeserializer extends BulletDeserializer {
      * @param config Not used.
      */
     public MockDeserializer(BulletConfig config) {
+        super(config);
     }
 
     @Override

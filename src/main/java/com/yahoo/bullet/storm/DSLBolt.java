@@ -9,6 +9,7 @@ import com.yahoo.bullet.dsl.BulletDSLConfig;
 import com.yahoo.bullet.dsl.BulletDSLException;
 import com.yahoo.bullet.dsl.converter.BulletRecordConverter;
 import com.yahoo.bullet.dsl.deserializer.BulletDeserializer;
+import com.yahoo.bullet.dsl.deserializer.IdentityDeserializer;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
@@ -40,7 +41,7 @@ public class DSLBolt extends ConfigComponent implements IRichBolt {
         BulletDSLConfig config = new BulletDSLConfig(bulletStormConfig);
         converter = BulletRecordConverter.from(config);
         boolean dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
-        deserializer = dslDeserializerEnable ? BulletDeserializer.from(config) : new IdentityDeserializer();
+        deserializer = dslDeserializerEnable ? BulletDeserializer.from(config) : new IdentityDeserializer(config);
     }
 
     @Override
