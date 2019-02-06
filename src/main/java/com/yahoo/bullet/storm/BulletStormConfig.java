@@ -38,6 +38,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String DSL_BOLT_PARALLELISM = "bullet.topology.dsl.bolt.parallelism";
     public static final String DSL_DESERIALIZER_ENABLE = "bullet.topology.dsl.deserializer.enable";
     public static final String BULLET_SPOUT_CLASS_NAME = "bullet.topology.bullet.spout.class.name";
+    public static final String BULLET_SPOUT_ARGS = "bullet.topology.bullet.spout.args";
     public static final String BULLET_SPOUT_PARALLELISM = "bullet.topology.bullet.spout.parallelism";
     public static final String QUERY_SPOUT_PARALLELISM = "bullet.topology.query.spout.parallelism";
     public static final String FILTER_BOLT_PARALLELISM = "bullet.topology.filter.bolt.parallelism";
