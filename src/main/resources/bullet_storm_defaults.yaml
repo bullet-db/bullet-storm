@@ -47,12 +47,12 @@ bullet.topology.metrics.classes:
 
 # The parallelism setting controls the number of executors used for each component.
 bullet.topology.dsl.spout.enable: false
-bullet.topology.dsl.spout.parallelism: 1
+bullet.topology.dsl.spout.parallelism: 10
 bullet.topology.dsl.bolt.enable: false
-bullet.topology.dsl.bolt.parallelism: 1
+bullet.topology.dsl.bolt.parallelism: 10
 bullet.topology.bullet.spout.class.name:
 bullet.topology.bullet.spout.args: []
-bullet.topology.bullet.spout.parallelism: 1
+bullet.topology.bullet.spout.parallelism: 10
 bullet.topology.query.spout.parallelism: 2
 bullet.topology.filter.bolt.parallelism: 16
 bullet.topology.join.bolt.parallelism: 2

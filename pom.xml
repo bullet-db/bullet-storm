@@ -38,7 +38,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <storm.version>0.10.2</storm.version>
         <bullet.core.version>0.6.6</bullet.core.version>
-        <bullet.dsl.version>0.1.0</bullet.dsl.version>
+        <bullet.dsl.version>0.1.1</bullet.dsl.version>
     </properties>
 
     <dependencies>

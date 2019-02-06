@@ -67,11 +67,11 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         DEFAULT_TOPOLOGY_METRICS_CLASSES.add(CustomLoggingMetricsConsumer.class.getName());
     }
     public static final boolean DEFAULT_DSL_SPOUT_ENABLE = false;
-    public static final int DEFAULT_DSL_SPOUT_PARALLELISM = 1;
+    public static final int DEFAULT_DSL_SPOUT_PARALLELISM = 10;
     public static final boolean DEFAULT_DSL_BOLT_ENABLE = false;
-    public static final int DEFAULT_DSL_BOLT_PARALLELISM = 1;
+    public static final int DEFAULT_DSL_BOLT_PARALLELISM = 10;
     public static final boolean DEFAULT_DSL_DESERIALIZER_ENABLE = false;
-    public static final int DEFAULT_BULLET_SPOUT_PARALLELISM = 1;
+    public static final int DEFAULT_BULLET_SPOUT_PARALLELISM = 10;
     public static final int DEFAULT_QUERY_SPOUT_PARALLELISM = 2;
     public static final Number DEFAULT_FILTER_BOLT_PARALLELISM = 16;
     public static final int DEFAULT_JOIN_BOLT_PARALLELISM = 2;
@@ -130,7 +130,6 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         VALIDATOR.define(DSL_SPOUT_ENABLE)
                  .checkIf(Validator::isBoolean)
                  .defaultTo(DEFAULT_DSL_SPOUT_ENABLE);
-
         VALIDATOR.define(DSL_SPOUT_PARALLELISM)
                  .checkIf(Validator::isPositiveInt)
                  .defaultTo(DEFAULT_DSL_SPOUT_PARALLELISM)
@@ -139,7 +138,6 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         VALIDATOR.define(DSL_BOLT_ENABLE)
                  .checkIf(Validator::isBoolean)
                  .defaultTo(DEFAULT_DSL_BOLT_ENABLE);
-
         VALIDATOR.define(DSL_BOLT_PARALLELISM)
                  .checkIf(Validator::isPositiveInt)
                  .defaultTo(DEFAULT_DSL_BOLT_PARALLELISM)
@@ -149,6 +147,12 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isBoolean)
                  .defaultTo(DEFAULT_DSL_DESERIALIZER_ENABLE);
 
+        VALIDATOR.define(BULLET_SPOUT_CLASS_NAME)
+                 .checkIf(Validator::isClassName)
+                 .orFail()
+                 .unless(Validator::isNull);
+        VALIDATOR.define(BULLET_SPOUT_ARGS)
+                 .checkIf(Validator::isList);
         VALIDATOR.define(BULLET_SPOUT_PARALLELISM)
                  .checkIf(Validator::isPositiveInt)
                  .defaultTo(DEFAULT_BULLET_SPOUT_PARALLELISM)

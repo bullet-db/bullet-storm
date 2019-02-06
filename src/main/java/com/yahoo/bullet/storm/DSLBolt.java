@@ -16,6 +16,7 @@ import com.yahoo.bullet.dsl.BulletDSLConfig;
 import com.yahoo.bullet.dsl.BulletDSLException;
 import com.yahoo.bullet.dsl.converter.BulletRecordConverter;
 import com.yahoo.bullet.dsl.deserializer.BulletDeserializer;
+import com.yahoo.bullet.dsl.deserializer.IdentityDeserializer;
 import com.yahoo.bullet.record.BulletRecord;
 import lombok.extern.slf4j.Slf4j;
 
