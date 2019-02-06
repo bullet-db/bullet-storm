@@ -8,56 +8,21 @@ package com.yahoo.bullet.storm;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.storm.topology.TopologyBuilder;
 
-import java.util.List;
+import java.io.IOException;
 
 @Slf4j
 public class Topology {
-    public static final int DEFAULT_PARALLELISM = 10;
-    public static final double DEFAULT_CPU_LOAD = 50.0;
-    public static final double DEFAULT_ON_HEAP_MEMORY_LOAD = 256.0;
-    public static final double DEFAULT_OFF_HEAP_MEMORY_LOAD = 160.0;
-    public static final String SPOUT_ARG = "bullet-spout";
-    public static final String PARALLELISM_ARG = "bullet-spout-parallelism";
-    public static final String CPU_LOAD_ARG = "bullet-spout-cpu-load";
-    public static final String ON_HEAP_MEMORY_LOAD_ARG = "bullet-spout-on-heap-memory-load";
-    public static final String OFF_HEAP_MEMORY_LOAD_ARG = "bullet-spout-off-heap-memory-load";
-    public static final String ARGUMENT_ARG = "bullet-spout-arg";
     public static final String CONFIGURATION_ARG = "bullet-conf";
     public static final String HELP_ARG = "help";
 
     public static final OptionParser PARSER = new OptionParser() {
         {
-            accepts(SPOUT_ARG, "The spout class that implements IRichSpout")
+            accepts(CONFIGURATION_ARG, "The configuration YAML file for Bullet")
                     .withRequiredArg()
-                    .describedAs("Spout Class");
-            accepts(PARALLELISM_ARG, "The parallelism hint to use for your spout for Storm.")
-                    .withOptionalArg()
-                    .ofType(Integer.class)
-                    .describedAs("The parallism hint for the Spout component")
-                    .defaultsTo(DEFAULT_PARALLELISM);
-            accepts(CPU_LOAD_ARG, "The CPU load to use for your spout in the Storm RAS scheduler.")
-                    .withOptionalArg()
-                    .ofType(Double.class)
-                    .describedAs("The rough CPU load estimate for the Spout component in the Strom RAS scheduler.")
-                    .defaultsTo(DEFAULT_CPU_LOAD);
-            accepts(ON_HEAP_MEMORY_LOAD_ARG, "The on-heap memory to use for your spout in the Storm RAS scheduler.")
-                    .withOptionalArg()
-                    .ofType(Double.class)
-                    .describedAs("The rough on-heap memory estimate for the Spout component in the Storm RAS scheduler.")
-                    .defaultsTo(DEFAULT_ON_HEAP_MEMORY_LOAD);
-            accepts(OFF_HEAP_MEMORY_LOAD_ARG, "The off-heap memory to use for your spout in the Storm RAS scheduler.")
-                    .withOptionalArg()
-                    .ofType(Double.class)
-                    .describedAs("The rough off-heap memory estimate for the Spout component in the Storm RAS scheduler.")
-                    .defaultsTo(DEFAULT_OFF_HEAP_MEMORY_LOAD);
-            accepts(CONFIGURATION_ARG, "An optional configuration YAML file for Bullet")
-                    .withOptionalArg()
                     .describedAs("Configuration file used to override Bullet's default settings");
-            accepts(ARGUMENT_ARG, "Pass arguments to your Spout class")
-                    .withOptionalArg()
-                    .describedAs("Arguments to be collected and passed in as a List<String> to your Spout constructor");
-            accepts(HELP_ARG, "Show this help message")
+            accepts(HELP_ARG, "Shows the help message")
                     .withOptionalArg()
                     .describedAs("Print help message");
             allowsUnrecognizedOptions();
@@ -71,26 +36,46 @@ public class Topology {
      */
     public static void main(String[] args) throws Exception {
         OptionSet options = PARSER.parse(args);
-        if (!options.hasOptions() || options.has(HELP_ARG) || !options.has(SPOUT_ARG)) {
-            System.out.println("If you are looking to connect your existing topology to Bullet, you should compile");
-            System.out.println("in the Bullet jar and use the submit method in the StormUtils class to wire up Bullet");
-            System.out.println("to the tail end of your topology that produces BulletRecords. If you are simply");
-            System.out.println("looking to connect a Spout class that implements IRichSpout and emits BulletRecords,");
-            System.out.println("use the main class directly with the arguments below.");
-            PARSER.printHelpOn(System.out);
+
+        if (options.has(HELP_ARG) || !options.has(CONFIGURATION_ARG)) {
+            printHelp();
             return;
         }
-        String spoutClass = (String) options.valueOf(SPOUT_ARG);
-        List<String> arguments = (List<String>) options.valuesOf(ARGUMENT_ARG);
-        Integer parallelism = (Integer) options.valueOf(PARALLELISM_ARG);
-        Double cpuLoad = (Double) options.valueOf(CPU_LOAD_ARG);
-        Double onHeapMemoryLoad = (Double) options.valueOf(ON_HEAP_MEMORY_LOAD_ARG);
-        Double offHeapMemoryLoad = (Double) options.valueOf(OFF_HEAP_MEMORY_LOAD_ARG);
 
         String yamlPath = (String) options.valueOf(CONFIGURATION_ARG);
         BulletStormConfig config = new BulletStormConfig(yamlPath);
         log.info(config.toString());
 
-        StormUtils.submit(spoutClass, arguments, config, parallelism, cpuLoad, onHeapMemoryLoad, offHeapMemoryLoad);
+        StormUtils.submit(config, new TopologyBuilder());
+    }
+
+    private static void printHelp() throws IOException {
+        System.out.println("If you want to connect your existing topology to Bullet, you should compile in\n" +
+                           "the Bullet jar and use the submit() method in the StormUtils class to wire up\n" +
+                           "Bullet to the tail end of your topology (that should be producing BulletRecords).\n\n" +
+                           "If you want to use Bullet DSL to plug in an existing data source, please set the\n" +
+                           "following in your YAML configuration:\n\n" +
+                           "bullet.topology.dsl.spout.enable: true\n" +
+                           "bullet.topology.dsl.spout.parallelism: (The parallelism hint for the spout)\n" +
+                           "bullet.topology.dsl.spout.cpu.load: (The CPU load given to the spout in the Storm RAS scheduler)\n" +
+                           "bullet.topology.dsl.spout.memory.on.heap.load: (The on-heap memory given to the spout in the Storm RAS scheduler)\n" +
+                           "bullet.topology.dsl.spout.memory.off.heap.load: (The off-heap memory given to the spout in the Storm RAS scheduler)\n\n" +
+                           "If you want to use a DSL Bolt in addition to the DSL Spout, set the following:\n\n" +
+                           "bullet.topology.dsl.bolt.enable: true\n" +
+                           "bullet.topology.dsl.bolt.parallelism: --\n" +
+                           "bullet.topology.dsl.bolt.cpu.load: --\n" +
+                           "bullet.topology.dsl.bolt.memory.on.heap.load: --\n" +
+                           "bullet.topology.dsl.bolt.memory.off.heap.load: --\n\n" +
+                           "Also, if you want to enable a BulletDeserializer for DSLSpout or DSLBolt, set the following:\n\n" +
+                           "bullet.topology.dsl.deserializer.enable: true\n\n" +
+                           "If instead you want to connect a custom Spout that implements IRichSpout and emits\n" +
+                           "BulletRecords, set the following:\n\n" +
+                           "bullet.topology.bullet.spout.class.name: \"your-bullet-spout\"\n" +
+                           "bullet.topology.bullet.spout.args: [ \"your-list-of-string-args\"]\n" +
+                           "bullet.topology.bullet.spout.parallelism: --\n" +
+                           "bullet.topology.bullet.spout.cpu.load: --\n" +
+                           "bullet.topology.bullet.spout.memory.on.heap.load: --\n" +
+                           "bullet.topology.bullet.spout.memory.off.heap.load: --\n");
+        PARSER.printHelpOn(System.out);
     }
 }

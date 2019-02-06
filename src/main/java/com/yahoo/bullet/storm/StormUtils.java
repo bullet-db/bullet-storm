@@ -33,9 +33,7 @@ import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
 @SuppressWarnings("unchecked")
 public class StormUtils {
     /**
-     * This function can be used to wire up the source of the records to Bullet. Your source may be as simple
-     * as a Spout (in which case, just use the {@link Topology#main(String[])} method with the class name of your Spout.
-     * This method is more for wiring up an arbitrary topology to Bullet. The name of last component in your
+     * This function can be used to wire up the source of the records to Bullet. The name of the last component in your
      * topology and the {@link TopologyBuilder} used to create your topology should be provided. That topology
      * will be wired up with Bullet reading from your component that produces the {@link com.yahoo.bullet.record.BulletRecord}.
      *
@@ -135,45 +133,69 @@ public class StormUtils {
         StormSubmitter.submitTopology(name, stormConfig, builder.createTopology());
     }
 
-    /**
-     * This submits a topology after loading the given spout with the given configuration as the source of
-     * {@link com.yahoo.bullet.record.BulletRecord} using the given {@link TopologyBuilder}.
-     *
-     * @param builder The {@link TopologyBuilder} to use to add the topology to.
-     * @param spout The name of the instance of an {@link org.apache.storm.topology.IRichSpout} to load.
-     * @param args The arguments to pass to the constructor of this spout (otherwise the default constructor is used).
-     * @param config The Storm settings for this Bullet topology.
-     * @param parallelism The parallelism of the spout component.
-     * @param cpuLoad The CPU load for the Storm RAS scheduler.
-     * @param onHeapMemoryLoad The on heap memory load for the Storm RAS scheduler.
-     * @param offHeapMemoryLoad The off heap memory load for the Storm RAS scheduler.
-     * @throws Exception if there were issues creating the topology.
-     */
-    public static void submit(TopologyBuilder builder, String spout, List<String> args, BulletStormConfig config,
-                              Number parallelism, Number cpuLoad, Number onHeapMemoryLoad,
-                              Number offHeapMemoryLoad) throws Exception {
-        builder.setSpout(TopologyConstants.RECORD_COMPONENT, ReflectionUtils.getSpout(spout, args), parallelism)
-               .setCPULoad(cpuLoad).setMemoryLoad(onHeapMemoryLoad, offHeapMemoryLoad);
-        log.info("Added spout {} with Parallelism {}, CPU load {}, On-heap memory {}, Off-heap memory {}",
-                 spout, parallelism, cpuLoad, onHeapMemoryLoad, offHeapMemoryLoad);
-        submit(config, TopologyConstants.RECORD_COMPONENT, builder);
+    private static void addDSLSpout(BulletStormConfig config, TopologyBuilder builder) {
+        Number dslSpoutParallelism = config.getAs(BulletStormConfig.DSL_SPOUT_PARALLELISM, Number.class);
+        Number dslSpoutCPULoad = config.getAs(BulletStormConfig.DSL_SPOUT_CPU_LOAD, Number.class);
+        Number dslSpoutMemoryOnHeapLoad = config.getAs(BulletStormConfig.DSL_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number dslSpoutMemoryOffHeapLoad = config.getAs(BulletStormConfig.DSL_SPOUT_MEMORY_OFF_HEAP_LOAD, Number.class);
+
+        Boolean dslBoltEnable = config.getAs(BulletStormConfig.DSL_BOLT_ENABLE, Boolean.class);
+
+        builder.setSpout(dslBoltEnable ? TopologyConstants.DATA_COMPONENT : TopologyConstants.RECORD_COMPONENT, new DSLSpout(config), dslSpoutParallelism)
+               .setCPULoad(dslSpoutCPULoad)
+               .setMemoryLoad(dslSpoutMemoryOnHeapLoad, dslSpoutMemoryOffHeapLoad);
+
+        log.info("Added DSLSpout with Parallelism {}, CPU load {}, On-heap memory {}, Off-heap memory {}",
+                 dslSpoutParallelism, dslSpoutCPULoad, dslSpoutMemoryOnHeapLoad, dslSpoutMemoryOffHeapLoad);
+
+        if (dslBoltEnable) {
+            Number dslBoltParallelism = config.getAs(BulletStormConfig.DSL_BOLT_PARALLELISM, Number.class);
+            Number dslBoltCPULoad = config.getAs(BulletStormConfig.DSL_BOLT_CPU_LOAD, Number.class);
+            Number dslBoltMemoryOnHeapLoad = config.getAs(BulletStormConfig.DSL_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
+            Number dslBoltMemoryOffHeapLoad = config.getAs(BulletStormConfig.DSL_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
+
+            builder.setBolt(TopologyConstants.RECORD_COMPONENT, new DSLBolt(config), dslBoltParallelism)
+                   .shuffleGrouping(TopologyConstants.DATA_COMPONENT)
+                   .setCPULoad(dslBoltCPULoad)
+                   .setMemoryLoad(dslBoltMemoryOnHeapLoad, dslBoltMemoryOffHeapLoad);
+
+            log.info("Added DSLBolt with Parallelism {}, CPU load {}, On-heap memory {}, Off-heap memory {}",
+                     dslBoltParallelism, dslBoltCPULoad, dslBoltMemoryOnHeapLoad, dslBoltMemoryOffHeapLoad);
+        }
+    }
+
+    private static void addBulletSpout(BulletStormConfig config, TopologyBuilder builder) throws Exception {
+        String bulletSpoutClassName = config.getAs(BulletStormConfig.BULLET_SPOUT_CLASS_NAME, String.class);
+        List<String> bulletSpoutArgs = config.getAs(BulletStormConfig.BULLET_SPOUT_ARGS, List.class);
+        Number bulletSpoutParallelism = config.getAs(BulletStormConfig.BULLET_SPOUT_PARALLELISM, Number.class);
+        Number bulletSpoutCPULoad = config.getAs(BulletStormConfig.BULLET_SPOUT_CPU_LOAD, Number.class);
+        Number bulletSpoutMemoryOnHeapLoad = config.getAs(BulletStormConfig.BULLET_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number bulletSpoutMemoryOffHeapLoad = config.getAs(BulletStormConfig.BULLET_SPOUT_MEMORY_OFF_HEAP_LOAD, Number.class);
+
+        builder.setSpout(TopologyConstants.RECORD_COMPONENT, ReflectionUtils.getSpout(bulletSpoutClassName, bulletSpoutArgs), bulletSpoutParallelism)
+               .setCPULoad(bulletSpoutCPULoad)
+               .setMemoryLoad(bulletSpoutMemoryOnHeapLoad, bulletSpoutMemoryOffHeapLoad);
+
+        log.info("Added spout with Parallelism {}, CPU load {}, On-heap memory {}, Off-heap memory {}",
+                 bulletSpoutParallelism, bulletSpoutCPULoad, bulletSpoutMemoryOnHeapLoad, bulletSpoutMemoryOffHeapLoad);
     }
 
     /**
-     * This submits a topology after loading the given spout with the given configuration as the source of
-     * {@link com.yahoo.bullet.record.BulletRecord}.
+     * This submits a topology after loading the configured Spout (and optionally, Bolt), which is either the {@link DSLSpout}
+     * and {@link DSLBolt} or a custom Spout and Bolt. The topology is submitted with the given configuration as the source
+     * of {@link com.yahoo.bullet.record.BulletRecord} using the given {@link TopologyBuilder}
      *
-     * @param spout The name of the instance of an {@link org.apache.storm.topology.IRichSpout} to load.
-     * @param args The arguments to pass to the constructor of this spout (otherwise the default constructor is used).
      * @param config The Storm settings for this Bullet topology.
-     * @param parallelism The parallelism of the spout component.
-     * @param cpuLoad The CPU load for the Storm RAS scheduler.
-     * @param onHeapMemoryLoad The on heap memory load for the Storm RAS scheduler.
-     * @param offHeapMemoryLoad The off heap memory load for the Storm RAS scheduler.
-     * @throws Exception if there were issues creating the topology.
+     * @param builder The {@link TopologyBuilder} to use to add the topology to.
+     * @throws Exception
      */
-    public static void submit(String spout, List<String> args, BulletStormConfig config, Number parallelism,
-                              Number cpuLoad, Number onHeapMemoryLoad, Number offHeapMemoryLoad) throws Exception {
-        submit(new TopologyBuilder(), spout, args, config, parallelism, cpuLoad, onHeapMemoryLoad, offHeapMemoryLoad);
+    public static void submit(BulletStormConfig config, TopologyBuilder builder) throws Exception {
+        Boolean dslSpoutEnable = config.getAs(BulletStormConfig.DSL_SPOUT_ENABLE, Boolean.class);
+        if (dslSpoutEnable) {
+            addDSLSpout(config, builder);
+        } else {
+            addBulletSpout(config, builder);
+        }
+        submit(config, TopologyConstants.RECORD_COMPONENT, builder);
     }
 }
