@@ -1,0 +1,13 @@
+# The classpath to the BulletConnector to use
+bullet.dsl.connector.class.name: "com.yahoo.bullet.storm.testing.MockConnector"
+# The read timeout duration in ms
+bullet.dsl.connector.read.timeout.ms: 0
+# Whether or not to asynchronously commit messages
+bullet.dsl.connector.async.commit.enable: true
+
+# The classpath to the BulletRecordConverter to use
+bullet.dsl.converter.class.name: "com.yahoo.bullet.dsl.converter.MapBulletRecordConverter"
+bullet.dsl.converter.schema.file: "test_dsl_schema.json"
+
+# The classpath to the BulletDeserializer to use
+bullet.dsl.deserializer.class.name: "com.yahoo.bullet.storm.testing.MockDeserializer"
