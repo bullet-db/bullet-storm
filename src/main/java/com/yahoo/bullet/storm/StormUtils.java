@@ -32,9 +32,7 @@ import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
 @SuppressWarnings("unchecked")
 public class StormUtils {
     /**
-     * This function can be used to wire up the source of the records to Bullet. Your source may be as simple
-     * as a Spout (in which case, just use the {@link Topology#main(String[])} method with the class name of your Spout.
-     * This method is more for wiring up an arbitrary topology to Bullet. The name of last component in your
+     * This function can be used to wire up the source of the records to Bullet. The name of the last component in your
      * topology and the {@link TopologyBuilder} used to create your topology should be provided. That topology
      * will be wired up with Bullet reading from your component that produces the {@link com.yahoo.bullet.record.BulletRecord}.
      *
@@ -136,7 +134,7 @@ public class StormUtils {
     }
 
     /**
-     * This submits a topology after loading the configured Spout (and optionally, bolt), which is either the {@link DSLSpout}
+     * This submits a topology after loading the configured Spout (and optionally, Bolt), which is either the {@link DSLSpout}
      * and {@link DSLBolt} or a custom Spout and Bolt. The topology is submitted with the given configuration as the source
      * of {@link com.yahoo.bullet.record.BulletRecord} using the given {@link TopologyBuilder}
      *
