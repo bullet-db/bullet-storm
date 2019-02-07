@@ -32,6 +32,14 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String TOPOLOGY_METRICS_BUILT_IN_ENABLE = "bullet.topology.metrics.built.in.enable";
     public static final String TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING = "bullet.topology.metrics.built.in.emit.interval.mapping";
     public static final String TOPOLOGY_METRICS_CLASSES = "bullet.topology.metrics.classes";
+    public static final String DSL_SPOUT_ENABLE = "bullet.topology.dsl.spout.enable";
+    public static final String DSL_SPOUT_PARALLELISM = "bullet.topology.dsl.spout.parallelism";
+    public static final String DSL_BOLT_ENABLE = "bullet.topology.dsl.bolt.enable";
+    public static final String DSL_BOLT_PARALLELISM = "bullet.topology.dsl.bolt.parallelism";
+    public static final String DSL_DESERIALIZER_ENABLE = "bullet.topology.dsl.deserializer.enable";
+    public static final String BULLET_SPOUT_CLASS_NAME = "bullet.topology.bullet.spout.class.name";
+    public static final String BULLET_SPOUT_ARGS = "bullet.topology.bullet.spout.args";
+    public static final String BULLET_SPOUT_PARALLELISM = "bullet.topology.bullet.spout.parallelism";
     public static final String QUERY_SPOUT_PARALLELISM = "bullet.topology.query.spout.parallelism";
     public static final String FILTER_BOLT_PARALLELISM = "bullet.topology.filter.bolt.parallelism";
     public static final String JOIN_BOLT_PARALLELISM = "bullet.topology.join.bolt.parallelism";
@@ -58,6 +66,12 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     static {
         DEFAULT_TOPOLOGY_METRICS_CLASSES.add(CustomLoggingMetricsConsumer.class.getName());
     }
+    public static final boolean DEFAULT_DSL_SPOUT_ENABLE = false;
+    public static final int DEFAULT_DSL_SPOUT_PARALLELISM = 10;
+    public static final boolean DEFAULT_DSL_BOLT_ENABLE = false;
+    public static final int DEFAULT_DSL_BOLT_PARALLELISM = 10;
+    public static final boolean DEFAULT_DSL_DESERIALIZER_ENABLE = false;
+    public static final int DEFAULT_BULLET_SPOUT_PARALLELISM = 10;
     public static final int DEFAULT_QUERY_SPOUT_PARALLELISM = 2;
     public static final Number DEFAULT_FILTER_BOLT_PARALLELISM = 16;
     public static final int DEFAULT_JOIN_BOLT_PARALLELISM = 2;
@@ -112,6 +126,37 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isList)
                  .checkIf(BulletStormConfig::areMetricsConsumerClasses)
                  .defaultTo(DEFAULT_TOPOLOGY_METRICS_CLASSES);
+
+        VALIDATOR.define(DSL_SPOUT_ENABLE)
+                 .checkIf(Validator::isBoolean)
+                 .defaultTo(DEFAULT_DSL_SPOUT_ENABLE);
+        VALIDATOR.define(DSL_SPOUT_PARALLELISM)
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_DSL_SPOUT_PARALLELISM)
+                 .castTo(Validator::asInt);
+
+        VALIDATOR.define(DSL_BOLT_ENABLE)
+                 .checkIf(Validator::isBoolean)
+                 .defaultTo(DEFAULT_DSL_BOLT_ENABLE);
+        VALIDATOR.define(DSL_BOLT_PARALLELISM)
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_DSL_BOLT_PARALLELISM)
+                 .castTo(Validator::asInt);
+
+        VALIDATOR.define(DSL_DESERIALIZER_ENABLE)
+                 .checkIf(Validator::isBoolean)
+                 .defaultTo(DEFAULT_DSL_DESERIALIZER_ENABLE);
+
+        VALIDATOR.define(BULLET_SPOUT_CLASS_NAME)
+                 .checkIf(Validator::isClassName)
+                 .orFail()
+                 .unless(Validator::isNull);
+        VALIDATOR.define(BULLET_SPOUT_ARGS)
+                 .checkIf(Validator::isList);
+        VALIDATOR.define(BULLET_SPOUT_PARALLELISM)
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_BULLET_SPOUT_PARALLELISM)
+                 .castTo(Validator::asInt);
 
         VALIDATOR.define(QUERY_SPOUT_PARALLELISM)
                  .checkIf(Validator::isPositiveInt)
