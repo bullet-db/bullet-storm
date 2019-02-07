@@ -187,7 +187,7 @@ public class StormUtils {
      *
      * @param config The Storm settings for this Bullet topology.
      * @param builder The {@link TopologyBuilder} to use to add the topology to.
-     * @throws Exception
+     * @throws Exception if there were any issues submitting the topology.
      */
     public static void submit(BulletStormConfig config, TopologyBuilder builder) throws Exception {
         Boolean dslSpoutEnable = config.getAs(BulletStormConfig.DSL_SPOUT_ENABLE, Boolean.class);
