@@ -90,6 +90,7 @@
             <groupId>com.yahoo.bullet</groupId>
             <artifactId>bullet-dsl</artifactId>
             <version>${bullet.dsl.version}</version>
+            <classifier>fat</classifier>
         </dependency>
         <dependency>
             <groupId>com.yahoo.bullet</groupId>
