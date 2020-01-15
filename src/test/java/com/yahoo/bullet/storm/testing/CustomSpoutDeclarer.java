@@ -6,6 +6,7 @@
 package com.yahoo.bullet.storm.testing;
 
 import lombok.Getter;
+import org.apache.storm.generated.SharedMemory;
 import org.apache.storm.topology.IRichSpout;
 import org.apache.storm.topology.SpoutDeclarer;
 
@@ -39,9 +40,15 @@ public class CustomSpoutDeclarer implements SpoutDeclarer {
         return this;
     }
 
+
     // Unimplemented
     @Override
     public SpoutDeclarer addConfigurations(Map<String, Object> conf) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Map<String, Object> getComponentConfiguration() {
         throw new UnsupportedOperationException();
     }
 
@@ -72,6 +79,21 @@ public class CustomSpoutDeclarer implements SpoutDeclarer {
 
     @Override
     public SpoutDeclarer setMemoryLoad(Number onHeap) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public SpoutDeclarer addSharedMemory(SharedMemory request) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public SpoutDeclarer addResources(Map<String, Double> resources) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public SpoutDeclarer addResource(String resourceName, Number resourceValue) {
         throw new UnsupportedOperationException();
     }
 }

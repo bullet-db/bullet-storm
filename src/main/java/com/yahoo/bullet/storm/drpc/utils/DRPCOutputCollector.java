@@ -80,6 +80,11 @@ public class DRPCOutputCollector implements ISpoutOutputCollector, IOutputCollec
         return null;
     }
 
+    @Override
+    public void flush() {
+        // No op
+    }
+
     // No need to support these methods. They are currently unused by the DRPCSpout and ReturnResults
 
     @Override

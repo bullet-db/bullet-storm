@@ -26,11 +26,12 @@ public class CustomPublisher implements Publisher {
     }
 
     @Override
-    public void send(PubSubMessage message) throws PubSubException {
+    public PubSubMessage send(PubSubMessage message) throws PubSubException {
         if (closed) {
             throw new PubSubException("");
         }
         sent.add(message);
+        return message;
     }
 
     @Override

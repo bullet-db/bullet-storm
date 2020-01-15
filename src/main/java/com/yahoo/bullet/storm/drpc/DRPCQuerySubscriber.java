@@ -8,15 +8,12 @@ package com.yahoo.bullet.storm.drpc;
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.BufferingSubscriber;
 import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.storm.drpc.DRPCSpout;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -43,8 +40,8 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
     @Getter(AccessLevel.PACKAGE)
     private DRPCOutputCollector collector;
 
-    // PubSubMessage id + sequence to DRPCMessageIds. For failing requests if the subscriber is closed.
-    private Map<Pair<String, Integer>, Object> emittedIDs;
+    // PubSubMessage id to DRPCMessageIds. For failing requests if the subscriber is closed.
+    private Map<String, Object> emittedIDs;
 
     /**
      * Creates and initializes a Subscriber that reads from the DRPC servers. Intended to be used inside a Storm
@@ -78,7 +75,7 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
     }
 
     @Override
-    public List<PubSubMessage> getMessages() throws PubSubException {
+    public List<PubSubMessage> getMessages() {
         // Try and read from DRPC. The DRPCSpout does a sleep for 1 ms if there are no tuples, so we don't have to do it.
         spout.nextTuple();
 
@@ -107,17 +104,16 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
         // Add returnInfo as metadata. Cannot add it to pubSubMessage
         String id = pubSubMessage.getId();
         String content = pubSubMessage.getContent();
-        int sequence = pubSubMessage.getSequence();
-        PubSubMessage message = new PubSubMessage(id, content, new Metadata(null, returnInfo), sequence);
+        PubSubMessage message = new PubSubMessage(id, content, new Metadata(null, returnInfo));
 
-        emittedIDs.put(ImmutablePair.of(id, sequence), drpcID);
+        emittedIDs.put(id, drpcID);
         return Collections.singletonList(message);
     }
 
     @Override
-    public void commit(String id, int sequence) {
-        super.commit(id, sequence);
-        emittedIDs.remove(ImmutablePair.of(id, sequence));
+    public void commit(String id) {
+        super.commit(id);
+        emittedIDs.remove(id);
     }
 
     /*

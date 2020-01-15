@@ -107,6 +107,11 @@ public class CustomEmitter implements ISpoutOutputCollector {
     }
 
     @Override
+    public void flush() {
+        throw new UnsupportedOperationException("Flush not supported");
+    }
+
+    @Override
     public void reportError(Throwable error) {
         throw new UnsupportedOperationException("Report Error not supported");
     }

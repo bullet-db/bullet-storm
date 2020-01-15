@@ -30,7 +30,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyZeroInteractions;
 
 public class DRPCQueryResultPubscriberTest {
-    private BulletConfig config;
     private DRPCQueryResultPubscriber pubscriber;
 
     private Response getResponse(int status, String statusText, String body) {
@@ -94,7 +93,7 @@ public class DRPCQueryResultPubscriberTest {
 
     @BeforeMethod
     public void setup() {
-        config = new DRPCConfig("src/test/resources/test_drpc_config.yaml");
+        BulletConfig config = new DRPCConfig("src/test/resources/test_drpc_config.yaml");
         config.set(DRPCConfig.DRPC_SERVERS, Collections.singletonList("foo.bar.bullet.drpc.com"));
 
         pubscriber = new DRPCQueryResultPubscriber(config);
@@ -168,14 +167,14 @@ public class DRPCQueryResultPubscriberTest {
     @Test
     public void testCommiting() {
         AsyncHttpClient mockClient = mock(AsyncHttpClient.class);
-        pubscriber.commit("foo", -1);
+        pubscriber.commit("foo");
         verifyZeroInteractions(mockClient);
     }
 
     @Test
     public void testFailing() {
         AsyncHttpClient mockClient = mock(AsyncHttpClient.class);
-        pubscriber.fail("foo", -1);
+        pubscriber.fail("foo");
         verifyZeroInteractions(mockClient);
     }
 

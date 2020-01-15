@@ -112,6 +112,14 @@ public class DRPCOutputCollectorTest {
 
     // Unimplemented methods
 
+    @Test
+    public void testFlush() {
+        collector.flush();
+        Assert.assertFalse(collector.haveOutput());
+        Assert.assertFalse(collector.isAcked());
+        Assert.assertFalse(collector.isFailed());
+    }
+
     @Test(expectedExceptions = UnsupportedOperationException.class)
     public void testReportError() {
         collector.reportError(null);

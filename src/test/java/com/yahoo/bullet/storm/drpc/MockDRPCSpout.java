@@ -22,10 +22,11 @@ import static java.util.Arrays.asList;
 
 @Getter
 public class MockDRPCSpout extends DRPCSpout {
+    private static final long serialVersionUID = -2577427274281420676L;
     private boolean closed = false;
     private Queue<List<Object>> tuples = new LinkedList<>();
     private Queue<Object> messageIDs = new LinkedList<>();
-    private DRPCOutputCollector collector;
+    private transient DRPCOutputCollector collector;
     private List<Object> failed = new ArrayList<>();
 
     public MockDRPCSpout(String function, DRPCOutputCollector collector) {
@@ -52,17 +53,12 @@ public class MockDRPCSpout extends DRPCSpout {
         }
     }
 
-    public void addMessageParts(String id, String... contents) {
-        int size = messageIDs.size();
-        int index = size;
-        for (String content : contents) {
-            List<Object> tuple = makeTuple(makeMessage(id, content, index - size),
-                                           makeReturnInfo("fake" + id, "testHost", index));
-            tuples.offer(tuple);
-            Object messageID = makeMessageID(id, index);
-            messageIDs.offer(messageID);
-            index++;
-        }
+    public void addMessageParts(String id, String content) {
+        int index = messageIDs.size();
+        List<Object> tuple = makeTuple(makeMessage(id, content), makeReturnInfo("fake" + id, "testHost", index));
+        tuples.offer(tuple);
+        Object messageID = makeMessageID(id, index);
+        messageIDs.offer(messageID);
     }
 
     public static List<Object> makeTuple(String pubSubMessage, String returnInfo) {
@@ -73,8 +69,8 @@ public class MockDRPCSpout extends DRPCSpout {
         return JSONFormatter.asJSON(zipToJSON(asList("id", "host", "port"), asList(drpcID, host, port)));
     }
 
-    public static String makeMessage(String id, String content, int sequence) {
-        return new PubSubMessage(id, content, sequence).asJSON();
+    public static String makeMessage(String id, String content) {
+        return new PubSubMessage(id, content).asJSON();
     }
     public static Object makeMessageID(String id, int index) {
         return zipToJSON(asList("id", "index"), asList(id, index));

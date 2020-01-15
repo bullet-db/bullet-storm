@@ -10,6 +10,7 @@ import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.storm.generated.GlobalStreamId;
 import org.apache.storm.generated.Grouping;
+import org.apache.storm.generated.SharedMemory;
 import org.apache.storm.grouping.CustomStreamGrouping;
 import org.apache.storm.topology.BoltDeclarer;
 import org.apache.storm.topology.IRichBolt;
@@ -89,6 +90,11 @@ public class CustomBoltDeclarer implements BoltDeclarer {
 
     @Override
     public BoltDeclarer addConfigurations(Map<String, Object> conf) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Map<String, Object> getComponentConfiguration() {
         throw new UnsupportedOperationException();
     }
 
@@ -194,6 +200,21 @@ public class CustomBoltDeclarer implements BoltDeclarer {
 
     @Override
     public BoltDeclarer setMemoryLoad(Number onHeap) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public BoltDeclarer addSharedMemory(SharedMemory request) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public BoltDeclarer addResources(Map<String, Double> resources) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public BoltDeclarer addResource(String resourceName, Number resourceValue) {
         throw new UnsupportedOperationException();
     }
 }

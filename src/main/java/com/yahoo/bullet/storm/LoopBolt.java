@@ -49,6 +49,6 @@ public class LoopBolt extends PublisherBolt {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.METADATA_POSITION);
         log.info("Looping back metadata with signal {} for {}", metadata.getSignal(), id);
-        publish(new PubSubMessage(id, null, metadata), tuple);
+        publish(new PubSubMessage(id, (byte[]) null, metadata), tuple);
     }
 }

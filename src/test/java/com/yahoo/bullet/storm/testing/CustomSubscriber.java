@@ -56,12 +56,12 @@ public class CustomSubscriber implements Subscriber {
     }
 
     @Override
-    public void commit(String id, int sequence) {
+    public void commit(String id) {
         committed.add(id);
     }
 
     @Override
-    public void fail(String id, int sequence) {
+    public void fail(String id) {
         failed.add(id);
     }
 }

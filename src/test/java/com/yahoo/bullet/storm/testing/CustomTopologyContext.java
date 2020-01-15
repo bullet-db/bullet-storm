@@ -21,7 +21,7 @@ public class CustomTopologyContext extends TopologyContext {
     private int taskIndex;
 
     public CustomTopologyContext(List<Integer> componentTasks, String componentID, int taskIndex) {
-        super(null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
+        super(null, new HashMap<>(), null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         registeredMetrics = new HashMap<>();
         this.componentTasks = componentTasks;
         this.componentID = componentID;
