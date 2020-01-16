@@ -31,7 +31,7 @@ public class DRPCPubSubTest {
     @BeforeClass
     public void bootstrap() {
         // This will force the DRPCSpout to work in local mode and prevent the DRPCQuerySubscriber from killing
-        // DRPCSpout Adder threads because DRPCSpout.open will not be called.
+        // DRPCSpout Adder threads because DRPCSpout.open will not do anything
         override = new DRPCClient.LocalOverride(new LocalDRPC());
     }
 

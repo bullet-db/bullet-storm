@@ -1,10 +1,6 @@
 # DRPC Settings that should be received from the cluster.
 storm.cluster.mode: "remote"
-storm.thrift.transport: "org.apache.storm.security.auth.SimpleTransportPlugin"
-storm.nimbus.retry.times: 0
-storm.nimbus.retry.interval.millis: 0
-storm.nimbus.retry.intervalceiling.millis: 1
 drpc.servers:
-- "localhost"
+- "host"
 drpc.invocations.port: 3773
 drpc.max_buffer_size: 1
