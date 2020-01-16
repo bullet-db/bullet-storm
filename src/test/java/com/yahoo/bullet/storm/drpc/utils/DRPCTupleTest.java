@@ -191,4 +191,9 @@ public class DRPCTupleTest {
     public void testGetBinaryByField() {
         tuple.getBinaryByField(null);
     }
+
+    @Test(expectedExceptions = UnsupportedOperationException.class)
+    public void testGetContext() {
+        tuple.getContext();
+    }
 }

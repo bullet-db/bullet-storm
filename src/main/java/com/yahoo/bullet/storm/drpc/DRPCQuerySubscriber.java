@@ -10,9 +10,6 @@ import com.yahoo.bullet.pubsub.BufferingSubscriber;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.drpc.DRPCSpout;
 import org.apache.storm.spout.SpoutOutputCollector;
@@ -32,12 +29,7 @@ import java.util.Map;
  */
 @Slf4j
 public class DRPCQuerySubscriber extends BufferingSubscriber {
-    /** Exposed for testing only. */
-    @Setter(AccessLevel.PACKAGE)
     private DRPCSpout spout;
-
-    /** Exposed for testing only. */
-    @Getter(AccessLevel.PACKAGE)
     private DRPCOutputCollector collector;
 
     // PubSubMessage id to DRPCMessageIds. For failing requests if the subscriber is closed.
@@ -53,9 +45,26 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
      * @param maxUnCommittedQueries The maximum number of queries that can be read without committing them.
      */
     public DRPCQuerySubscriber(BulletConfig config, int maxUnCommittedQueries) {
+        // Get the DRPC function we should subscribe to
+        this(config, maxUnCommittedQueries, new DRPCOutputCollector(),
+             new DRPCSpout(config.getRequiredConfigAs(DRPCConfig.DRPC_FUNCTION, String.class)));
+    }
+
+    /**
+     * Exposed for testing.
+     *
+     * @param config The config containing the String function in {@link DRPCConfig#DRPC_FUNCTION}, the Storm configuration
+     *               {@link Map} as {@link com.yahoo.bullet.storm.BulletStormConfig#STORM_CONFIG} and the Storm
+     *               {@link TopologyContext} as {@link com.yahoo.bullet.storm.BulletStormConfig#STORM_CONTEXT}.
+     * @param maxUnCommittedQueries The maximum number of queries that can be read without committing them.
+     * @param collector The {@link DRPCOutputCollector} to use.
+     * @param spout The {@link DRPCSpout} to use.
+     */
+    DRPCQuerySubscriber(BulletConfig config, int maxUnCommittedQueries, DRPCOutputCollector collector, DRPCSpout spout) {
         super(maxUnCommittedQueries);
 
-        collector = new DRPCOutputCollector();
+        this.collector = collector;
+        this.spout = spout;
         emittedIDs = new HashMap<>();
 
         // Get the Storm Config that has all the relevant cluster settings and properties
@@ -67,10 +76,6 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
         // Wrap the collector in a SpoutOutputCollector (it just delegates to the underlying DRPCOutputCollector)
         SpoutOutputCollector spoutOutputCollector = new SpoutOutputCollector(collector);
 
-        // Get the DRPC function we should subscribe to
-        String function = config.getRequiredConfigAs(DRPCConfig.DRPC_FUNCTION, String.class);
-
-        spout = new DRPCSpout(function);
         spout.open(stormConfig, context, spoutOutputCollector);
     }
 

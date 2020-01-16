@@ -10,6 +10,8 @@ import com.yahoo.bullet.result.JSONFormatter;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
 import lombok.Getter;
 import org.apache.storm.drpc.DRPCSpout;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -32,6 +34,11 @@ public class MockDRPCSpout extends DRPCSpout {
     public MockDRPCSpout(String function, DRPCOutputCollector collector) {
         super(function);
         this.collector = collector;
+    }
+
+    @Override
+    public void open(Map<String, Object> conf, TopologyContext context, SpoutOutputCollector collector) {
+        // Do not call open to deliberately not setup connections
     }
 
     @Override
