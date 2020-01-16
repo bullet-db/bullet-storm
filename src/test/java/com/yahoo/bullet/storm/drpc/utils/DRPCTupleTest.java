@@ -58,11 +58,6 @@ public class DRPCTupleTest {
     // Unimplemented methods
 
     @Test(expectedExceptions = UnsupportedOperationException.class)
-    public void testGetSourceGlobalStreamid() {
-        tuple.getSourceGlobalStreamid();
-    }
-
-    @Test(expectedExceptions = UnsupportedOperationException.class)
     public void testGetSourceGlobalStreamId() {
         tuple.getSourceGlobalStreamId();
     }
@@ -195,5 +190,10 @@ public class DRPCTupleTest {
     @Test(expectedExceptions = UnsupportedOperationException.class)
     public void testGetBinaryByField() {
         tuple.getBinaryByField(null);
+    }
+
+    @Test(expectedExceptions = UnsupportedOperationException.class)
+    public void testGetContext() {
+        tuple.getContext();
     }
 }

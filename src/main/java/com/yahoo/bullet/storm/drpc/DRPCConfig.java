@@ -122,7 +122,7 @@ public class DRPCConfig extends BulletStormConfig {
     }
 
     private static boolean isStringPositiveInteger(Object entry) {
-        if (entry == null || !(entry instanceof Number || entry instanceof String)) {
+        if (!(entry instanceof Number || entry instanceof String)) {
             log.warn("{} should be a valid positive integer", entry);
             return false;
         }

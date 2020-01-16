@@ -120,7 +120,7 @@ public class QuerySpoutTest {
         // Add messages to be received from subscriber
         PubSubMessage messageA = new PubSubMessage("42", Metadata.Signal.KILL);
         PubSubMessage messageB = new PubSubMessage("43", Metadata.Signal.COMPLETE);
-        PubSubMessage messageC = new PubSubMessage("44", null, new Metadata());
+        PubSubMessage messageC = new PubSubMessage("44", (byte[]) null, new Metadata());
         subscriber.addMessages(messageA, messageB, messageC);
 
         Assert.assertEquals(subscriber.getReceived().size(), 0);

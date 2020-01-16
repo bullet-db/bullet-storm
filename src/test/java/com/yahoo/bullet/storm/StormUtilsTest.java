@@ -40,16 +40,24 @@ public class StormUtilsTest {
     private CustomTopologyBuilder builder;
     private BulletStormConfig config;
 
+    private static class Unserializable {
+    }
+
+    private BulletStormConfig makeInvalidConfig(BulletStormConfig config) {
+        config.set(BulletStormConfig.CUSTOM_STORM_SETTING_PREFIX + "unserializable", new Unserializable());
+        return config;
+    }
+
     private void submitWithTopology(String recordComponent) {
         try {
-            StormUtils.submit(config, recordComponent, builder);
+            StormUtils.submit(makeInvalidConfig(config), recordComponent, builder);
         } catch (Exception ignored) {
         }
     }
 
     private void submitWithConfig(BulletStormConfig config) {
         try {
-            StormUtils.submit(config, builder);
+            StormUtils.submit(makeInvalidConfig(config), builder);
         } catch (Exception ignored) {
         }
     }

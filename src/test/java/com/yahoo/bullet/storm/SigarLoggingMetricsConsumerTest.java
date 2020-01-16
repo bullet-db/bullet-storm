@@ -19,7 +19,7 @@ public class SigarLoggingMetricsConsumerTest {
     @Test
     public void testDefaults() {
         SigarLoggingMetricsConsumer consumer = new SigarLoggingMetricsConsumer();
-        Map<Object, Object> config = new HashMap<>();
+        Map<String, Object> config = new HashMap<>();
         consumer.prepare(config, null, null, null);
         Assert.assertTrue(config.isEmpty());
     }

@@ -9,7 +9,6 @@ import com.yahoo.bullet.common.BulletConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
-import org.apache.storm.scheduler.resource.strategies.scheduling.DefaultResourceAwareStrategy;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 
@@ -116,9 +115,6 @@ public class StormUtils {
         }
 
         Config stormConfig = new Config();
-
-        // Scheduler
-        stormConfig.setTopologyStrategy(DefaultResourceAwareStrategy.class);
 
         // Metrics
         Boolean enableMetrics = (Boolean) config.get(BulletStormConfig.TOPOLOGY_METRICS_ENABLE);

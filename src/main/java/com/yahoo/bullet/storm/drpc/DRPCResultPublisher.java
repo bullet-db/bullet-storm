@@ -57,12 +57,12 @@ public class DRPCResultPublisher implements Publisher {
     }
 
     @Override
-    public void send(PubSubMessage message) throws PubSubException {
+    public PubSubMessage send(PubSubMessage message) throws PubSubException {
         Metadata metadata = message.getMetadata();
 
         // Remove the content
         String content = metadata.getContent().toString();
-        log.debug("Removing metadata {} for result {}@{}: {}", content, message.getId(), message.getSequence(), message.getContent());
+        log.debug("Removing metadata {} for result {}@{}: {}", content, message.getId(), message.getContent());
         metadata.setContent(null);
 
         String serializedMessage = message.asJSON();
@@ -75,6 +75,7 @@ public class DRPCResultPublisher implements Publisher {
         }
         // Otherwise, we're good to proceed
         collector.reset();
+        return message;
     }
 
     @Override

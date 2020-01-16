@@ -10,7 +10,11 @@ import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
 import com.yahoo.bullet.storm.testing.CustomTopologyContext;
+import org.apache.storm.LocalDRPC;
+import org.apache.storm.utils.DRPCClient;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -22,16 +26,29 @@ import java.util.stream.IntStream;
 
 public class DRPCPubSubTest {
     private DRPCConfig config;
+    private DRPCClient.LocalOverride override;
+
+    @BeforeClass
+    public void bootstrap() {
+        // This will force the DRPCSpout to work in local mode and prevent the DRPCQuerySubscriber from killing
+        // DRPCSpout Adder threads because DRPCSpout.open will not do anything
+        override = new DRPCClient.LocalOverride(new LocalDRPC());
+    }
+
+    @AfterClass
+    public void destroy() throws Exception {
+        override.close();
+    }
 
     @BeforeMethod
-    public void setup() throws Exception {
-        config = new DRPCConfig("src/test/resources/test_drpc_config.yaml");
+    public void setup() {
+        config = new DRPCConfig("test_drpc_config.yaml");
 
         // 1 task for the component named "foo" with task index 0
         CustomTopologyContext context = new CustomTopologyContext(Collections.singletonList(1), "foo", 0);
         config.set(DRPCConfig.STORM_CONTEXT, context);
 
-        Map stormConfig = new Config("src/test/resources/test_storm_config.yaml").getAll(Optional.empty());
+        Map stormConfig = new Config("test_storm_config.yaml").getAll(Optional.empty());
         config.set(DRPCConfig.STORM_CONFIG, stormConfig);
     }
 
@@ -65,10 +82,10 @@ public class DRPCPubSubTest {
         Assert.assertNotNull(subscribers);
 
         Assert.assertEquals(publishers.size(), 2);
-        publishers.stream().forEach(p -> Assert.assertTrue(p instanceof DRPCResultPublisher));
+        publishers.forEach(p -> Assert.assertTrue(p instanceof DRPCResultPublisher));
 
         Assert.assertEquals(subscribers.size(), 4);
-        subscribers.stream().forEach(s -> Assert.assertTrue(s instanceof DRPCQuerySubscriber));
+        subscribers.forEach(s -> Assert.assertTrue(s instanceof DRPCQuerySubscriber));
     }
 
     @Test
@@ -91,12 +108,12 @@ public class DRPCPubSubTest {
         Publisher publisher = pubSub.getPublisher();
         Subscriber subscriber = pubSub.getSubscriber();
 
-        Assert.assertTrue(publisher == subscriber);
+        Assert.assertSame(publisher, subscriber);
 
         // All future calls just return the same instance
-        Assert.assertTrue(publisher == pubSub.getPublisher());
-        Assert.assertTrue(subscriber == pubSub.getSubscriber());
-        Assert.assertTrue(pubSub.getPublisher() == pubSub.getSubscriber());
+        Assert.assertSame(publisher, pubSub.getPublisher());
+        Assert.assertSame(subscriber, pubSub.getSubscriber());
+        Assert.assertSame(pubSub.getPublisher(), pubSub.getSubscriber());
 
         // So do calls to get multiples after
         List<Publisher> publishers = pubSub.getPublishers(42);
@@ -125,13 +142,13 @@ public class DRPCPubSubTest {
         Assert.assertEquals(pubSub.getSubscribers(10).size(), 10);
 
         // The corresponding items are the same
-        IntStream.range(0, 9).forEach(i -> Assert.assertTrue(publishers.get(i) == subscribers.get(i)));
+        IntStream.range(0, 9).forEach(i -> Assert.assertSame(publishers.get(i), subscribers.get(i)));
 
         Publisher publisher = pubSub.getPublisher();
         Subscriber subscriber = pubSub.getSubscriber();
 
         // If you ask for one, it's the first one in the list
-        Assert.assertTrue(publisher == subscriber);
-        Assert.assertTrue(publishers.get(0) == publisher);
+        Assert.assertSame(publisher, subscriber);
+        Assert.assertSame(publishers.get(0), publisher);
     }
 }

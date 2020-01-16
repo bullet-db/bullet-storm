@@ -7,6 +7,7 @@ package com.yahoo.bullet.storm.drpc.utils;
 
 import lombok.AllArgsConstructor;
 import org.apache.storm.generated.GlobalStreamId;
+import org.apache.storm.task.GeneralTopologyContext;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.MessageId;
 import org.apache.storm.tuple.Tuple;
@@ -40,11 +41,6 @@ public class DRPCTuple implements Tuple {
     // No need to implement the rest
 
     @Override
-    public GlobalStreamId getSourceGlobalStreamid() {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public GlobalStreamId getSourceGlobalStreamId() {
         throw new UnsupportedOperationException();
     }
@@ -66,6 +62,11 @@ public class DRPCTuple implements Tuple {
 
     @Override
     public MessageId getMessageId() {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public GeneralTopologyContext getContext() {
         throw new UnsupportedOperationException();
     }
 

@@ -8,8 +8,8 @@ package com.yahoo.bullet.storm.drpc;
 import com.yahoo.bullet.common.Config;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
-import com.yahoo.bullet.storm.testing.CustomTopologyContext;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
+import com.yahoo.bullet.storm.testing.CustomTopologyContext;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -26,24 +26,22 @@ import static java.util.Arrays.asList;
 
 public class DRPCQuerySubscriberTest {
     private DRPCQuerySubscriber subscriber;
-    private MockDRPCSpout injectedMockSpout;
+    private MockDRPCSpout mockSpout;
 
     @BeforeMethod
     public void setup() {
-        DRPCConfig config = new DRPCConfig("src/test/resources/test_drpc_config.yaml");
+        DRPCConfig config = new DRPCConfig("test_drpc_config.yaml");
 
         // 1 task for the component named "foo" with task index 0
         CustomTopologyContext context = new CustomTopologyContext(Collections.singletonList(1), "foo", 0);
         config.set(DRPCConfig.STORM_CONTEXT, context);
 
-        Map stormConfig = new Config("src/test/resources/test_storm_config.yaml").getAll(Optional.empty());
+        Map stormConfig = new Config("test_storm_config.yaml").getAll(Optional.empty());
         config.set(DRPCConfig.STORM_CONFIG, stormConfig);
 
-        subscriber = new DRPCQuerySubscriber(config, 5);
-        DRPCOutputCollector collector = subscriber.getCollector();
-        // Override the DRPCSpout with our own that emits using our collector.
-        injectedMockSpout = new MockDRPCSpout("foo", collector);
-        subscriber.setSpout(injectedMockSpout);
+        DRPCOutputCollector collector = new DRPCOutputCollector();
+        mockSpout = new MockDRPCSpout("foo", collector);
+        subscriber = new DRPCQuerySubscriber(config, 5, collector, mockSpout);
     }
 
     @Test
@@ -54,105 +52,105 @@ public class DRPCQuerySubscriberTest {
 
     @Test
     public void testReadingFromSpout() throws Exception {
-        // The MockDRPCSpout makes messages adds 2 zero based sequences with id foo and given string content.
         // It adds to metadata a string JSON with id: "fake" + foo, host: "testHost" and port: a total count of messages.
-        injectedMockSpout.addMessageParts("foo", "{}", "{'duration': 2000}");
-        injectedMockSpout.addMessageParts("bar", "{}");
+        mockSpout.addMessageParts("foo", "{'duration': 2000}");
+        mockSpout.addMessageParts("bar", "{}");
+        mockSpout.addMessageParts("baz", "{}");
 
         PubSubMessage actual = subscriber.receive();
         Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getSequence(), 0);
-        Assert.assertEquals(actual.getContent(), "{}");
+        Assert.assertEquals(actual.getContent(), "{'duration': 2000}");
         Assert.assertFalse(actual.hasSignal());
         Assert.assertTrue(actual.hasMetadata());
         Metadata metadata = actual.getMetadata();
         Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakefoo", "testHost", 0));
 
         actual = subscriber.receive();
-        Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getSequence(), 1);
-        Assert.assertEquals(actual.getContent(), "{'duration': 2000}");
-        Assert.assertFalse(actual.hasSignal());
-        Assert.assertTrue(actual.hasMetadata());
-        metadata = actual.getMetadata();
-        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakefoo", "testHost", 1));
-
-        actual = subscriber.receive();
         Assert.assertEquals(actual.getId(), "bar");
-        Assert.assertEquals(actual.getSequence(), 0);
         Assert.assertEquals(actual.getContent(), "{}");
         Assert.assertFalse(actual.hasSignal());
         Assert.assertTrue(actual.hasMetadata());
         metadata = actual.getMetadata();
-        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakebar", "testHost", 2));
+        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakebar", "testHost", 1));
+
+        actual = subscriber.receive();
+        Assert.assertEquals(actual.getId(), "baz");
+        Assert.assertEquals(actual.getContent(), "{}");
+        Assert.assertFalse(actual.hasSignal());
+        Assert.assertTrue(actual.hasMetadata());
+        metadata = actual.getMetadata();
+        Assert.assertEquals(metadata.getContent(), makeReturnInfo("fakebaz", "testHost", 2));
     }
 
     @Test
     public void testClosing() {
-        Assert.assertFalse(injectedMockSpout.isClosed());
+        Assert.assertFalse(mockSpout.isClosed());
         subscriber.close();
-        Assert.assertTrue(injectedMockSpout.isClosed());
+        Assert.assertTrue(mockSpout.isClosed());
     }
 
     @Test
     public void testClosingFailsPendingDRPCRequests() throws Exception {
-        injectedMockSpout.addMessageParts("foo", "{}", "{'duration': 2000}");
-        injectedMockSpout.addMessageParts("bar", "{}");
+        mockSpout.addMessageParts("foo", "{'duration': 2000}");
+        mockSpout.addMessageParts("bar", "{}");
+        mockSpout.addMessageParts("baz", "{}");
 
         subscriber.receive();
         subscriber.receive();
         subscriber.receive();
         // 3 uncommitted messages
-        Assert.assertFalse(injectedMockSpout.isClosed());
+        Assert.assertFalse(mockSpout.isClosed());
         subscriber.close();
-        Assert.assertTrue(injectedMockSpout.isClosed());
-        Set<Object> actual = new HashSet<>(injectedMockSpout.getFailed());
-        Set<Object> expected = new HashSet<>(asList(makeMessageID("foo", 0), makeMessageID("foo", 1),
-                                                    makeMessageID("bar", 2)));
+        Assert.assertTrue(mockSpout.isClosed());
+        Set<Object> actual = new HashSet<>(mockSpout.getFailed());
+        Set<Object> expected = new HashSet<>(asList(makeMessageID("foo", 0), makeMessageID("bar", 1),
+                                                    makeMessageID("baz", 2)));
         Assert.assertEquals(actual, expected);
     }
 
     @Test
-    public void testCommitingRemovesPendingDRPCRequests() throws Exception {
-        injectedMockSpout.addMessageParts("foo", "{}", "{'duration': 2000}");
-        injectedMockSpout.addMessageParts("bar", "{}");
+    public void testCommittingRemovesPendingDRPCRequests() throws Exception {
+        mockSpout.addMessageParts("foo", "{'duration': 2000}");
+        mockSpout.addMessageParts("bar", "{}");
+        mockSpout.addMessageParts("baz", "{}");
 
         subscriber.receive();
         subscriber.receive();
         subscriber.receive();
 
-        // 3 uncommitted messages. Commit the second one
-        subscriber.commit("foo", 1);
+        // 3 uncommitted messages. Commit the first
+        subscriber.commit("foo");
 
-        Assert.assertFalse(injectedMockSpout.isClosed());
+        Assert.assertFalse(mockSpout.isClosed());
         subscriber.close();
-        Assert.assertTrue(injectedMockSpout.isClosed());
-        Set<Object> actual = new HashSet<>(injectedMockSpout.getFailed());
-        Set<Object> expected = new HashSet<>(asList(makeMessageID("foo", 0), makeMessageID("bar", 2)));
+        Assert.assertTrue(mockSpout.isClosed());
+        Set<Object> actual = new HashSet<>(mockSpout.getFailed());
+        Set<Object> expected = new HashSet<>(asList(makeMessageID("bar", 1), makeMessageID("baz", 2)));
         Assert.assertEquals(actual, expected);
     }
 
     @Test
     public void testFailingDoesNotRemovePendingDRPCRequests() throws Exception {
-        injectedMockSpout.addMessageParts("foo", "{}", "{'duration': 2000}");
-        injectedMockSpout.addMessageParts("bar", "{}");
+        mockSpout.addMessageParts("foo", "{'duration': 2000}");
+        mockSpout.addMessageParts("bar", "{}");
+        mockSpout.addMessageParts("baz", "{}");
 
         subscriber.receive();
         subscriber.receive();
         subscriber.receive();
 
-        Assert.assertTrue(injectedMockSpout.getFailed().isEmpty());
+        Assert.assertTrue(mockSpout.getFailed().isEmpty());
         // 3 uncommitted messages. Fail the second one
-        subscriber.fail("foo", 1);
-        Assert.assertTrue(injectedMockSpout.getFailed().isEmpty());
+        subscriber.fail("bar");
+        Assert.assertTrue(mockSpout.getFailed().isEmpty());
 
         // We should fail all messages included the failed one
-        Assert.assertFalse(injectedMockSpout.isClosed());
+        Assert.assertFalse(mockSpout.isClosed());
         subscriber.close();
-        Assert.assertTrue(injectedMockSpout.isClosed());
-        Set<Object> actual = new HashSet<>(injectedMockSpout.getFailed());
-        Set<Object> expected = new HashSet<>(asList(makeMessageID("foo", 0), makeMessageID("foo", 1),
-                                                    makeMessageID("bar", 2)));
+        Assert.assertTrue(mockSpout.isClosed());
+        Set<Object> actual = new HashSet<>(mockSpout.getFailed());
+        Set<Object> expected = new HashSet<>(asList(makeMessageID("foo", 0), makeMessageID("bar", 1),
+                                                    makeMessageID("baz", 2)));
         Assert.assertEquals(actual, expected);
     }
 }

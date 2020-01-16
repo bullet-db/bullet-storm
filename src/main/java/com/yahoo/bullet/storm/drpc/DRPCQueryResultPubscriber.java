@@ -7,7 +7,6 @@ package com.yahoo.bullet.storm.drpc;
 
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.common.RandomPool;
-import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
@@ -79,7 +78,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     }
 
     @Override
-    public void send(PubSubMessage message) throws PubSubException {
+    public PubSubMessage send(PubSubMessage message) {
         String url = urls.get();
         String id = message.getId();
         String json = message.asJSON();
@@ -88,24 +87,21 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
         client.preparePost(url).setBody(json).execute().toCompletableFuture()
               .exceptionally(this::handleException)
               .thenAcceptAsync(createResponseConsumer(id));
-    }
-
-    @Override
-    public PubSubMessage receive() throws PubSubException {
-        PubSubMessage message = responses.poll();
-        if (message == null) {
-            return null;
-        }
         return message;
     }
 
     @Override
-    public void commit(String id, int sequence) {
+    public PubSubMessage receive() {
+        return responses.poll();
+    }
+
+    @Override
+    public void commit(String id) {
         // Do nothing
     }
 
     @Override
-    public void fail(String id, int sequence) {
+    public void fail(String id) {
         // Do nothing
     }
 

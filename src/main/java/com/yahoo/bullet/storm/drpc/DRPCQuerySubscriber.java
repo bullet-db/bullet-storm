@@ -8,15 +8,9 @@ package com.yahoo.bullet.storm.drpc;
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.BufferingSubscriber;
 import com.yahoo.bullet.pubsub.Metadata;
-import com.yahoo.bullet.pubsub.PubSubException;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storm.drpc.utils.DRPCOutputCollector;
-import lombok.AccessLevel;
-import lombok.Getter;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.commons.lang3.tuple.Pair;
 import org.apache.storm.drpc.DRPCSpout;
 import org.apache.storm.spout.SpoutOutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -35,16 +29,11 @@ import java.util.Map;
  */
 @Slf4j
 public class DRPCQuerySubscriber extends BufferingSubscriber {
-    /** Exposed for testing only. */
-    @Setter(AccessLevel.PACKAGE)
     private DRPCSpout spout;
-
-    /** Exposed for testing only. */
-    @Getter(AccessLevel.PACKAGE)
     private DRPCOutputCollector collector;
 
-    // PubSubMessage id + sequence to DRPCMessageIds. For failing requests if the subscriber is closed.
-    private Map<Pair<String, Integer>, Object> emittedIDs;
+    // PubSubMessage id to DRPCMessageIds. For failing requests if the subscriber is closed.
+    private Map<String, Object> emittedIDs;
 
     /**
      * Creates and initializes a Subscriber that reads from the DRPC servers. Intended to be used inside a Storm
@@ -56,9 +45,26 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
      * @param maxUnCommittedQueries The maximum number of queries that can be read without committing them.
      */
     public DRPCQuerySubscriber(BulletConfig config, int maxUnCommittedQueries) {
+        // Get the DRPC function we should subscribe to
+        this(config, maxUnCommittedQueries, new DRPCOutputCollector(),
+             new DRPCSpout(config.getRequiredConfigAs(DRPCConfig.DRPC_FUNCTION, String.class)));
+    }
+
+    /**
+     * Exposed for testing.
+     *
+     * @param config The config containing the String function in {@link DRPCConfig#DRPC_FUNCTION}, the Storm configuration
+     *               {@link Map} as {@link com.yahoo.bullet.storm.BulletStormConfig#STORM_CONFIG} and the Storm
+     *               {@link TopologyContext} as {@link com.yahoo.bullet.storm.BulletStormConfig#STORM_CONTEXT}.
+     * @param maxUnCommittedQueries The maximum number of queries that can be read without committing them.
+     * @param collector The {@link DRPCOutputCollector} to use.
+     * @param spout The {@link DRPCSpout} to use.
+     */
+    DRPCQuerySubscriber(BulletConfig config, int maxUnCommittedQueries, DRPCOutputCollector collector, DRPCSpout spout) {
         super(maxUnCommittedQueries);
 
-        collector = new DRPCOutputCollector();
+        this.collector = collector;
+        this.spout = spout;
         emittedIDs = new HashMap<>();
 
         // Get the Storm Config that has all the relevant cluster settings and properties
@@ -70,15 +76,11 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
         // Wrap the collector in a SpoutOutputCollector (it just delegates to the underlying DRPCOutputCollector)
         SpoutOutputCollector spoutOutputCollector = new SpoutOutputCollector(collector);
 
-        // Get the DRPC function we should subscribe to
-        String function = config.getRequiredConfigAs(DRPCConfig.DRPC_FUNCTION, String.class);
-
-        spout = new DRPCSpout(function);
         spout.open(stormConfig, context, spoutOutputCollector);
     }
 
     @Override
-    public List<PubSubMessage> getMessages() throws PubSubException {
+    public List<PubSubMessage> getMessages() {
         // Try and read from DRPC. The DRPCSpout does a sleep for 1 ms if there are no tuples, so we don't have to do it.
         spout.nextTuple();
 
@@ -107,17 +109,16 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
         // Add returnInfo as metadata. Cannot add it to pubSubMessage
         String id = pubSubMessage.getId();
         String content = pubSubMessage.getContent();
-        int sequence = pubSubMessage.getSequence();
-        PubSubMessage message = new PubSubMessage(id, content, new Metadata(null, returnInfo), sequence);
+        PubSubMessage message = new PubSubMessage(id, content, new Metadata(null, returnInfo));
 
-        emittedIDs.put(ImmutablePair.of(id, sequence), drpcID);
+        emittedIDs.put(id, drpcID);
         return Collections.singletonList(message);
     }
 
     @Override
-    public void commit(String id, int sequence) {
-        super.commit(id, sequence);
-        emittedIDs.remove(ImmutablePair.of(id, sequence));
+    public void commit(String id) {
+        super.commit(id);
+        emittedIDs.remove(id);
     }
 
     /*

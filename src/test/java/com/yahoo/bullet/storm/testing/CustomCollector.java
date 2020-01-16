@@ -65,6 +65,11 @@ public class CustomCollector implements IOutputCollector {
     }
 
     @Override
+    public void flush() {
+        throw new UnsupportedOperationException("Flush not supported");
+    }
+
+    @Override
     public void emitDirect(int taskId, String streamId, Collection<Tuple> anchors, List<Object> tuple) {
         throw new UnsupportedOperationException("Emit Direct not supported");
     }
