@@ -3,4 +3,3 @@ storm.cluster.mode: "remote"
 drpc.servers:
 - "host"
 drpc.invocations.port: 3773
-drpc.max_buffer_size: 1
