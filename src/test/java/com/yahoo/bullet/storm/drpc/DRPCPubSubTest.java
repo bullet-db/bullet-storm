@@ -10,7 +10,11 @@ import com.yahoo.bullet.pubsub.PubSub;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
 import com.yahoo.bullet.storm.testing.CustomTopologyContext;
+import org.apache.storm.LocalDRPC;
+import org.apache.storm.utils.DRPCClient;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -22,6 +26,19 @@ import java.util.stream.IntStream;
 
 public class DRPCPubSubTest {
     private DRPCConfig config;
+    private DRPCClient.LocalOverride override;
+
+    @BeforeClass
+    public void bootstrap() {
+        // This will force the DRPCSpout to work in local mode and prevent the DRPCQuerySubscriber from killing
+        // DRPCSpout Adder threads because DRPCSpout.open will not be called.
+        override = new DRPCClient.LocalOverride(new LocalDRPC());
+    }
+
+    @AfterClass
+    public void destroy() throws Exception {
+        override.close();
+    }
 
     @BeforeMethod
     public void setup() {
