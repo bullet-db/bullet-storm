@@ -59,7 +59,7 @@ public class DRPCQuerySubscriberTest {
 
         PubSubMessage actual = subscriber.receive();
         Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getContent(), "{'duration': 2000}");
+        Assert.assertEquals(actual.getContentAsString(), "{'duration': 2000}");
         Assert.assertFalse(actual.hasSignal());
         Assert.assertTrue(actual.hasMetadata());
         Metadata metadata = actual.getMetadata();
@@ -67,7 +67,7 @@ public class DRPCQuerySubscriberTest {
 
         actual = subscriber.receive();
         Assert.assertEquals(actual.getId(), "bar");
-        Assert.assertEquals(actual.getContent(), "{}");
+        Assert.assertEquals(actual.getContentAsString(), "{}");
         Assert.assertFalse(actual.hasSignal());
         Assert.assertTrue(actual.hasMetadata());
         metadata = actual.getMetadata();
@@ -75,7 +75,7 @@ public class DRPCQuerySubscriberTest {
 
         actual = subscriber.receive();
         Assert.assertEquals(actual.getId(), "baz");
-        Assert.assertEquals(actual.getContent(), "{}");
+        Assert.assertEquals(actual.getContentAsString(), "{}");
         Assert.assertFalse(actual.hasSignal());
         Assert.assertTrue(actual.hasMetadata());
         metadata = actual.getMetadata();

@@ -128,7 +128,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     private void handleResponse(String id, Response response) {
         if (response == null || response.getStatusCode() != OK_200) {
             log.error("Handling error for id {} with response {}", id, response);
-            responses.offer(new PubSubMessage(id, DRPCError.CANNOT_REACH_DRPC.asJSONClip()));
+            responses.offer(new PubSubMessage(id, DRPCError.CANNOT_REACH_DRPC.asJSONClip(), null));
             return;
         }
         log.info("Received for id {}: {} {}", response.getStatusCode(), id, response.getStatusText());

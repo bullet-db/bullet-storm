@@ -42,7 +42,7 @@ public class DSLBoltTest {
 
         BulletRecord record = (BulletRecord) collector.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);
 
-        Assert.assertEquals(record.get("foo"), "bar");
+        Assert.assertEquals(record.typedGet("foo").getValue(), "bar");
 
         Assert.assertEquals(collector.getAckedCount(), 1);
     }
@@ -62,8 +62,8 @@ public class DSLBoltTest {
 
         BulletRecord record = (BulletRecord) collector.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);
 
-        Assert.assertNull(record.get("foo"));
-        Assert.assertEquals(record.get("bar"), "bar");
+        Assert.assertNull(record.typedGet("foo").getValue());
+        Assert.assertEquals(record.typedGet("bar").getValue(), "bar");
 
         Assert.assertEquals(collector.getAckedCount(), 1);
     }

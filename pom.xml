@@ -8,7 +8,6 @@
     <packaging>jar</packaging>
     <name>bullet-storm</name>
 
-
     <scm>
         <developerConnection>scm:git:ssh://git@github.com/bullet-db/bullet-storm.git</developerConnection>
         <tag>HEAD</tag>
@@ -38,6 +37,7 @@
         <maven.compiler.target>1.8</maven.compiler.target>
         <storm.version>2.1.0</storm.version>
         <storm.metrics.version>2.1.0</storm.metrics.version>
+        <jackson.core.version>2.10.2</jackson.core.version>
         <bullet.core.version>1.0.0</bullet.core.version>
         <bullet.dsl.version>0.1.2</bullet.dsl.version>
     </properties>
@@ -97,6 +97,11 @@
             <artifactId>storm-core</artifactId>
             <version>${storm.version}</version>
             <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>${jackson.core.version}</version>
         </dependency>
         <dependency>
             <groupId>com.yahoo.bullet</groupId>

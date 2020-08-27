@@ -108,7 +108,7 @@ public class DRPCQuerySubscriber extends BufferingSubscriber {
         PubSubMessage pubSubMessage = PubSubMessage.fromJSON(pubSubMessageJSON);
         // Add returnInfo as metadata. Cannot add it to pubSubMessage
         String id = pubSubMessage.getId();
-        String content = pubSubMessage.getContent();
+        String content = pubSubMessage.getContentAsString();
         PubSubMessage message = new PubSubMessage(id, content, new Metadata(null, returnInfo));
 
         emittedIDs.put(id, drpcID);

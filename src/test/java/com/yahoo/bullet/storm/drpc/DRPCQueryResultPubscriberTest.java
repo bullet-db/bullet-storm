@@ -101,13 +101,13 @@ public class DRPCQueryResultPubscriberTest {
 
     @Test(timeOut = 5000L)
     public void testReadingOkResponse() throws Exception {
-        PubSubMessage expected = new PubSubMessage("foo", "response");
+        PubSubMessage expected = new PubSubMessage("foo", "response", null);
 
         CompletableFuture<Response> response = getOkFuture(getOkResponse(expected.asJSON()));
         AsyncHttpClient mockClient = mockClientWith(response);
         pubscriber.setClient(mockClient);
 
-        pubscriber.send(new PubSubMessage("foo", "bar"));
+        pubscriber.send(new PubSubMessage("foo", "bar", null));
         // This is async (but practically still very fast since we mocked the response), so need a timeout.
         PubSubMessage actual = fetchAsync().get();
 
@@ -122,13 +122,13 @@ public class DRPCQueryResultPubscriberTest {
         AsyncHttpClient mockClient = mockClientWith(response);
         pubscriber.setClient(mockClient);
 
-        pubscriber.send(new PubSubMessage("foo", "bar"));
+        pubscriber.send(new PubSubMessage("foo", "bar", null));
         // This is async (but practically still very fast since we mocked the response), so need a timeout.
         PubSubMessage actual = fetchAsync().get();
 
         Assert.assertNotNull(actual);
         Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSONClip());
+        Assert.assertEquals(actual.getContentAsString(), CANNOT_REACH_DRPC.asJSONClip());
     }
 
     @Test(timeOut = 5000L)
@@ -137,13 +137,13 @@ public class DRPCQueryResultPubscriberTest {
         AsyncHttpClient mockClient = mockClientWith(response);
         pubscriber.setClient(mockClient);
 
-        pubscriber.send(new PubSubMessage("foo", "bar"));
+        pubscriber.send(new PubSubMessage("foo", "bar", null));
         // This is async (but practically still very fast since we mocked the response), so need a timeout.
         PubSubMessage actual = fetchAsync().get();
 
         Assert.assertNotNull(actual);
         Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSONClip());
+        Assert.assertEquals(actual.getContentAsString(), CANNOT_REACH_DRPC.asJSONClip());
     }
 
     @Test
@@ -182,11 +182,11 @@ public class DRPCQueryResultPubscriberTest {
     public void testException() throws Exception {
         // This will hit a non-existent url and fail, testing our exceptions. Our connect and retry is low so even if
         // block the full amount, it's still fast.
-        pubscriber.send(new PubSubMessage("foo", "bar"));
+        pubscriber.send(new PubSubMessage("foo", "bar", null));
         PubSubMessage actual = fetchAsync().get();
 
         Assert.assertNotNull(actual);
         Assert.assertEquals(actual.getId(), "foo");
-        Assert.assertEquals(actual.getContent(), CANNOT_REACH_DRPC.asJSONClip());
+        Assert.assertEquals(actual.getContentAsString(), CANNOT_REACH_DRPC.asJSONClip());
     }
 }

@@ -38,7 +38,7 @@ public class DSLSpoutTest {
 
         BulletRecord record = (BulletRecord) emitter.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);
 
-        Assert.assertEquals(record.get("foo"), "bar");
+        Assert.assertEquals(record.typedGet("foo").getValue(), "bar");
 
         // connector throws
         dslSpout.nextTuple();
@@ -60,8 +60,8 @@ public class DSLSpoutTest {
 
         BulletRecord record = (BulletRecord) emitter.getEmitted().get(0).getTuple().get(TopologyConstants.RECORD_POSITION);
 
-        Assert.assertNull(record.get("foo"));
-        Assert.assertEquals(record.get("bar"), "bar");
+        Assert.assertNull(record.typedGet("foo").getValue());
+        Assert.assertEquals(record.typedGet("bar").getValue(), "bar");
     }
 
     @Test

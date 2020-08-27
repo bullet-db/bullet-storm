@@ -7,7 +7,9 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
+import com.yahoo.bullet.querying.RunningQuery;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.metric.api.IMetric;
 import org.apache.storm.metric.api.MeanReducer;
@@ -78,12 +80,13 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
      *
      * @param mode The {@link Querier.Mode} to use to create the instance.
      * @param id The ID for the query.
-     * @param query The actual query JSON body.
+     * @param query The actual query object.
+     * @param metadata The metadata that came with the query object.
      * @param config The configuration to use for the query.
      * @return A created, uninitialized instance of a querier or a RuntimeException if there were issues.
      */
-    protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
-        return new Querier(mode, id, query, config);
+    protected Querier createQuerier(Querier.Mode mode, String id, Query query, Metadata metadata, BulletConfig config) {
+        return new Querier(mode, new RunningQuery(id, query, metadata), config);
     }
 
     /**

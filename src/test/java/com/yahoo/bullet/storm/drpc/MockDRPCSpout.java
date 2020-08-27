@@ -77,7 +77,7 @@ public class MockDRPCSpout extends DRPCSpout {
     }
 
     public static String makeMessage(String id, String content) {
-        return new PubSubMessage(id, content).asJSON();
+        return new PubSubMessage(id, content, null).asJSON();
     }
     public static Object makeMessageID(String id, int index) {
         return zipToJSON(asList("id", "index"), asList(id, index));
