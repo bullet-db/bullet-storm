@@ -152,6 +152,7 @@ public class JoinBolt extends QueryBolt {
             Query query = SerializerDeserializer.fromBytes(queryData);
             Querier querier = createQuerier(Querier.Mode.ALL, id, query, metadata, config);
             setupQuery(id, metadata, querier);
+            return;
         } catch (RuntimeException re) {
             // Includes JSONParseException
             emitErrorsAsResult(id, metadata, BulletError.makeError(re.getMessage(), "Error initializing query"));
@@ -339,10 +340,11 @@ public class JoinBolt extends QueryBolt {
 
     private Metadata withSignal(Metadata metadata, Metadata.Signal signal) {
         // Don't change the non-readonly bits of metadata in place since that might affect tuples emitted but pending.
-        Metadata copy = new Metadata(signal, null);
-        if (metadata != null) {
-            copy.setContent(metadata.getContent());
+        if (metadata == null) {
+            return new Metadata(signal, null);
         }
+        Metadata copy = metadata.copy();
+        copy.setSignal(signal);
         return copy;
     }
 
