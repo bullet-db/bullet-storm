@@ -490,7 +490,7 @@ public class JoinBoltTest {
 
         Assert.assertEquals(collector.getEmittedCount(), 1);
 
-        BulletError expectedError = BulletError.makeError(null, "Error initializing query");
+        BulletError expectedError = BulletError.makeError("java.lang.NullPointerException", "Error initializing query");
         Meta expectedMetadata = Meta.of(expectedError);
         List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), FAILED).getValues();
         List<Object> actual = collector.getNthTupleEmittedTo(TopologyConstants.RESULT_STREAM, 1).get();
@@ -599,49 +599,14 @@ public class JoinBoltTest {
         Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.RESULT_STREAM).count(), 1);
         Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.FEEDBACK_STREAM).count(), 0);
     }
-/*
-    @Test
-    public void testUnknownAggregation() {
-        // Lowercase "top" is not valid and will not be parsed since there is no enum for it
-        // In this case aggregation type should be set to null and an error should be emitted
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                             "{\"aggregation\": {\"type\": \"garbage\"}}", EMPTY);
-        bolt.execute(query);
-
-        Assert.assertEquals(collector.getEmittedCount(), 1);
-        BulletError expectedError = Aggregation.TYPE_NOT_SUPPORTED_ERROR;
-        Meta expectedMetadata = Meta.of(expectedError);
-        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), FAILED).getValues();
-        List<Object> actual = collector.getNthTupleEmittedTo(TopologyConstants.RESULT_STREAM, 1).get();
-        Assert.assertTrue(isSameResult(actual, expected));
-    }
-
-    @Test
-    public void testUnhandledExceptionErrorEmitted() {
-        // An empty query should throw an null-pointer exception which should be caught in JoinBolt
-        // and an error should be emitted
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "", EMPTY);
-        bolt.execute(query);
-
-        sendRawRecordTuplesTo(bolt, "42");
-
-        Assert.assertEquals(collector.getEmittedCount(), 1);
-
-        String error = ParsingError.GENERIC_JSON_ERROR + ":\n\nNullPointerException: ";
-        BulletError expectedError = ParsingError.makeError(error, ParsingError.GENERIC_JSON_RESOLUTION);
-        Meta expectedMetadata = Meta.of(expectedError);
-        List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), FAILED).getValues();
-        List<Object> actual = collector.getNthTupleEmittedTo(TopologyConstants.RESULT_STREAM, 1).get();
-        Assert.assertTrue(isSameResult(actual, expected));
-    }
 
     @Test
     public void testErrorInQueryWithoutMetadata() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{\"aggregation\": {\"type\": \"garbage\"}}");
+        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)));
         bolt.execute(query);
 
         Assert.assertEquals(collector.getEmittedCount(), 1);
-        BulletError expectedError = Aggregation.TYPE_NOT_SUPPORTED_ERROR;
+        BulletError expectedError = BulletError.makeError("java.lang.NullPointerException", "Error initializing query");
         Meta expectedMetadata = Meta.of(expectedError);
         List<Object> expected = TupleUtils.makeTuple("42", Clip.of(expectedMetadata).asJSON(), FAILED).getValues();
         List<Object> actual = collector.getNthTupleEmittedTo(TopologyConstants.RESULT_STREAM, 1).get();
@@ -649,7 +614,7 @@ public class JoinBoltTest {
         Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.RESULT_STREAM).count(), 1);
         Assert.assertEquals(collector.getEmittedCount(), 1);
     }
-*/
+
     @Test
     public void testRawQueryDoneButNotTimedOutWithExcessRecords() {
         Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);

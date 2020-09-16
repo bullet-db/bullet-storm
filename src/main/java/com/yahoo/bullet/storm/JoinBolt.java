@@ -155,7 +155,7 @@ public class JoinBolt extends QueryBolt {
             return;
         } catch (RuntimeException re) {
             // Includes JSONParseException
-            emitErrorsAsResult(id, metadata, BulletError.makeError(re.getMessage(), "Error initializing query"));
+            emitErrorsAsResult(id, metadata, BulletError.makeError(re.toString(), "Error initializing query"));
         }
         log.error("Failed to initialize query for request {}", id);
     }
