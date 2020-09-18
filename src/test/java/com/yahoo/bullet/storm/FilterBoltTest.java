@@ -678,7 +678,7 @@ public class FilterBoltTest {
         BulletRecord expected = RecordBox.get().add("cnt", 10L).getRecord();
 
         Assert.assertEquals(actual.getMetricsAsBulletRecord(provider), expected);
-        //Assert.assertTrue(isEqual(actual, expected));
+        Assert.assertTrue(isEqual(actual, expected));
     }
 
     @Test
