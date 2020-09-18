@@ -319,8 +319,8 @@ public class JoinBolt extends QueryBolt {
         if (querier.shouldBuffer()) {
             queries.put(id, querier);
             updateCount(activeQueriesCount, 1L);
-            log.info("Received and started query {}", querier.getRunningQuery().getQueryString());
-            log.debug("Received and started query {}", querier.toString());
+            log.info("Received and started query {} : {}", querier.getRunningQuery().getId(), querier.getRunningQuery().getQueryString());
+            log.debug("Received and started query {}", querier);
         } else {
             preStartBuffer.put(id, querier);
             log.info("Received but delaying starting query {}", id);
