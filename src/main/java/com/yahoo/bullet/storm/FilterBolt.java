@@ -125,7 +125,8 @@ public class FilterBolt extends QueryBolt {
             Query query = SerializerDeserializer.fromBytes(queryData);
             Querier querier = createQuerier(Querier.Mode.PARTITION, id, query, metadata, config);
             manager.addQuery(id, querier);
-            log.info("Initialized query {}", querier.toString());
+            log.info("Initialized query {}", querier.getRunningQuery().getQueryString());
+            log.debug("Initialized query {}", querier.toString());
             return;
         } catch (RuntimeException ignored) {
         }
