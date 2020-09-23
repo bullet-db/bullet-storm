@@ -5,20 +5,29 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.aggregations.CountDistinct;
-import com.yahoo.bullet.aggregations.CountDistinctTest;
-import com.yahoo.bullet.aggregations.Distribution;
-import com.yahoo.bullet.aggregations.DistributionTest;
-import com.yahoo.bullet.aggregations.TopK;
-import com.yahoo.bullet.aggregations.TopKTest;
-import com.yahoo.bullet.aggregations.grouping.GroupData;
-import com.yahoo.bullet.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.common.SerializerDeserializer;
-import com.yahoo.bullet.parsing.Window;
 import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.query.Field;
+import com.yahoo.bullet.query.Query;
+import com.yahoo.bullet.query.Window;
+import com.yahoo.bullet.query.aggregations.DistributionType;
+import com.yahoo.bullet.query.expressions.BinaryExpression;
+import com.yahoo.bullet.query.expressions.CastExpression;
+import com.yahoo.bullet.query.expressions.Expression;
+import com.yahoo.bullet.query.expressions.FieldExpression;
+import com.yahoo.bullet.query.expressions.ListExpression;
+import com.yahoo.bullet.query.expressions.ValueExpression;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.RateLimitError;
+import com.yahoo.bullet.querying.aggregations.FrequentItemsSketchingStrategy;
+import com.yahoo.bullet.querying.aggregations.FrequentItemsSketchingStrategyTest;
+import com.yahoo.bullet.querying.aggregations.QuantileSketchingStrategy;
+import com.yahoo.bullet.querying.aggregations.QuantileSketchingStrategyTest;
+import com.yahoo.bullet.querying.aggregations.ThetaSketchingStrategy;
+import com.yahoo.bullet.querying.aggregations.ThetaSketchingStrategyTest;
+import com.yahoo.bullet.querying.aggregations.grouping.GroupData;
+import com.yahoo.bullet.querying.aggregations.grouping.GroupOperation;
 import com.yahoo.bullet.record.BulletRecord;
 import com.yahoo.bullet.record.BulletRecordProvider;
 import com.yahoo.bullet.result.RecordBox;
@@ -28,6 +37,7 @@ import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
 import com.yahoo.bullet.storm.testing.CustomTopologyContext;
 import com.yahoo.bullet.storm.testing.TestHelpers;
 import com.yahoo.bullet.storm.testing.TupleUtils;
+import com.yahoo.bullet.typesystem.Type;
 import com.yahoo.bullet.windowing.SlidingRecord;
 import com.yahoo.sketches.frequencies.ErrorType;
 import org.apache.commons.lang3.tuple.Pair;
@@ -46,35 +56,31 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.IntStream;
 
-import static com.yahoo.bullet.aggregations.grouping.GroupOperation.GroupOperationType.COUNT;
-import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.COUNT_FIELD;
-import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
-import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
-import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY_END;
-import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.PROBABILITY_FIELD;
-import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.RANGE_FIELD;
-import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.SEPARATOR;
-import static com.yahoo.bullet.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
-import static com.yahoo.bullet.parsing.Aggregation.Type.COUNT_DISTINCT;
-import static com.yahoo.bullet.parsing.Aggregation.Type.DISTRIBUTION;
-import static com.yahoo.bullet.parsing.Aggregation.Type.GROUP;
-import static com.yahoo.bullet.parsing.Aggregation.Type.RAW;
-import static com.yahoo.bullet.parsing.Aggregation.Type.TOP_K;
-import static com.yahoo.bullet.parsing.AggregationUtils.makeAttributes;
-import static com.yahoo.bullet.parsing.Clause.Operation.AND;
-import static com.yahoo.bullet.parsing.Clause.Operation.EQUALS;
-import static com.yahoo.bullet.parsing.Clause.Operation.GREATER_THAN;
-import static com.yahoo.bullet.parsing.Clause.Operation.NOT_EQUALS;
-import static com.yahoo.bullet.parsing.Clause.Operation.OR;
-import static com.yahoo.bullet.parsing.FilterUtils.getFieldFilter;
-import static com.yahoo.bullet.parsing.FilterUtils.makeClause;
-import static com.yahoo.bullet.parsing.QueryUtils.makeAggregationQuery;
-import static com.yahoo.bullet.parsing.QueryUtils.makeFieldFilterQuery;
-import static com.yahoo.bullet.parsing.QueryUtils.makeFilterQuery;
-import static com.yahoo.bullet.parsing.QueryUtils.makeGroupFilterQuery;
-import static com.yahoo.bullet.parsing.QueryUtils.makeProjectionFilterQuery;
-import static com.yahoo.bullet.parsing.QueryUtils.makeProjectionQuery;
-import static com.yahoo.bullet.parsing.QueryUtils.makeSimpleAggregationFilterQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeCountDistinctQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeDistributionQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeFieldFilterQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeFilterQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeGroupAllFieldFilterQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeProjectionFilterQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeProjectionQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeSimpleAggregationFieldFilterQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeTopKQuery;
+import static com.yahoo.bullet.query.expressions.Operation.AND;
+import static com.yahoo.bullet.query.expressions.Operation.EQUALS;
+import static com.yahoo.bullet.query.expressions.Operation.EQUALS_ANY;
+import static com.yahoo.bullet.query.expressions.Operation.GREATER_THAN;
+import static com.yahoo.bullet.query.expressions.Operation.NOT_EQUALS;
+import static com.yahoo.bullet.query.expressions.Operation.NOT_EQUALS_ALL;
+import static com.yahoo.bullet.query.expressions.Operation.OR;
+import static com.yahoo.bullet.querying.aggregations.grouping.GroupOperation.GroupOperationType.COUNT;
+import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.COUNT_FIELD;
+import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.END_EXCLUSIVE;
+import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.NEGATIVE_INFINITY_START;
+import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.POSITIVE_INFINITY_END;
+import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.PROBABILITY_FIELD;
+import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.RANGE_FIELD;
+import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.SEPARATOR;
+import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
 import static com.yahoo.bullet.storm.testing.TupleUtils.makeIDTuple;
 import static com.yahoo.bullet.storm.testing.TupleUtils.makeRawTuple;
 import static com.yahoo.bullet.storm.testing.TupleUtils.makeTuple;
@@ -98,7 +104,7 @@ public class FilterBoltTest {
         }
 
         @Override
-        protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
+        protected Querier createQuerier(Querier.Mode mode, String id, Query query, Metadata metadata, BulletConfig config) {
             return null;
         }
     }
@@ -124,8 +130,8 @@ public class FilterBoltTest {
         }
 
         @Override
-        protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
-            Querier spied = spy(super.createQuerier(mode, id, query, config));
+        protected Querier createQuerier(Querier.Mode mode, String id, Query query, Metadata metadata, BulletConfig config) {
+            Querier spied = spy(super.createQuerier(mode, id, query, metadata, config));
             List<Boolean> answers = IntStream.range(0, doneAfter).mapToObj(i -> false)
                                              .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);
@@ -145,8 +151,8 @@ public class FilterBoltTest {
         }
 
         @Override
-        protected Querier createQuerier(Querier.Mode mode, String id, String query, BulletConfig config) {
-            Querier spied = spy(super.createQuerier(mode, id, query, config));
+        protected Querier createQuerier(Querier.Mode mode, String id, Query query, Metadata metadata, BulletConfig config) {
+            Querier spied = spy(super.createQuerier(mode, id, query, metadata, config));
             List<Boolean> answers = IntStream.range(0, limitedAfter).mapToObj(i -> false)
                                              .collect(ArrayList::new, ArrayList::add, ArrayList::addAll);
             answers.add(true);
@@ -249,8 +255,10 @@ public class FilterBoltTest {
 
     @Test
     public void testProjection() {
+        Query queryObject = makeProjectionQuery(Arrays.asList(new Field("id", new FieldExpression("field")),
+                                                              new Field("mid", new FieldExpression("map_field", "id"))));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeProjectionQuery(Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -267,8 +275,8 @@ public class FilterBoltTest {
     }
 
     @Test
-    public void testBadJson() {
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "'filters' : [], ", METADATA);
+    public void testBadBytes() {
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", new byte[0], METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -283,7 +291,9 @@ public class FilterBoltTest {
 
     @Test
     public void testFiltering() {
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                  METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -303,9 +313,13 @@ public class FilterBoltTest {
 
     @Test
     public void testProjectionAndFiltering() {
+        Query queryObject = makeProjectionFilterQuery(new BinaryExpression(new FieldExpression("map_field", "id"),
+                                                                           new ValueExpression("123"),
+                                                                           EQUALS),
+                                                      Arrays.asList(new Field("id", new FieldExpression("field")),
+                                                                    new Field("mid", new FieldExpression("map_field", "id"))));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeProjectionFilterQuery("map_field.id", singletonList("123"), EQUALS,
-                                                            Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -323,9 +337,13 @@ public class FilterBoltTest {
 
     @Test
     public void testFilteringUsingProjectedName() {
+        Query queryObject = makeProjectionFilterQuery(new BinaryExpression(new FieldExpression("mid"),
+                                                                           new ValueExpression("123"),
+                                                                           EQUALS),
+                                                      Arrays.asList(new Field("id", new FieldExpression("field")),
+                                                                    new Field("mid", new FieldExpression("map_field", "id"))));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeProjectionFilterQuery("mid", singletonList("123"), EQUALS,
-                                                             Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -343,9 +361,13 @@ public class FilterBoltTest {
 
     @Test
     public void testProjectionNotLosingFilterColumn() {
+        Query queryObject = makeProjectionFilterQuery(new BinaryExpression(new FieldExpression("timestamp"),
+                                                                           new ValueExpression(92L),
+                                                                           EQUALS),
+                                                      Arrays.asList(new Field("id", new FieldExpression("field")),
+                                                                    new Field("mid", new FieldExpression("map_field", "id"))));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeProjectionFilterQuery("timestamp", singletonList("92"), EQUALS,
-                                                            Pair.of("field", "id"), Pair.of("map_field.id", "mid")),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -363,9 +385,9 @@ public class FilterBoltTest {
 
     @Test
     public void testFilteringSlidingWindow() {
+        Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5,
-                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -382,9 +404,12 @@ public class FilterBoltTest {
 
     @Test
     public void testDifferentQueryMatchingSameTuple() {
-        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                   SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                   METADATA);
         Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
-                                   makeFilterQuery("timestamp", asList("1", "2", "3", "45"), EQUALS), METADATA);
+                                   SerializerDeserializer.toBytes(makeFilterQuery("timestamp", asList(1L, 2L, 3L, 45L), EQUALS_ANY)),
+                                   METADATA);
         bolt.execute(queryA);
         bolt.execute(queryB);
 
@@ -402,9 +427,12 @@ public class FilterBoltTest {
 
     @Test
     public void testDifferentQueryMatchingDifferentTuple() {
-        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                   SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                   METADATA);
         Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
-                                   makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS), METADATA);
+                                   SerializerDeserializer.toBytes(makeFilterQuery("timestamp", asList(1L, 2L, 3L, 45L), NOT_EQUALS_ALL)),
+                                   METADATA);
         bolt.execute(queryA);
         bolt.execute(queryB);
 
@@ -427,9 +455,12 @@ public class FilterBoltTest {
 
     @Test
     public void testDuplicateQueryIds() {
-        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                   SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                   METADATA);
         Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
-                                   makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS), METADATA);
+                                   SerializerDeserializer.toBytes(makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS)),
+                                   METADATA);
 
         Assert.assertEquals(bolt.getManager().size(), 0);
 
@@ -448,7 +479,9 @@ public class FilterBoltTest {
     public void testFailQueryInitialization() {
         bolt = ComponentUtils.prepare(new NoQueryFilterBolt(), collector);
 
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                  METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -463,7 +496,9 @@ public class FilterBoltTest {
     public void testQueryNotDone() {
         bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                  METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -482,7 +517,9 @@ public class FilterBoltTest {
     public void testQueryDone() {
         bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                  METADATA);
         bolt.execute(query);
 
         BulletRecord nonMatching = RecordBox.get().add("field", "foo").getRecord();
@@ -505,7 +542,9 @@ public class FilterBoltTest {
     public void testQueryNotDoneAndThenDone() {
         bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                  METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -527,28 +566,44 @@ public class FilterBoltTest {
     @SuppressWarnings("unchecked")
     @Test
     public void testComplexFilterQuery() {
+        Expression filter = new BinaryExpression(new BinaryExpression(new BinaryExpression(new FieldExpression("field"),
+                                                                                           new ValueExpression("abc"),
+                                                                                           EQUALS),
+                                                                      new BinaryExpression(new BinaryExpression(new FieldExpression("experience"),
+                                                                                                                new ListExpression(Arrays.asList(new ValueExpression("app"),
+                                                                                                                                                 new ValueExpression("tv"))),
+                                                                                                                EQUALS_ANY),
+                                                                                           new BinaryExpression(new FieldExpression("mid"),
+                                                                                                                new ValueExpression(10),
+                                                                                                                GREATER_THAN),
+                                                                                           OR),
+                                                                      AND),
+                                                 new BinaryExpression(new BinaryExpression(new CastExpression(new FieldExpression("demographic_map", "age"), Type.INTEGER),
+                                                                                           new ValueExpression(65),
+                                                                                           GREATER_THAN),
+                                                                      new BinaryExpression(new FieldExpression("filter_map", "is_fake_event"),
+                                                                                           new ValueExpression(true),
+                                                                                           EQUALS),
+                                                                      AND),
+                                                 OR);
+
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeFilterQuery(OR,
-                                                  makeClause(AND,
-                                                             getFieldFilter("field", EQUALS, "abc"),
-                                                             makeClause(OR,
-                                                                        makeClause(AND,
-                                                                                   getFieldFilter("experience", EQUALS, "app", "tv"),
-                                                                                   getFieldFilter("pid", EQUALS, "1", "2")),
-                                                                        getFieldFilter("mid", GREATER_THAN, "10"))),
-                                                  makeClause(AND,
-                                                             getFieldFilter("demographic_map.age", GREATER_THAN, "65"),
-                                                             getFieldFilter("filter_map.is_fake_event", EQUALS, "true"))),
+                                  SerializerDeserializer.toBytes(makeFilterQuery(filter)),
                                   METADATA);
         bolt.execute(query);
 
-        // first clause is true : field == "abc", experience == "app" or "tv", mid < 10
+        // first clause is true : field == "abc", experience == "app" or "tv", mid > 10
         BulletRecord recordA = RecordBox.get().add("field", "abc")
                                               .add("experience", "tv")
                                               .add("mid", 11)
                                               .getRecord();
-        // second clause is false: age > 65 and is_fake_event == null
-        BulletRecord recordB = RecordBox.get().addMap("demographic_map", Pair.of("age", "67")).getRecord();
+        // second clause is false: age > 65 and is_fake_event == true
+        BulletRecord recordB = RecordBox.get().add("field", "")
+                                              .add("experience", "")
+                                              .add("mid", 0)
+                                              .addMap("demographic_map", Pair.of("age", "67"))
+                                              .addMap("filter_map", Pair.of("is_fake_event", false))
+                                              .getRecord();
 
         Tuple nonMatching = makeRecordTuple(recordB);
         bolt.execute(nonMatching);
@@ -557,12 +612,8 @@ public class FilterBoltTest {
         Tuple matching = makeRecordTuple(recordA);
         bolt.execute(matching);
 
-        BulletRecord expectedRecord = RecordBox.get().add("field", "abc").add("experience", "tv")
-                                                     .add("mid", 11).getRecord();
-        BulletRecord notExpectedRecord = RecordBox.get().addMap("demographic_map", Pair.of("age", "67")).getRecord();
-
-        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", expectedRecord);
-        Tuple notExpected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", notExpectedRecord);
+        Tuple expected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", recordA);
+        Tuple notExpected = makeDataTuple(TupleClassifier.Type.DATA_TUPLE, "42", recordB);
 
         Assert.assertTrue(wasRawRecordEmittedTo(TopologyConstants.DATA_STREAM, 1, expected));
         Assert.assertFalse(wasRawRecordEmitted(notExpected));
@@ -572,7 +623,9 @@ public class FilterBoltTest {
     public void testTuplesCustomSource() {
         bolt = ComponentUtils.prepare(new FilterBolt("CustomSource", oneRecordConfig()), collector);
 
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("b235gf23b"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
+                                  METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -599,9 +652,10 @@ public class FilterBoltTest {
         // 15 Records will be consumed
         bolt = ComponentUtils.prepare(new DonableFilterBolt(15, new BulletStormConfig()), collector);
 
+        Query queryObject = makeGroupAllFieldFilterQuery("timestamp", asList("1", "2"), EQUALS_ANY,
+                                                         singletonList(new GroupOperation(COUNT, null, "cnt")));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeGroupFilterQuery("timestamp", asList("1", "2"), EQUALS,
-                                                       GROUP, 1, singletonList(new GroupOperation(COUNT, null, "cnt"))),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -613,7 +667,6 @@ public class FilterBoltTest {
 
         Tuple nonMatching = makeRecordTuple(another);
         IntStream.range(0, 5).forEach(i -> bolt.execute(nonMatching));
-        bolt.execute(nonMatching);
 
         // Two to flush bolt
         Tuple tick = TupleUtils.makeTuple(TupleClassifier.Type.TICK_TUPLE);
@@ -624,17 +677,18 @@ public class FilterBoltTest {
         GroupData actual = SerializerDeserializer.fromBytes(getRawPayloadOfNthTuple(1));
         BulletRecord expected = RecordBox.get().add("cnt", 10L).getRecord();
 
+        Assert.assertEquals(actual.getMetricsAsBulletRecord(provider), expected);
         Assert.assertTrue(isEqual(actual, expected));
     }
 
     @Test
     public void testCountDistinct() {
         // 256 Records will be consumed
-        BulletStormConfig config = new BulletStormConfig(CountDistinctTest.makeConfiguration(8, 512));
+        BulletStormConfig config = new BulletStormConfig(ThetaSketchingStrategyTest.makeConfiguration(8, 512));
         bolt = ComponentUtils.prepare(new DonableFilterBolt(256, config), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeAggregationQuery(COUNT_DISTINCT, 1, null, Pair.of("field", "field")),
+                                  SerializerDeserializer.toBytes(makeCountDistinctQuery(singletonList("field"), "count")),
                                   METADATA);
         bolt.execute(query);
 
@@ -653,19 +707,19 @@ public class FilterBoltTest {
         byte[] rawData = getRawPayloadOfNthTuple(1);
         Assert.assertNotNull(rawData);
 
-        CountDistinct distinct = CountDistinctTest.makeCountDistinct(config, singletonList("field"));
+        ThetaSketchingStrategy distinct = ThetaSketchingStrategyTest.makeCountDistinct(config, singletonList("field"), "count");
         distinct.combine(rawData);
 
         BulletRecord actual = distinct.getRecords().get(0);
-        BulletRecord expected = RecordBox.get().add(CountDistinct.DEFAULT_NEW_NAME, 256.0).getRecord();
+        BulletRecord expected = RecordBox.get().add("count", 256L).getRecord();
         Assert.assertEquals(actual, expected);
     }
 
     @Test
     public void testNoConsumptionAfterDone() {
+        Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5,
-                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -693,12 +747,11 @@ public class FilterBoltTest {
     @Test
     public void testDistribution() {
         // 100 Records will be consumed
-        BulletStormConfig config = new BulletStormConfig(DistributionTest.makeConfiguration(20, 128));
+        BulletStormConfig config = new BulletStormConfig(QuantileSketchingStrategyTest.makeConfiguration(20, 128));
         bolt = ComponentUtils.prepare(new DonableFilterBolt(101, config), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeAggregationQuery(DISTRIBUTION, 10, Distribution.Type.PMF, "field", null, null,
-                                                       null, null, 3),
+                                  SerializerDeserializer.toBytes(makeDistributionQuery(10, DistributionType.PMF, "field", 3)),
                                   METADATA);
         bolt.execute(query);
 
@@ -717,8 +770,7 @@ public class FilterBoltTest {
         byte[] rawData = getRawPayloadOfNthTuple(1);
         Assert.assertNotNull(rawData);
 
-        Distribution distribution = DistributionTest.makeDistribution(config, makeAttributes(Distribution.Type.PMF, 3),
-                                                                      "field", 10, null);
+        QuantileSketchingStrategy distribution = QuantileSketchingStrategyTest.makeDistribution(config, 10, "field", DistributionType.PMF, 3);
         distribution.combine(rawData);
 
         List<BulletRecord> records = distribution.getRecords();
@@ -744,11 +796,15 @@ public class FilterBoltTest {
     @Test
     public void testTopK() {
         // 16 records
-        BulletStormConfig config = new BulletStormConfig(TopKTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 32));
+        BulletStormConfig config = new BulletStormConfig(FrequentItemsSketchingStrategyTest.makeConfiguration(ErrorType.NO_FALSE_NEGATIVES, 32));
         bolt = ComponentUtils.prepare(new DonableFilterBolt(16, config), collector);
 
+        Map<String, String> fields = new HashMap<>();
+        fields.put("A", "");
+        fields.put("B", "foo");
+
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeAggregationQuery(TOP_K, 5, null, "cnt", Pair.of("A", ""), Pair.of("B", "foo")),
+                                  SerializerDeserializer.toBytes(makeTopKQuery(5, null, "cnt", fields)),
                                   METADATA);
         bolt.execute(query);
 
@@ -771,10 +827,7 @@ public class FilterBoltTest {
         byte[] rawData = getRawPayloadOfNthTuple(1);
         Assert.assertNotNull(rawData);
 
-        Map<String, String> fields = new HashMap<>();
-        fields.put("A", "");
-        fields.put("B", "foo");
-        TopK topK = TopKTest.makeTopK(config, makeAttributes("cnt", null), fields, 2, null);
+        FrequentItemsSketchingStrategy topK = FrequentItemsSketchingStrategyTest.makeTopK(config, fields, 2, "cnt", null, null);
         topK.combine(rawData);
 
         List<BulletRecord> records = topK.getRecords();
@@ -797,7 +850,9 @@ public class FilterBoltTest {
         bolt = new FilterBolt(TopologyConstants.RECORD_COMPONENT, config);
         ComponentUtils.prepare(new HashMap<>(), bolt, context, collector);
 
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", makeFieldFilterQuery("bar"), METADATA);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("bar")),
+                                  METADATA);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "foo").getRecord();
@@ -816,9 +871,10 @@ public class FilterBoltTest {
         bolt = new RateLimitedFilterBolt(2, rateLimitError, config);
         bolt = ComponentUtils.prepare(new HashMap<>(), bolt, collector);
 
+        Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 100, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
+
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 100,
-                                                                    Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -841,9 +897,9 @@ public class FilterBoltTest {
         bolt = new RateLimitedFilterBolt(2, null, config);
         bolt = ComponentUtils.prepare(new HashMap<>(), bolt, collector);
 
+        Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 100, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 100,
-                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -862,9 +918,9 @@ public class FilterBoltTest {
 
     @Test
     public void testKillSignal() {
+        Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5,
-                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -888,9 +944,10 @@ public class FilterBoltTest {
 
     @Test
     public void testCompleteSignal() {
+        Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
+
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  makeSimpleAggregationFilterQuery("field", singletonList("b235gf23b"), EQUALS, RAW, 5,
-                                                                   Window.Unit.RECORD, 1, Window.Unit.RECORD, 1),
+                                  SerializerDeserializer.toBytes(queryObject),
                                   METADATA);
         bolt.execute(query);
 
@@ -910,19 +967,6 @@ public class FilterBoltTest {
         bolt.execute(matching);
 
         Assert.assertEquals(collector.getEmittedCount(), 2);
-    }
-
-    @Test
-    public void testQueryErrorsAreSilentlyIgnored() {
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", "{'aggregation': { 'type': null }}");
-        bolt.execute(query);
-
-        BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
-        Tuple someTuple = makeRecordTuple(record);
-        bolt.execute(someTuple);
-        bolt.execute(someTuple);
-
-        Assert.assertEquals(collector.getEmittedCount(), 0);
     }
 
     @Test

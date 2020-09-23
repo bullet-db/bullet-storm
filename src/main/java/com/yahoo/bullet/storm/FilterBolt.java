@@ -5,6 +5,9 @@
  */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.common.SerializerDeserializer;
+import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
 import com.yahoo.bullet.querying.QueryManager;
@@ -110,24 +113,25 @@ public class FilterBolt extends QueryBolt {
 
     private void onQuery(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
-        String query = tuple.getString(TopologyConstants.QUERY_POSITION);
+        byte[] queryData = (byte[]) tuple.getValue(TopologyConstants.QUERY_POSITION);
+        Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
 
         if (manager.hasQuery(id)) {
-            log.error("Duplicate for request {} with query {}", id, query);
+            log.error("Duplicate for request {}", id);
             return;
         }
 
         try {
-            Querier querier = createQuerier(Querier.Mode.PARTITION, id, query, config);
-            if (!querier.initialize().isPresent()) {
-                manager.addQuery(id, querier);
-                log.info("Initialized query {}", querier.toString());
-                return;
-            }
+            Query query = SerializerDeserializer.fromBytes(queryData);
+            Querier querier = createQuerier(Querier.Mode.PARTITION, id, query, metadata, config);
+            manager.addQuery(id, querier);
+            log.info("Initialized query {} : {}", querier.getRunningQuery().getId(), querier.getRunningQuery().getQueryString());
+            log.debug("Initialized query {}", querier);
+            return;
         } catch (RuntimeException ignored) {
         }
         // No need to handle any errors in the Filter Bolt.
-        log.error("Failed to initialize query for request {} with query {}", id, query);
+        log.error("Failed to initialize query for request {}", id);
     }
 
     private void onRecord(Tuple tuple) {

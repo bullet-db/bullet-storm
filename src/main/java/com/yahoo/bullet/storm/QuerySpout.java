@@ -87,9 +87,8 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
             Utils.sleep(1);
             return;
         }
-        String content = message.getContent();
         // If no content, it's a metadata only message. Send it on the METADATA_STREAM.
-        if (content == null) {
+        if (!message.hasContent()) {
             collector.emit(METADATA_STREAM, new Values(message.getId(), message.getMetadata()), message.getId());
         } else {
             collector.emit(QUERY_STREAM, new Values(message.getId(), message.getContent(), message.getMetadata()), message.getId());

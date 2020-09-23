@@ -6,8 +6,9 @@
 package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.BulletError;
-import com.yahoo.bullet.parsing.ParsingError;
+import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
 import com.yahoo.bullet.querying.RateLimitError;
@@ -26,7 +27,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
@@ -137,31 +137,27 @@ public class JoinBolt extends QueryBolt {
 
     private void onQuery(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
-        String query = tuple.getString(TopologyConstants.QUERY_POSITION);
+        byte[] queryData = (byte[]) tuple.getValue(TopologyConstants.QUERY_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
 
         // bufferedMetadata has an entry for each query that exists in the JoinBolt; therefore, we check bufferedMetadata
         // for existing queries (as opposed to individually checking the queries, preStartBuffer, and postFinishBuffer maps)
         if (bufferedMetadata.containsKey(id)) {
             updateCount(duplicatedQueriesCount, 1L);
-            log.error("Duplicate for request {} with query {}", id, query);
+            log.error("Duplicate for request {}", id);
             return;
         }
 
-        Querier querier;
         try {
-            querier = createQuerier(Querier.Mode.ALL, id, query, config);
-            Optional<List<BulletError>> optionalErrors = querier.initialize();
-            if (!optionalErrors.isPresent()) {
-                setupQuery(id, query, metadata, querier);
-                return;
-            }
-            emitErrorsAsResult(id, metadata, optionalErrors.get());
+            Query query = SerializerDeserializer.fromBytes(queryData);
+            Querier querier = createQuerier(Querier.Mode.ALL, id, query, metadata, config);
+            setupQuery(id, metadata, querier);
+            return;
         } catch (RuntimeException re) {
             // Includes JSONParseException
-            emitErrorsAsResult(id, metadata, ParsingError.makeError(re, query));
+            emitErrorsAsResult(id, metadata, BulletError.makeError(re.toString(), "Error initializing query"));
         }
-        log.error("Failed to initialize query for request {} with query {}", id, query);
+        log.error("Failed to initialize query for request {}", id);
     }
 
     private void onData(Tuple tuple) {
@@ -316,14 +312,15 @@ public class JoinBolt extends QueryBolt {
 
     // Other helpers
 
-    private void setupQuery(String id, String query, Metadata metadata, Querier querier) {
+    private void setupQuery(String id, Metadata metadata, Querier querier) {
         updateCount(createdQueriesCount, 1L);
         bufferedMetadata.put(id, metadata);
         // If the query should be post-finish buffered, it should not be pre-start delayed.
         if (querier.shouldBuffer()) {
             queries.put(id, querier);
             updateCount(activeQueriesCount, 1L);
-            log.info("Received and started query {}", querier.toString());
+            log.info("Received and started query {} : {}", querier.getRunningQuery().getId(), querier.getRunningQuery().getQueryString());
+            log.debug("Received and started query {}", querier);
         } else {
             preStartBuffer.put(id, querier);
             log.info("Received but delaying starting query {}", id);
@@ -344,10 +341,11 @@ public class JoinBolt extends QueryBolt {
 
     private Metadata withSignal(Metadata metadata, Metadata.Signal signal) {
         // Don't change the non-readonly bits of metadata in place since that might affect tuples emitted but pending.
-        Metadata copy = new Metadata(signal, null);
-        if (metadata != null) {
-            copy.setContent(metadata.getContent());
+        if (metadata == null) {
+            return new Metadata(signal, null);
         }
+        Metadata copy = metadata.copy();
+        copy.setSignal(signal);
         return copy;
     }
 

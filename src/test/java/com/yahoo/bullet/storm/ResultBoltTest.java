@@ -50,12 +50,12 @@ public class ResultBoltTest {
                                               new PubSubMessage("43", "This is also a PubSubMessage", new Metadata()),
                                               new PubSubMessage("44", "This is still a PubSubMessage", new Metadata()));
         List<Tuple> tuples = new ArrayList<>();
-        expected.forEach(m -> tuples.add(makeTuple(m.getId(), m.getContent(), m.getMetadata())));
+        expected.forEach(m -> tuples.add(makeTuple(m.getId(), m.getContentAsString(), m.getMetadata())));
 
         for (int i = 0; i < tuples.size(); i++) {
             bolt.execute(tuples.get(i));
             Assert.assertEquals(publisher.getSent().get(i).getId(), expected.get(i).getId());
-            Assert.assertEquals(publisher.getSent().get(i).getContent(), expected.get(i).getContent());
+            Assert.assertEquals(publisher.getSent().get(i).getContentAsString(), expected.get(i).getContentAsString());
             Assert.assertEquals(publisher.getSent().get(i).getMetadata(), expected.get(i).getMetadata());
             Assert.assertTrue(collector.wasNthAcked(tuples.get(i), i + 1));
             Assert.assertEquals(collector.getAckedCount(), i + 1);
