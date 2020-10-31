@@ -8,6 +8,7 @@ bullet.dsl.connector.async.commit.enable: true
 # The classpath to the BulletRecordConverter to use
 bullet.dsl.converter.class.name: "com.yahoo.bullet.dsl.converter.MapBulletRecordConverter"
 bullet.dsl.converter.schema.file: "test_dsl_schema.json"
+bullet.dsl.converter.schema.type.check.enable: true
 
 # The classpath to the BulletDeserializer to use
 bullet.dsl.deserializer.class.name: "com.yahoo.bullet.storm.testing.MockDeserializer"
