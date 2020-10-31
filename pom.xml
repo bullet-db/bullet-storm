@@ -38,7 +38,7 @@
         <storm.version>2.1.0</storm.version>
         <storm.metrics.version>2.1.0</storm.metrics.version>
         <jackson.core.version>2.10.2</jackson.core.version>
-        <bullet.core.version>1.0.0</bullet.core.version>
+        <bullet.core.version>1.1.0</bullet.core.version>
         <bullet.dsl.version>1.0.0</bullet.dsl.version>
     </properties>
 
@@ -165,7 +165,7 @@
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>8.26</version>
+                        <version>8.29</version>
                     </dependency>
                 </dependencies>
             </plugin>
