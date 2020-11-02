@@ -119,6 +119,7 @@ public class StormUtils {
         // Metrics
         Boolean enableMetrics = (Boolean) config.get(BulletStormConfig.TOPOLOGY_METRICS_ENABLE);
         if (enableMetrics) {
+            stormConfig.put(Config.TOPOLOGY_ENABLE_V2_METRICS_TICK, true);
             List<String> classNames = config.getAs(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, List.class);
             classNames.forEach(className -> ReflectionUtils.registerMetricsConsumer(className, stormConfig, config));
         }

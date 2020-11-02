@@ -541,10 +541,14 @@ public class StormUtilsTest {
         config.set(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, singletonList(CustomIMetricsConsumer.class.getName()));
 
         Assert.assertNull(config.get(CustomIMetricsConsumer.CUSTOM_METRICS_REGISTERED));
+        Assert.assertNull(config.get(CustomIMetricsConsumer.CUSTOM_METRICS_V2_ENABLED));
         Assert.assertFalse(builder.isTopologyCreated());
+
         submitWithTopology("source");
 
         Assert.assertTrue(builder.isTopologyCreated());
+        // This value is the value of the v2 metrics tick setting in the storm config
+        Assert.assertTrue((Boolean) config.get(CustomIMetricsConsumer.CUSTOM_METRICS_V2_ENABLED));
         Assert.assertTrue((Boolean) config.get(CustomIMetricsConsumer.CUSTOM_METRICS_REGISTERED));
     }
 }

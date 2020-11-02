@@ -16,6 +16,7 @@ import java.util.Map;
 
 public class CustomIMetricsConsumer implements IMetricsConsumer {
     public static final String CUSTOM_METRICS_REGISTERED = "bullet.topology.custom.metrics.consumer.was.registered";
+    public static final String CUSTOM_METRICS_V2_ENABLED = "bullet.topology.custom.metrics.consumer.v2.enabled";
     @Override
     public void prepare(Map stormConf, Object registrationArgument, TopologyContext context, IErrorReporter errorReporter) {
     }
@@ -30,6 +31,7 @@ public class CustomIMetricsConsumer implements IMetricsConsumer {
 
     public static void register(Config stormConfig, BulletStormConfig bulletStormConfig) {
         bulletStormConfig.set(CUSTOM_METRICS_REGISTERED, true);
+        bulletStormConfig.set(CUSTOM_METRICS_V2_ENABLED, stormConfig.get(Config.TOPOLOGY_ENABLE_V2_METRICS_TICK));
         stormConfig.registerMetricsConsumer(CustomIMetricsConsumer.class);
     }
 }
