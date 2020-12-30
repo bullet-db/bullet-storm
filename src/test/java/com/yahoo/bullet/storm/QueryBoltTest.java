@@ -9,6 +9,7 @@ import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.Metadata.Signal;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.storm.TupleClassifier.Type;
+import com.yahoo.bullet.storm.metric.AbsoluteCountMetric;
 import com.yahoo.bullet.storm.testing.ComponentUtils;
 import com.yahoo.bullet.storm.testing.CustomCollector;
 import com.yahoo.bullet.storm.testing.CustomTopologyContext;

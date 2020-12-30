@@ -7,6 +7,7 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
@@ -29,7 +30,10 @@ import static com.yahoo.bullet.storm.TopologyConstants.DATA_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ERROR_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.ERROR_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.LATENCY_METRIC;
+import static com.yahoo.bullet.storm.TopologyConstants.METADATA_FIELD;
 
 @Slf4j
 public class FilterBolt extends QueryBolt {
@@ -45,6 +49,7 @@ public class FilterBolt extends QueryBolt {
     // Exposed for testing
     @Getter(AccessLevel.PACKAGE)
     private transient int statsTickCount;
+    private transient int duplicatedCount;
 
     /**
      * Constructor that accepts the name of the component that the records are coming from and the validated config.
@@ -67,8 +72,8 @@ public class FilterBolt extends QueryBolt {
         statsTickCount = 0;
         // Set up the manager
         manager = new QueryManager(config);
-        if (metricsEnabled) {
-            averageLatency = registerAveragingMetric(TopologyConstants.LATENCY_METRIC, context);
+        if (metrics.isEnabled()) {
+            averageLatency = metrics.registerAveragingMetric(LATENCY_METRIC, context);
         }
     }
 
@@ -90,6 +95,9 @@ public class FilterBolt extends QueryBolt {
                 onRecord(tuple);
                 updateLatency(tuple);
                 break;
+            case BATCH_TUPLE:
+                onBatch(tuple);
+                break;
             default:
                 // May want to throw an error here instead of not acking
                 log.error("Unknown tuple encountered: {}", type);
@@ -104,23 +112,40 @@ public class FilterBolt extends QueryBolt {
         declarer.declareStream(DATA_STREAM, new Fields(ID_FIELD, DATA_FIELD));
         // This is the where any errors per query are sent
         declarer.declareStream(ERROR_STREAM, new Fields(ID_FIELD, ERROR_FIELD));
+        // This is where replay requests are sent
+        declarer.declareStream(FEEDBACK_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
+    }
+
+    @Override
+    protected void initializeQuery(PubSubMessage message) {
+        initializeQuery(message.getId(), message.getContent(), message.getMetadata());
     }
 
     @Override
     protected void removeQuery(String id) {
         manager.removeAndGetQuery(id);
+        /*
+        TODO possible leak if we get a kill signal for a query during replay
+        solution: store removed query id's (that did not get removed) during replay and process them after replay is done.
+         */
+//        if (manager.removeAndGetQuery(id) == null) {
+//            removedIds.add(id);
+//        }
     }
 
     private void onQuery(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         byte[] queryData = (byte[]) tuple.getValue(TopologyConstants.QUERY_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
+        initializeQuery(id, queryData, metadata);
+    }
 
+    private void initializeQuery(String id, byte[] queryData, Metadata metadata) {
         if (manager.hasQuery(id)) {
-            log.error("Duplicate for request {}", id);
+            log.debug("Duplicate for request {}", id);
+            duplicatedCount++;
             return;
         }
-
         try {
             Query query = SerializerDeserializer.fromBytes(queryData);
             Querier querier = createQuerier(Querier.Mode.PARTITION, id, query, metadata, config);
@@ -143,6 +168,7 @@ public class FilterBolt extends QueryBolt {
         // Categorize queries in partition mode.
         handleCategorizedQueries(manager.categorize());
         handleStats();
+        emitReplayRequestIfNecessary();
     }
 
     private void handleCategorizedQueries(QueryCategorizer category) {
@@ -169,6 +195,7 @@ public class FilterBolt extends QueryBolt {
         }
         statsTickCount = 0;
         log.info("Query Manager Statistics:\n{}\n", manager.getStats());
+        log.info("Duplicated queries count: {}", duplicatedCount);
     }
 
     private void emitData(Map.Entry<String, Querier> query) {
@@ -186,7 +213,7 @@ public class FilterBolt extends QueryBolt {
     }
 
     private void updateLatency(Tuple tuple) {
-        if (metricsEnabled && tuple.size() > 1) {
+        if (metrics.isEnabled() && tuple.size() > 1) {
             // Could use named fields instead
             Long timestamp = (Long) tuple.getValue(TopologyConstants.RECORD_TIMESTAMP_POSITION);
             averageLatency.update(System.currentTimeMillis() - timestamp);

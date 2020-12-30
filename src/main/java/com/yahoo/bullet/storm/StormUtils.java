@@ -6,6 +6,9 @@
 package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.BulletConfig;
+import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.storm.grouping.IDGrouping;
+import com.yahoo.bullet.storm.grouping.TaskIndexCaptureGrouping;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
@@ -15,7 +18,9 @@ import org.apache.storm.tuple.Fields;
 import java.util.List;
 import java.util.Objects;
 
+import static com.yahoo.bullet.storm.TopologyConstants.CAPTURE_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.ERROR_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.FILTER_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
@@ -24,6 +29,8 @@ import static com.yahoo.bullet.storm.TopologyConstants.LOOP_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.QUERY_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.QUERY_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_COMPONENT;
+import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.RESULT_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.TICK_COMPONENT;
 import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
@@ -31,6 +38,9 @@ import static com.yahoo.bullet.storm.TopologyConstants.TICK_STREAM;
 @Slf4j
 @SuppressWarnings("unchecked")
 public class StormUtils {
+    private static final int POSITIVE_INT_MASK = 0x7FFFFFFF;
+    public static final String HYPHEN = "-";
+
     /**
      * This function can be used to wire up the source of the records to Bullet. The name of the last component in your
      * topology and the {@link TopologyBuilder} used to create your topology should be provided. That topology
@@ -79,6 +89,11 @@ public class StormUtils {
         Number loopBoltMemoryOnHeapLoad = config.getAs(BulletStormConfig.LOOP_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
         Number loopBoltMemoryOffHeapLoad = config.getAs(BulletStormConfig.LOOP_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
+        Number replayBoltParallelism = config.getAs(BulletStormConfig.REPLAY_BOLT_PARALLELISM, Number.class);
+        Number replayBoltCPULoad = config.getAs(BulletStormConfig.REPLAY_BOLT_CPU_LOAD, Number.class);
+        Number replayBoltMemoryOnHeapLoad = config.getAs(BulletStormConfig.REPLAY_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number replayBoltMemoryOffHeapLoad = config.getAs(BulletStormConfig.REPLAY_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
+
         builder.setSpout(QUERY_COMPONENT, new QuerySpout(config), querySpoutParallelism)
                .setCPULoad(querySpoutCPULoad).setMemoryLoad(querySpoutMemoryOnHeapLoad, querySpoutMemoryOffHeapLoad);
 
@@ -90,15 +105,25 @@ public class StormUtils {
                .shuffleGrouping(recordComponent)
                .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
                .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
+               .directGrouping(REPLAY_COMPONENT, REPLAY_STREAM)
                .allGrouping(TICK_COMPONENT, TICK_STREAM)
                .setCPULoad(filterBoltCPULoad).setMemoryLoad(filterBoltMemoryOnheapLoad, filterBoltMemoryOffHeapLoad);
 
         builder.setBolt(JOIN_COMPONENT, new JoinBolt(config), joinBoltParallelism)
-               .fieldsGrouping(QUERY_COMPONENT, QUERY_STREAM, new Fields(ID_FIELD))
-               .fieldsGrouping(QUERY_COMPONENT, METADATA_STREAM, new Fields(ID_FIELD))
-               .fieldsGrouping(FILTER_COMPONENT, DATA_STREAM, new Fields(ID_FIELD))
+               .customGrouping(QUERY_COMPONENT, QUERY_STREAM, new IDGrouping())
+               .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
+               .customGrouping(FILTER_COMPONENT, DATA_STREAM, new IDGrouping())
+               .customGrouping(FILTER_COMPONENT, ERROR_STREAM, new IDGrouping())
+               .customGrouping(REPLAY_COMPONENT, CAPTURE_STREAM, new TaskIndexCaptureGrouping())
+               .directGrouping(REPLAY_COMPONENT, REPLAY_STREAM)
                .allGrouping(TICK_COMPONENT, TICK_STREAM)
                .setCPULoad(joinBoltCPULoad).setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
+
+        builder.setBolt(REPLAY_COMPONENT, new ReplayBolt(config), replayBoltParallelism)
+               .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
+               .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
+               .fieldsGrouping(QUERY_COMPONENT, REPLAY_STREAM, new Fields(ID_FIELD))
+               .setCPULoad(replayBoltCPULoad).setMemoryLoad(replayBoltMemoryOnHeapLoad, replayBoltMemoryOffHeapLoad);
 
         builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(config), resultBoltParallelism)
                .shuffleGrouping(JOIN_COMPONENT, RESULT_STREAM)
@@ -194,5 +219,24 @@ public class StormUtils {
             addBulletSpout(config, builder);
         }
         submit(config, TopologyConstants.RECORD_COMPONENT, builder);
+    }
+
+    /**
+     * Returns an index based on the hash of the key and the hash count.
+     *
+     * @param key The key that determines the hash.
+     * @param count The hash count.
+     * @return The index for the given key and hash count.
+     */
+    public static int getHashIndex(Object key, int count) {
+        return (key.hashCode() & POSITIVE_INT_MASK) % count;
+    }
+
+    public static boolean isKillSignal(Metadata.Signal signal) {
+        return signal == Metadata.Signal.KILL || signal == Metadata.Signal.COMPLETE;
+    }
+
+    public static boolean isReplaySignal(Metadata.Signal signal) {
+        return signal == Metadata.Signal.REPLAY;
     }
 }

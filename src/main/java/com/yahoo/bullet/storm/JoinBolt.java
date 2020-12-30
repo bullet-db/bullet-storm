@@ -8,12 +8,14 @@ package com.yahoo.bullet.storm;
 import com.yahoo.bullet.common.BulletError;
 import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
 import com.yahoo.bullet.querying.RateLimitError;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Meta;
+import com.yahoo.bullet.storm.metric.AbsoluteCountMetric;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -27,6 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
@@ -76,12 +79,12 @@ public class JoinBolt extends QueryBolt {
         int postFinishBufferTicks = config.getAs(BulletStormConfig.JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS, Integer.class);
         postFinishBuffer = new RotatingMap<>(postFinishBufferTicks);
 
-        if (metricsEnabled) {
-            activeQueriesCount = registerAbsoluteCountMetric(TopologyConstants.ACTIVE_QUERIES_METRIC, context);
-            createdQueriesCount = registerAbsoluteCountMetric(TopologyConstants.CREATED_QUERIES_METRIC, context);
-            improperQueriesCount = registerAbsoluteCountMetric(TopologyConstants.IMPROPER_QUERIES_METRIC, context);
-            rateExceededQueries = registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
-            duplicatedQueriesCount = registerAbsoluteCountMetric(TopologyConstants.DUPLICATED_QUERIES_METRIC, context);
+        if (metrics.isEnabled()) {
+            activeQueriesCount = metrics.registerAbsoluteCountMetric(TopologyConstants.ACTIVE_QUERIES_METRIC, context);
+            createdQueriesCount = metrics.registerAbsoluteCountMetric(TopologyConstants.CREATED_QUERIES_METRIC, context);
+            improperQueriesCount = metrics.registerAbsoluteCountMetric(TopologyConstants.IMPROPER_QUERIES_METRIC, context);
+            rateExceededQueries = metrics.registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
+            duplicatedQueriesCount = metrics.registerAbsoluteCountMetric(TopologyConstants.DUPLICATED_QUERIES_METRIC, context);
         }
     }
 
@@ -97,6 +100,9 @@ public class JoinBolt extends QueryBolt {
                 break;
             case QUERY_TUPLE:
                 onQuery(tuple);
+                break;
+            case BATCH_TUPLE:
+                onBatch(tuple);
                 break;
             case ERROR_TUPLE:
                 onError(tuple);
@@ -125,7 +131,7 @@ public class JoinBolt extends QueryBolt {
         Map<String, Querier> forceDone = postFinishBuffer.rotate();
         forceDone.entrySet().forEach(this::emitFinished);
         // The active queries count is not updated for these since these queries are not in any map, so do it here
-        updateCount(activeQueriesCount, -forceDone.size());
+        metrics.updateCount(activeQueriesCount, -forceDone.size());
 
         // Start all the delayed queries and add them to queries
         Map<String, Querier> delayed = preStartBuffer.rotate();
@@ -133,21 +139,25 @@ public class JoinBolt extends QueryBolt {
 
         // Categorize all the active queries and do the buffering or emit as necessary
         handleCategorizedQueries(new QueryCategorizer().categorize(queries));
+
+        emitReplayRequestIfNecessary();
     }
 
     private void onQuery(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         byte[] queryData = (byte[]) tuple.getValue(TopologyConstants.QUERY_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
+        initializeQuery(id, queryData, metadata);
+    }
 
+    private void initializeQuery(String id, byte[] queryData, Metadata metadata) {
         // bufferedMetadata has an entry for each query that exists in the JoinBolt; therefore, we check bufferedMetadata
         // for existing queries (as opposed to individually checking the queries, preStartBuffer, and postFinishBuffer maps)
         if (bufferedMetadata.containsKey(id)) {
-            updateCount(duplicatedQueriesCount, 1L);
-            log.error("Duplicate for request {}", id);
+            log.debug("Duplicate for request {}", id);
+            metrics.updateCount(duplicatedQueriesCount, 1L);
             return;
         }
-
         try {
             Query query = SerializerDeserializer.fromBytes(queryData);
             Querier querier = createQuerier(Querier.Mode.ALL, id, query, metadata, config);
@@ -219,7 +229,7 @@ public class JoinBolt extends QueryBolt {
         clip.getMeta().merge(meta);
         emitResult(id, withSignal(metadata, Metadata.Signal.FAIL), clip);
         emitMetaSignal(id, Metadata.Signal.KILL);
-        updateCount(rateExceededQueries, 1L);
+        metrics.updateCount(rateExceededQueries, 1L);
         removeQuery(id);
     }
 
@@ -279,7 +289,7 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void emitErrorsAsResult(String id, Metadata metadata, List<BulletError> errors) {
-        updateCount(improperQueriesCount, 1L);
+        metrics.updateCount(improperQueriesCount, 1L);
         emitResult(id, withSignal(metadata, Metadata.Signal.FAIL), Clip.of(Meta.of(errors)));
     }
 
@@ -298,10 +308,15 @@ public class JoinBolt extends QueryBolt {
     // Override hooks
 
     @Override
+    protected void initializeQuery(PubSubMessage message) {
+        initializeQuery(message.getId(), message.getContent(), message.getMetadata());
+    }
+
+    @Override
     protected void removeQuery(String id) {
         // Only update count if query was in queries or postFinishBuffer.
         if (queries.containsKey(id) || postFinishBuffer.containsKey(id)) {
-            updateCount(activeQueriesCount, -1L);
+            metrics.updateCount(activeQueriesCount, -1L);
         }
         queries.remove(id);
         postFinishBuffer.remove(id);
@@ -313,12 +328,12 @@ public class JoinBolt extends QueryBolt {
     // Other helpers
 
     private void setupQuery(String id, Metadata metadata, Querier querier) {
-        updateCount(createdQueriesCount, 1L);
+        metrics.updateCount(createdQueriesCount, 1L);
         bufferedMetadata.put(id, metadata);
         // If the query should be post-finish buffered, it should not be pre-start delayed.
         if (querier.shouldBuffer()) {
             queries.put(id, querier);
-            updateCount(activeQueriesCount, 1L);
+            metrics.updateCount(activeQueriesCount, 1L);
             log.info("Received and started query {} : {}", querier.getRunningQuery().getId(), querier.getRunningQuery().getQueryString());
             log.debug("Received and started query {}", querier);
         } else {
@@ -335,7 +350,7 @@ public class JoinBolt extends QueryBolt {
         querier.restart();
         queries.put(id, querier);
         // Now it's active
-        updateCount(activeQueriesCount, 1L);
+        metrics.updateCount(activeQueriesCount, 1L);
         log.info("Started delayed query {}", id);
     }
 
