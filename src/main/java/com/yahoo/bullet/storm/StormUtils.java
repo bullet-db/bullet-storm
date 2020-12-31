@@ -12,6 +12,7 @@ import com.yahoo.bullet.storm.grouping.TaskIndexCaptureGrouping;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.Config;
 import org.apache.storm.StormSubmitter;
+import org.apache.storm.topology.BoltDeclarer;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 
@@ -101,6 +102,14 @@ public class StormUtils {
                .setCPULoad(tickSpoutCPULoad).setMemoryLoad(tickSpoutMemoryOnheapLoad, tickSpoutMemoryOffHeapLoad);
 
         // Hook in the source of the BulletRecords
+        BoltDeclarer filterBoltDeclarer =
+                builder.setBolt(FILTER_COMPONENT, new FilterBolt(recordComponent, config), filterBoltParallelism)
+                       .shuffleGrouping(recordComponent)
+                       .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
+                       .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
+                       .allGrouping(TICK_COMPONENT, TICK_STREAM)
+                       .setCPULoad(filterBoltCPULoad).setMemoryLoad(filterBoltMemoryOnheapLoad, filterBoltMemoryOffHeapLoad);
+        /*
         builder.setBolt(FILTER_COMPONENT, new FilterBolt(recordComponent, config), filterBoltParallelism)
                .shuffleGrouping(recordComponent)
                .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
@@ -108,7 +117,12 @@ public class StormUtils {
                .directGrouping(REPLAY_COMPONENT, REPLAY_STREAM)
                .allGrouping(TICK_COMPONENT, TICK_STREAM)
                .setCPULoad(filterBoltCPULoad).setMemoryLoad(filterBoltMemoryOnheapLoad, filterBoltMemoryOffHeapLoad);
-
+        */
+        BoltDeclarer joinBoltDeclarer =
+                builder.setBolt(JOIN_COMPONENT, new JoinBolt(config), joinBoltParallelism)
+                       .allGrouping(TICK_COMPONENT, TICK_STREAM)
+                       .setCPULoad(joinBoltCPULoad).setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
+        /*
         builder.setBolt(JOIN_COMPONENT, new JoinBolt(config), joinBoltParallelism)
                .customGrouping(QUERY_COMPONENT, QUERY_STREAM, new IDGrouping())
                .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
@@ -118,25 +132,42 @@ public class StormUtils {
                .directGrouping(REPLAY_COMPONENT, REPLAY_STREAM)
                .allGrouping(TICK_COMPONENT, TICK_STREAM)
                .setCPULoad(joinBoltCPULoad).setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
-
-        builder.setBolt(REPLAY_COMPONENT, new ReplayBolt(config), replayBoltParallelism)
-               .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
-               .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
-               .fieldsGrouping(QUERY_COMPONENT, REPLAY_STREAM, new Fields(ID_FIELD))
-               .setCPULoad(replayBoltCPULoad).setMemoryLoad(replayBoltMemoryOnHeapLoad, replayBoltMemoryOffHeapLoad);
-
+        */
         builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(config), resultBoltParallelism)
                .shuffleGrouping(JOIN_COMPONENT, RESULT_STREAM)
                .setCPULoad(resultBoltCPULoad).setMemoryLoad(resultBoltMemoryOnHeapLoad, resultBoltMemoryOffHeapLoad);
 
-        // Hook in the Loop Bolt only if windowing is enabled
+        // Hook in the Loop Bolt only if windowing or replay is enabled
         boolean isWindowingDisabled = config.getAs(BulletConfig.WINDOW_DISABLE, Boolean.class);
-        if (isWindowingDisabled) {
-            log.info("Windowing is disabled. Skipping hooking in the Loop Bolt...");
+        boolean isReplayEnabled = config.getAs(BulletStormConfig.REPLAY_ENABLE, Boolean.class);
+
+        if (isWindowingDisabled && !isReplayEnabled) {
+            log.info("Windowing and replay are disabled. Skipping hooking in the Loop Bolt...");
         } else {
             builder.setBolt(LOOP_COMPONENT, new LoopBolt(config), loopBoltParallelism)
                    .shuffleGrouping(JOIN_COMPONENT, FEEDBACK_STREAM)
                    .setCPULoad(loopBoltCPULoad).setMemoryLoad(loopBoltMemoryOnHeapLoad, loopBoltMemoryOffHeapLoad);
+        }
+
+        if (isReplayEnabled) {
+            builder.setBolt(REPLAY_COMPONENT, new ReplayBolt(config), replayBoltParallelism)
+                   .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
+                   .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
+                   .fieldsGrouping(QUERY_COMPONENT, REPLAY_STREAM, new Fields(ID_FIELD))
+                   .setCPULoad(replayBoltCPULoad).setMemoryLoad(replayBoltMemoryOnHeapLoad, replayBoltMemoryOffHeapLoad);
+
+            filterBoltDeclarer.directGrouping(REPLAY_COMPONENT, REPLAY_STREAM);
+
+            joinBoltDeclarer.customGrouping(QUERY_COMPONENT, QUERY_STREAM, new IDGrouping())
+                            .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
+                            .customGrouping(FILTER_COMPONENT, DATA_STREAM, new IDGrouping())
+                            .customGrouping(FILTER_COMPONENT, ERROR_STREAM, new IDGrouping())
+                            .customGrouping(REPLAY_COMPONENT, CAPTURE_STREAM, new TaskIndexCaptureGrouping())
+                            .directGrouping(REPLAY_COMPONENT, REPLAY_STREAM);
+        } else {
+            joinBoltDeclarer.fieldsGrouping(QUERY_COMPONENT, QUERY_STREAM, new Fields(ID_FIELD))
+                            .fieldsGrouping(QUERY_COMPONENT, METADATA_STREAM, new Fields(ID_FIELD))
+                            .fieldsGrouping(FILTER_COMPONENT, DATA_STREAM, new Fields(ID_FIELD));
         }
 
         Config stormConfig = new Config();

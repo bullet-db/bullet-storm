@@ -80,6 +80,7 @@ import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.SEP
 import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
 import static com.yahoo.bullet.storm.testing.TestHelpers.assertJSONEquals;
 import static com.yahoo.bullet.storm.testing.TestHelpers.getListBytes;
+import static com.yahoo.bullet.storm.testing.TupleUtils.makeIDTuple;
 import static java.util.Arrays.asList;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
@@ -174,7 +175,7 @@ public class JoinBoltTest {
             for (int j = 0; j < batchSize; ++j) {
                 batch[j] = RecordBox.get().add("field", String.valueOf(i + j)).getRecord();
             }
-            Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.DATA_TUPLE, id, getListBytes(batch));
+            Tuple tuple = makeIDTuple(TupleClassifier.Type.DATA_TUPLE, id, getListBytes(batch));
             bolt.execute(tuple);
             sent.addAll(asList(batch));
         }
@@ -191,7 +192,7 @@ public class JoinBoltTest {
 
     private static void sendRawByteTuplesTo(IRichBolt bolt, String id, List<byte[]> data) {
         for (byte[] b : data) {
-            Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.DATA_TUPLE, id, b);
+            Tuple tuple = makeIDTuple(TupleClassifier.Type.DATA_TUPLE, id, b);
             bolt.execute(tuple);
         }
     }
@@ -203,7 +204,7 @@ public class JoinBoltTest {
         }
         byte[] listBytes = getListBytes(sent);
         byte[] dataBytes = SerializerDeserializer.toBytes(new SlidingRecord.Data(sent.length, listBytes));
-        Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.DATA_TUPLE, id, dataBytes);
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.DATA_TUPLE, id, dataBytes);
         bolt.execute(tuple);
         return asList(sent);
     }
@@ -317,7 +318,7 @@ public class JoinBoltTest {
 
     @Test
     public void testJoining() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
@@ -345,7 +346,7 @@ public class JoinBoltTest {
         bolt = new DonableJoinBolt(config, RAW_MAX_SIZE - 1, true);
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", RAW_MAX_SIZE - 1);
@@ -376,7 +377,7 @@ public class JoinBoltTest {
         bolt = new DonableJoinBolt(config, 2, true);
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(3)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(3)), EMPTY);
         bolt.execute(query);
 
         // This calls isDone twice. So the query is done on the next tick
@@ -408,7 +409,7 @@ public class JoinBoltTest {
         bolt = new DonableJoinBolt(config, 2, true);
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);
         bolt.execute(query);
 
         // This calls isDone twice. So the query is done on the next tick
@@ -443,11 +444,11 @@ public class JoinBoltTest {
         bolt = donableJoinBolt;
         setup(bolt);
 
-        Tuple queryA = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(3)), EMPTY);
+        Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(3)), EMPTY);
         bolt.execute(queryA);
 
         donableJoinBolt.shouldBuffer = false;
-        Tuple queryB = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43", SerializerDeserializer.toBytes(makeRawQuery(3)), EMPTY);
+        Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43", SerializerDeserializer.toBytes(makeRawQuery(3)), EMPTY);
         bolt.execute(queryB);
 
         // This will satisfy the query and will be buffered
@@ -485,7 +486,7 @@ public class JoinBoltTest {
 
     @Test
     public void testErrorEmittedProperly() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", new byte[0], EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", new byte[0], EMPTY);
         bolt.execute(query);
 
         Assert.assertEquals(collector.getEmittedCount(), 1);
@@ -505,7 +506,7 @@ public class JoinBoltTest {
         enableMetadataInConfig(config, Concept.QUERY_ID.getName(), "id");
         setup(new JoinBolt(config));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
@@ -528,7 +529,7 @@ public class JoinBoltTest {
         enableMetadataInConfig(config, "foo", "bar");
         setup(new JoinBolt(config));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
@@ -558,7 +559,7 @@ public class JoinBoltTest {
 
         Query queryObject = makeRawQuery(RAW_MAX_SIZE);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(queryObject), new Metadata(Metadata.Signal.COMPLETE, "foo"));
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(queryObject), new Metadata(Metadata.Signal.COMPLETE, "foo"));
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42");
@@ -594,7 +595,7 @@ public class JoinBoltTest {
 
     @Test
     public void testBadBytes() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", new byte[0], EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", new byte[0], EMPTY);
         bolt.execute(query);
         Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.RESULT_STREAM).count(), 1);
         Assert.assertEquals(collector.getAllEmittedTo(TopologyConstants.FEEDBACK_STREAM).count(), 0);
@@ -602,7 +603,7 @@ public class JoinBoltTest {
 
     @Test
     public void testErrorInQueryWithoutMetadata() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)));
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)));
         bolt.execute(query);
 
         Assert.assertEquals(collector.getEmittedCount(), 1);
@@ -617,7 +618,7 @@ public class JoinBoltTest {
 
     @Test
     public void testRawQueryDoneButNotTimedOutWithExcessRecords() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);
         bolt.execute(query);
 
         // This will send 2 batches of 3 records each (total of 6 records).
@@ -640,7 +641,7 @@ public class JoinBoltTest {
 
         Query filterQuery = makeGroupAllFieldFilterQuery("timestamp", Arrays.asList("1", "2"), EQUALS_ANY, singletonList(new GroupOperation(COUNT, null, "cnt")));
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(filterQuery), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(filterQuery), EMPTY);
         bolt.execute(query);
 
         // Send 5 GroupData with counts 1, 2, 3, 4, 5 to the JoinBolt
@@ -684,7 +685,7 @@ public class JoinBoltTest {
         bolt = new DonableJoinBolt(config, 2, true);
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                              SerializerDeserializer.toBytes(makeCountDistinctQuery(singletonList("field"), "count")),
                                              EMPTY);
         bolt.execute(query);
@@ -739,7 +740,7 @@ public class JoinBoltTest {
 
         Query groupQuery = makeGroupByFilterQuery(new BinaryExpression(new FieldExpression("ts"), new ValueExpression("1"), EQUALS),
                                                   entries, singletonMap("fieldA", "A"), operations);
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(groupQuery), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(groupQuery), EMPTY);
         bolt.execute(query);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
@@ -781,7 +782,7 @@ public class JoinBoltTest {
         bolt = new DonableJoinBolt(config, 2, true);
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                              SerializerDeserializer.toBytes(makeDistributionQuery(10, DistributionType.PMF, "field", 3)),
                                              EMPTY);
         bolt.execute(query);
@@ -842,7 +843,7 @@ public class JoinBoltTest {
         setup(bolt);
 
         Query aggregationQuery = makeTopKQuery(2, 5L, "cnt", fields);
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(aggregationQuery), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(aggregationQuery), EMPTY);
         bolt.execute(query);
 
         sendRawByteTuplesTo(bolt, "42", asList(first, second));
@@ -876,7 +877,7 @@ public class JoinBoltTest {
         setup(bolt);
 
         Query filterQuery = makeGroupAllFieldFilterQuery("timestamp", Arrays.asList("1", "2"), EQUALS_ANY, singletonList(new GroupOperation(COUNT, null, "cnt")));
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(filterQuery), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(filterQuery), EMPTY);
 
         Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
@@ -935,7 +936,7 @@ public class JoinBoltTest {
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
         Assert.assertEquals(context.getLongMetric(TopologyConstants.IMPROPER_QUERIES_METRIC), Long.valueOf(0));
 
-        Tuple badQuery = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", new byte[0], EMPTY);
+        Tuple badQuery = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", new byte[0], EMPTY);
         bolt.execute(badQuery);
         bolt.execute(badQuery);
         Assert.assertEquals(context.getLongMetric(TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
@@ -954,7 +955,7 @@ public class JoinBoltTest {
         setup(bolt);
 
         Query filterQuery = makeGroupAllFieldFilterQuery("timestamp", Arrays.asList("1", "2"), EQUALS_ANY, singletonList(new GroupOperation(COUNT, null, "cnt")));
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(filterQuery), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(filterQuery), EMPTY);
 
         Assert.assertEquals(context.getLongMetric(10, TopologyConstants.CREATED_QUERIES_METRIC), Long.valueOf(0));
         Assert.assertEquals(context.getLongMetric(1, TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(0));
@@ -989,7 +990,7 @@ public class JoinBoltTest {
         config.validate();
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
         bolt.execute(query);
 
         sendRawRecordTuplesTo(bolt, "42", RAW_MAX_SIZE - 1);
@@ -998,7 +999,7 @@ public class JoinBoltTest {
 
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
-        Tuple kill = TupleUtils.makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "42",
+        Tuple kill = makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "42",
                                             new Metadata(Metadata.Signal.KILL, null));
         bolt.execute(kill);
 
@@ -1012,7 +1013,7 @@ public class JoinBoltTest {
         config.validate();
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                              SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)),
                                              EMPTY);
         bolt.execute(query);
@@ -1023,7 +1024,7 @@ public class JoinBoltTest {
 
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
-        Tuple complete = TupleUtils.makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "42",
+        Tuple complete = makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "42",
                                                 new Metadata(Metadata.Signal.COMPLETE, null));
         bolt.execute(complete);
 
@@ -1037,7 +1038,7 @@ public class JoinBoltTest {
         config.validate();
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", RAW_MAX_SIZE - 1);
@@ -1046,7 +1047,7 @@ public class JoinBoltTest {
         Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_QUERIES_METRIC), Long.valueOf(1));
 
         RateLimitError rateLimitError = new RateLimitError(2000.0, 1000.0);
-        Tuple error = TupleUtils.makeIDTuple(TupleClassifier.Type.ERROR_TUPLE, "42", rateLimitError);
+        Tuple error = makeIDTuple(TupleClassifier.Type.ERROR_TUPLE, "42", rateLimitError);
 
         bolt.execute(error);
         Assert.assertEquals(collector.getEmittedCount(), 2);
@@ -1066,7 +1067,7 @@ public class JoinBoltTest {
     @Test
     public void testRateLimitErrorFromUpstreamWithoutQuery() {
         RateLimitError rateLimitError = new RateLimitError(2000.0, 1000.0);
-        Tuple error = TupleUtils.makeIDTuple(TupleClassifier.Type.ERROR_TUPLE, "42", rateLimitError);
+        Tuple error = makeIDTuple(TupleClassifier.Type.ERROR_TUPLE, "42", rateLimitError);
 
         bolt.execute(error);
         Assert.assertEquals(collector.getEmittedCount(), 0);
@@ -1078,7 +1079,7 @@ public class JoinBoltTest {
         bolt = new RateLimitedJoinBolt(2, rateLimitError, config);
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(10)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(10)), EMPTY);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", 2);
@@ -1102,7 +1103,7 @@ public class JoinBoltTest {
         bolt = new RateLimitedJoinBolt(2, rateLimitError, config);
         setup(bolt);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(10)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(10)), EMPTY);
         bolt.execute(query);
 
         // After consuming the 3rd one, it is rate limited and the fourth is not consumed
@@ -1122,7 +1123,7 @@ public class JoinBoltTest {
         sendRawRecordTuplesTo(bolt, "42", RAW_MAX_SIZE - 2);
         Assert.assertEquals(collector.getEmittedCount(), 0);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", RAW_MAX_SIZE);
@@ -1135,7 +1136,7 @@ public class JoinBoltTest {
 
     @Test
     public void testMissingMetadataIsEmitted() {
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), EMPTY);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", RAW_MAX_SIZE);
@@ -1149,7 +1150,7 @@ public class JoinBoltTest {
     @Test
     public void testMetadataIsNotReplaced() {
         Metadata actualMetadata = new Metadata(null, "foo");
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), actualMetadata);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(RAW_MAX_SIZE)), actualMetadata);
         bolt.execute(query);
 
         List<BulletRecord> sent = sendRawRecordTuplesTo(bolt, "42", RAW_MAX_SIZE);
@@ -1174,7 +1175,7 @@ public class JoinBoltTest {
         Query queryObject = makeSimpleAggregationQuery(5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
 
         // This kind of query actually returns true for shouldBuffer but making it false using DonableJoinBolt to test
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                              SerializerDeserializer.toBytes(queryObject),
                                              EMPTY);
         bolt.execute(query);
@@ -1223,7 +1224,7 @@ public class JoinBoltTest {
 
         Query queryObject = makeSimpleAggregationQuery(5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
 
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                              SerializerDeserializer.toBytes(queryObject),
                                              EMPTY);
         bolt.execute(query);
@@ -1264,7 +1265,7 @@ public class JoinBoltTest {
         Query queryObject = makeSimpleAggregationQuery(5, Window.Unit.TIME, 100000, Window.Unit.TIME, 100000);
 
         // Using a time window here makes sure the query is not done but will closed after 3 calls
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
                                              SerializerDeserializer.toBytes(queryObject),
                                              EMPTY);
         bolt.execute(query);
@@ -1304,7 +1305,7 @@ public class JoinBoltTest {
         setup(bolt);
 
         // This kind of query actually does not delay but making it true using DonableJoinBolt to test
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);
         bolt.execute(query);
 
         // Not active yet
@@ -1348,7 +1349,7 @@ public class JoinBoltTest {
         setup(bolt);
 
         // This kind of query actually does not delay but making it true using DonableJoinBolt to test
-        Tuple query = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", SerializerDeserializer.toBytes(makeRawQuery(5)), EMPTY);
         bolt.execute(query);
 
         // Not active yet
@@ -1379,5 +1380,16 @@ public class JoinBoltTest {
 
         Tuple expected = TupleUtils.makeTuple(TupleClassifier.Type.RESULT_TUPLE, "42", Clip.of(sentFirst).asJSON(), COMPLETED);
         Assert.assertTrue(wasResultEmittedTo(TopologyConstants.RESULT_STREAM, expected));
+    }
+
+    @Test
+    public void testBatchTuple() {
+        bolt = ComponentUtils.prepare(new JoinBolt(new BulletStormConfig("src/test/resources/test_config.yaml")), collector);
+        bolt.replayCompleted = true;
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "JoinBolt-18");
+        bolt.execute(tuple);
+
+        Assert.assertEquals(collector.getAckedCount(), 1);
     }
 }

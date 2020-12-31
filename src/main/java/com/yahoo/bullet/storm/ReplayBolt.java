@@ -1,6 +1,10 @@
+/*
+ *  Copyright 2020, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.storage.StorageManager;
@@ -133,17 +137,8 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         metrics.setCount(batchedQueriesCount, batchManager.size());
     }
 
-//    private Map<String, PubSubMessage> toPubSubMessageMap(Map<String, byte[]> input) {
-//        Map<String, PubSubMessage> map = new HashMap<>();
-//        for (Map.Entry<String, byte[]> entry : input.entrySet()) {
-//            map.put(entry.getKey(), SerializerDeserializer.fromBytes(entry.getValue()));
-//        }
-//        return map;
-//    }
-
     private Map<String, PubSubMessage> getStoredQueries() {
         try {
-//            return storageManager.getAll().thenApplyAsync(this::toPubSubMessageMap).get();
             return storageManager.getAll().get();
         } catch (Exception e) {
             log.error("Failed to get queries from storage.", e);

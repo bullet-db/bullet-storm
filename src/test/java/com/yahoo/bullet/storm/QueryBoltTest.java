@@ -5,8 +5,11 @@
  */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.Metadata.Signal;
+import com.yahoo.bullet.pubsub.PubSubMessage;
+import com.yahoo.bullet.query.Window;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.storm.TupleClassifier.Type;
 import com.yahoo.bullet.storm.metric.AbsoluteCountMetric;
@@ -27,9 +30,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
+import static com.yahoo.bullet.query.QueryUtils.makeSimpleAggregationFieldFilterQuery;
+import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
+import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_BATCH_POSITION;
+import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_INDEX_POSITION;
+import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_TIMESTAMP_POSITION;
 import static com.yahoo.bullet.storm.testing.TupleUtils.makeIDTuple;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class QueryBoltTest {
     @Getter
@@ -39,6 +48,7 @@ public class QueryBoltTest {
         private AbsoluteCountMetric countMetric;
         private int tupleCount;
         private Map<String, Querier> queries;
+        private int initializedQueryCount;
 
         TestQueryBolt(BulletStormConfig config) {
             super(config);
@@ -48,15 +58,15 @@ public class QueryBoltTest {
         public void prepare(Map stormConf, TopologyContext context, OutputCollector collector) {
             super.prepare(stormConf, context, collector);
             queries = new HashMap<>();
-            averagingMetric = registerAveragingMetric("foo", context);
-            countMetric = registerAbsoluteCountMetric("bar", context);
+            averagingMetric = metrics.registerAveragingMetric("foo", context);
+            countMetric = metrics.registerAbsoluteCountMetric("bar", context);
         }
 
         @Override
         public void execute(Tuple input) {
             tupleCount++;
-            updateCount(countMetric, 1L);
-            if (metricsEnabled) {
+            metrics.updateCount(countMetric, 1L);
+            if (metrics.isEnabled()) {
                 // (1 + 2 + 3 + 4 + ...) / (1 + 1 + 1 + 1 + ...)
                 averagingMetric.update(tupleCount);
             }
@@ -76,16 +86,21 @@ public class QueryBoltTest {
         }
 
         @Override
+        protected void initializeQuery(PubSubMessage message) {
+            initializedQueryCount++;
+        }
+
+        @Override
         protected void removeQuery(String id) {
             queries.remove(id);
         }
 
         boolean isMetricsEnabled() {
-            return metricsEnabled;
+            return metrics.isEnabled();
         }
 
         Map<String, Number> getMetricsMapping() {
-            return metricsIntervalMapping;
+            return metrics.getMetricsIntervalMapping();
         }
 
         OutputCollector getCollector() {
@@ -208,5 +223,144 @@ public class QueryBoltTest {
         Tuple meta = makeIDTuple(Type.METADATA_TUPLE, "foo", null);
         bolt.execute(meta);
         Assert.assertTrue(queries.containsKey("foo"));
+    }
+
+    @Test
+    public void testBatchInitializeQuery() {
+        CustomCollector collector = new CustomCollector();
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("src/test/resources/test_config.yaml"));
+        ComponentUtils.prepare(bolt, collector);
+
+        Assert.assertEquals(bolt.replayedQueriesCount, 0);
+        Assert.assertEquals(bolt.initializedQueryCount, 0);
+
+        Map<String, PubSubMessage> batch = new HashMap<>();
+
+        makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
+
+        batch.put("42", new PubSubMessage("42", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
+        batch.put("43", new PubSubMessage("43", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
+        when(tuple.getLong(REPLAY_TIMESTAMP_POSITION)).thenReturn(bolt.startTimestamp);
+        when(tuple.getInteger(REPLAY_INDEX_POSITION)).thenReturn(0);
+        when(tuple.getValue(REPLAY_BATCH_POSITION)).thenReturn(batch);
+        bolt.onBatch(tuple);
+
+        Assert.assertEquals(bolt.replayedQueriesCount, 2);
+        Assert.assertEquals(bolt.initializedQueryCount, 2);
+    }
+
+    @Test
+    public void testBatchReplayCompleted() {
+        CustomTopologyContext context = new CustomTopologyContext();
+        CustomCollector collector = new CustomCollector();
+        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.validate();
+        TestQueryBolt bolt = new TestQueryBolt(config);
+        ComponentUtils.prepare(new HashMap<>(), bolt, context, collector);
+
+        bolt.replayCompleted = true;
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
+        bolt.onBatch(tuple);
+
+        Assert.assertEquals(bolt.replayedQueriesCount, 0);
+        Assert.assertEquals(bolt.initializedQueryCount, 0);
+    }
+
+    @Test
+    public void testBatchNonMatchingTimestamp() {
+        CustomTopologyContext context = new CustomTopologyContext();
+        CustomCollector collector = new CustomCollector();
+        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.validate();
+        TestQueryBolt bolt = new TestQueryBolt(config);
+        ComponentUtils.prepare(new HashMap<>(), bolt, context, collector);
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
+        when(tuple.getLong(REPLAY_TIMESTAMP_POSITION)).thenReturn(0L);
+        when(tuple.getInteger(REPLAY_INDEX_POSITION)).thenReturn(0);
+        when(tuple.getValue(REPLAY_BATCH_POSITION)).thenReturn(null);
+        bolt.onBatch(tuple);
+
+        Assert.assertEquals(bolt.replayedQueriesCount, 0);
+        Assert.assertEquals(bolt.initializedQueryCount, 0);
+    }
+
+    @Test
+    public void testBatchNullEndsReplay() {
+        CustomCollector collector = new CustomCollector();
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("src/test/resources/test_config.yaml"));
+        ComponentUtils.prepare(bolt, collector);
+
+        Assert.assertFalse(bolt.replayCompleted);
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
+        when(tuple.getLong(REPLAY_TIMESTAMP_POSITION)).thenReturn(bolt.startTimestamp);
+        when(tuple.getInteger(REPLAY_INDEX_POSITION)).thenReturn(0);
+        when(tuple.getValue(REPLAY_BATCH_POSITION)).thenReturn(null);
+        bolt.onBatch(tuple);
+
+        Assert.assertTrue(bolt.replayCompleted);
+    }
+
+    @Test
+    public void testEmitReplayRequest() {
+        CustomCollector collector = new CustomCollector();
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("src/test/resources/test_config.yaml"));
+
+        Assert.assertEquals(collector.getEmittedCount(), 0);
+
+        ComponentUtils.prepare(new HashMap<>(), bolt, new CustomTopologyContext(null, "QueryBolt", 0, 5), collector);
+
+        Assert.assertEquals(collector.getEmittedCount(), 1);
+
+        CustomCollector.Triplet triplet = collector.getEmitted().get(0);
+
+        Assert.assertEquals(triplet.getStreamId(), FEEDBACK_STREAM);
+        Assert.assertEquals(triplet.getTuple().size(), 2);
+        Assert.assertEquals(triplet.getTuple().get(0), "QueryBolt-5");
+        Assert.assertEquals(((Metadata) triplet.getTuple().get(1)).getSignal(), Signal.ACKNOWLEDGE);
+        Assert.assertEquals(((Metadata) triplet.getTuple().get(1)).getContent(), bolt.startTimestamp);
+
+        // Too early
+        bolt.emitReplayRequestIfNecessary();
+
+        Assert.assertEquals(collector.getEmittedCount(), 1);
+
+        bolt.lastReplayRequest -= bolt.replayRequestInterval;
+
+        bolt.emitReplayRequestIfNecessary();
+
+        Assert.assertEquals(collector.getEmittedCount(), 2);
+    }
+
+    @Test
+    public void testHandleForcedReplay() {
+        CustomCollector collector = new CustomCollector();
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig());
+        ComponentUtils.prepare(bolt, collector);
+
+        bolt.replayEnabled = true;
+        bolt.startTimestamp = 0;
+        bolt.replayCompleted = true;
+        bolt.batchCount = 1;
+        bolt.replayedQueriesCount = 1;
+        Assert.assertEquals(bolt.lastReplayRequest, 0);
+        Assert.assertEquals(collector.getEmittedCount(), 0);
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "123", new Metadata(Signal.REPLAY, null));
+
+        bolt.onMeta(tuple);
+
+        Assert.assertNotEquals(bolt.startTimestamp, 0);
+        Assert.assertFalse(bolt.replayCompleted);
+        Assert.assertEquals(bolt.batchCount, 0);
+        Assert.assertEquals(bolt.replayedQueriesCount, 0);
+        Assert.assertNotEquals(bolt.lastReplayRequest, 0);
+        Assert.assertEquals(collector.getEmittedCount(), 1);
     }
 }

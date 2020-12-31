@@ -12,4 +12,9 @@ bullet.pubsub.context.name: "QUERY_PROCESSING"
 bullet.topology.loop.bolt.pubsub.overrides:
   fake.setting: "foo"
 
+bullet.topology.replay.enable: true
+bullet.topology.replay.batch.size: 10000
+bullet.topology.replay.batch.compress.enable: false
+bullet.topology.join.bolt.parallelism: 4
 
+bullet.storage.class.name: "com.yahoo.bullet.storage.MemoryStorageManager"

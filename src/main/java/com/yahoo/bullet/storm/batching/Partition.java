@@ -1,3 +1,8 @@
+/*
+ *  Copyright 2020, Yahoo Inc.
+ *  Licensed under the terms of the Apache License, Version 2.0.
+ *  See the LICENSE file associated with the project for terms.
+ */
 package com.yahoo.bullet.storm.batching;
 
 import lombok.AccessLevel;
@@ -115,7 +120,7 @@ class Partition<T> {
         log.info("Resizing partition {} batch size to {} with new max capacity {} and new min capacity {} (the current number of elements is {})",
                 id, numBatches, maxCapacity, minCapacity, keyMapping.size());
 
-        List<Map<String, T>> resized = Stream.generate(HashMap<String, T> ::new).limit(batchCount).collect(Collectors.toList());
+        List<Map<String, T>> resized = Stream.generate(HashMap<String, T>::new).limit(batchCount).collect(Collectors.toList());
         for (Map<String, T> batch : batches) {
             for (Map.Entry<String, T> entry : batch.entrySet()) {
                 String key = entry.getKey();

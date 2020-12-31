@@ -982,4 +982,15 @@ public class FilterBoltTest {
         }
         Assert.assertEquals(bolt.getStatsTickCount(), 0);
     }
+
+    @Test
+    public void testBatchTuple() {
+        bolt = ComponentUtils.prepare(new FilterBolt(TopologyConstants.RECORD_COMPONENT, new BulletStormConfig("src/test/resources/test_config.yaml")), collector);
+        bolt.replayCompleted = true;
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
+        bolt.execute(tuple);
+
+        Assert.assertEquals(collector.getAckedCount(), 1);
+    }
 }

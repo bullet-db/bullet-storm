@@ -57,6 +57,9 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
     @Getter(AccessLevel.PACKAGE)
     private transient Subscriber subscriber;
     private transient SpoutOutputCollector collector;
+
+    /** Exposed for testing only. */
+    @Getter(AccessLevel.PACKAGE)
     private transient Map<String, Replay> replays;
 
     /**
@@ -128,22 +131,19 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
             return;
         }
 
-        byte[] content = message.getContent();
-        Metadata.Signal signal = metadata.getSignal();
-
-        if (isReplaySignal(signal)) {
+        if (isReplaySignal(metadata.getSignal())) {
             subscriber.commit(id);
-            if (content != null) {
+            if (metadata.hasContent()) {
                 handleReplayRequest(id, (Long) metadata.getContent());
             } else {
                 // Note, this tuple is not anchored since reloading the queries in the replay bolt could cause the tuple to time out.
                 collector.emit(METADATA_STREAM, new Values(id, metadata));
                 log.info("Received forced replay signal.");
             }
-        } else if (content == null) {
-            collector.emit(METADATA_STREAM, new Values(id, metadata), id);
+        } else if (message.hasContent()) {
+            collector.emit(QUERY_STREAM, new Values(id, message.getContent(), metadata), id);
         } else {
-            collector.emit(QUERY_STREAM, new Values(id, content, metadata), id);
+            collector.emit(METADATA_STREAM, new Values(id, metadata), id);
         }
     }
 
@@ -181,14 +181,14 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
     public void close() {
     }
 
-    /**
-     * Possible scenarios when we receive a replay request:
-     * 1) No replay exists - start a new replay
-     * 2) Request timestamp is outdated - ignore
-     * 3) Request timestamp is the same and replay has not stopped - ignore
-     * 4a) Request timestamp is the same and replay has stopped - replay failed somehow; emit to restart
-     * 4b) Request timestamp is new - downstream bolt restarted; replace the timestamp and emit to restart only if replay has stopped
-     */
+    /*
+    Possible scenarios when we receive a replay request
+    1) No replay exists - start a new replay
+    2) Request timestamp is outdated - ignore
+    3) Request timestamp is the same and replay has not stopped - ignore
+    4a) Request timestamp is the same and replay has stopped - replay failed somehow; emit to restart
+    4b) Request timestamp is new - downstream bolt restarted; replace the timestamp and emit to restart only if replay has stopped
+    */
     private void handleReplayRequest(String id, Long timestamp) {
         log.info("Received replay request with id {}", id);
         Replay replay = replays.get(id);
