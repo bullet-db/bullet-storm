@@ -123,14 +123,8 @@ public class FilterBolt extends QueryBolt {
 
     @Override
     protected void removeQuery(String id) {
+        super.removeQuery(id);
         manager.removeAndGetQuery(id);
-        /*
-        TODO possible leak if we get a kill signal for a query during replay
-        solution: store removed query id's (that did not get removed) during replay and process them after replay is done.
-         */
-//        if (manager.removeAndGetQuery(id) == null) {
-//            removedIds.add(id);
-//        }
     }
 
     private void onQuery(Tuple tuple) {

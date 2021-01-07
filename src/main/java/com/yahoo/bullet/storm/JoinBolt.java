@@ -313,6 +313,7 @@ public class JoinBolt extends QueryBolt {
 
     @Override
     protected void removeQuery(String id) {
+        super.removeQuery(id);
         // Only update count if query was in queries or postFinishBuffer.
         if (queries.containsKey(id) || postFinishBuffer.containsKey(id)) {
             metrics.updateCount(activeQueriesCount, -1L);

@@ -138,7 +138,7 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
             } else {
                 // Note, this tuple is not anchored since reloading the queries in the replay bolt could cause the tuple to time out.
                 collector.emit(METADATA_STREAM, new Values(id, metadata));
-                log.info("Received forced replay signal.");
+                log.info("Received {} signal. Relaying to downstream bolts.", Metadata.Signal.REPLAY);
             }
         } else if (message.hasContent()) {
             collector.emit(QUERY_STREAM, new Values(id, message.getContent(), metadata), id);

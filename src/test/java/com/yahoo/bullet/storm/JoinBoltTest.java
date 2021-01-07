@@ -12,6 +12,7 @@ import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.common.BulletError;
 import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.pubsub.Metadata;
+import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.query.Window;
 import com.yahoo.bullet.query.aggregations.DistributionType;
@@ -64,6 +65,7 @@ import static com.yahoo.bullet.query.QueryUtils.makeDistributionQuery;
 import static com.yahoo.bullet.query.QueryUtils.makeGroupAllFieldFilterQuery;
 import static com.yahoo.bullet.query.QueryUtils.makeGroupByFilterQuery;
 import static com.yahoo.bullet.query.QueryUtils.makeRawQuery;
+import static com.yahoo.bullet.query.QueryUtils.makeSimpleAggregationFieldFilterQuery;
 import static com.yahoo.bullet.query.QueryUtils.makeSimpleAggregationQuery;
 import static com.yahoo.bullet.query.QueryUtils.makeTopKQuery;
 import static com.yahoo.bullet.query.expressions.Operation.EQUALS;
@@ -78,6 +80,9 @@ import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.PRO
 import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.RANGE_FIELD;
 import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.SEPARATOR;
 import static com.yahoo.bullet.querying.aggregations.sketches.QuantileSketch.START_INCLUSIVE;
+import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_BATCH_POSITION;
+import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_INDEX_POSITION;
+import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_TIMESTAMP_POSITION;
 import static com.yahoo.bullet.storm.testing.TestHelpers.assertJSONEquals;
 import static com.yahoo.bullet.storm.testing.TestHelpers.getListBytes;
 import static com.yahoo.bullet.storm.testing.TupleUtils.makeIDTuple;
@@ -88,6 +93,7 @@ import static org.mockito.AdditionalAnswers.returnsElementsOf;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.when;
 
 public class JoinBoltTest {
     private static final Metadata EMPTY = new Metadata();
@@ -1391,5 +1397,25 @@ public class JoinBoltTest {
         bolt.execute(tuple);
 
         Assert.assertEquals(collector.getAckedCount(), 1);
+    }
+
+    @Test
+    public void testBatchInitializeQuery() {
+        bolt = ComponentUtils.prepare(new JoinBolt(new BulletStormConfig("src/test/resources/test_config.yaml")), collector);
+
+        Assert.assertEquals(bolt.replayedQueriesCount, 0);
+
+        Map<String, PubSubMessage> batch = new HashMap<>();
+
+        batch.put("42", new PubSubMessage("42", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
+        batch.put("43", new PubSubMessage("43", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "JoinBolt-18");
+        when(tuple.getLong(REPLAY_TIMESTAMP_POSITION)).thenReturn(bolt.startTimestamp);
+        when(tuple.getInteger(REPLAY_INDEX_POSITION)).thenReturn(0);
+        when(tuple.getValue(REPLAY_BATCH_POSITION)).thenReturn(batch);
+        bolt.onBatch(tuple);
+
+        Assert.assertEquals(bolt.replayedQueriesCount, 2);
     }
 }

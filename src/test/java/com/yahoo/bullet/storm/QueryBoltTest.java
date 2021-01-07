@@ -236,8 +236,6 @@ public class QueryBoltTest {
 
         Map<String, PubSubMessage> batch = new HashMap<>();
 
-        makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
-
         batch.put("42", new PubSubMessage("42", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
         batch.put("43", new PubSubMessage("43", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
 
@@ -323,7 +321,7 @@ public class QueryBoltTest {
         Assert.assertEquals(triplet.getStreamId(), FEEDBACK_STREAM);
         Assert.assertEquals(triplet.getTuple().size(), 2);
         Assert.assertEquals(triplet.getTuple().get(0), "QueryBolt-5");
-        Assert.assertEquals(((Metadata) triplet.getTuple().get(1)).getSignal(), Signal.ACKNOWLEDGE);
+        Assert.assertEquals(((Metadata) triplet.getTuple().get(1)).getSignal(), Signal.REPLAY);
         Assert.assertEquals(((Metadata) triplet.getTuple().get(1)).getContent(), bolt.startTimestamp);
 
         // Too early
@@ -339,7 +337,7 @@ public class QueryBoltTest {
     }
 
     @Test
-    public void testHandleForcedReplay() {
+    public void testHandleReplaySignal() {
         CustomCollector collector = new CustomCollector();
         TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig());
         ComponentUtils.prepare(bolt, collector);

@@ -30,6 +30,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import static com.yahoo.bullet.storm.BulletStormConfig.DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE;
+import static com.yahoo.bullet.storm.BulletStormConfig.DEFAULT_REPLAY_BATCH_SIZE;
+import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE;
+import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_SIZE;
 import static com.yahoo.bullet.storm.StormUtils.HYPHEN;
 import static com.yahoo.bullet.storm.StormUtils.isKillSignal;
 import static com.yahoo.bullet.storm.StormUtils.isReplaySignal;
@@ -47,7 +51,14 @@ import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_TIMESTAMP_FIELD;
 public class ReplayBolt extends ConfigComponent implements IRichBolt {
     private static final long serialVersionUID = 7678526821834215930L;
 
-    // Exposed for testing only.
+    enum ReplayState {
+        START_REPLAY,
+        PAST_REPLAY,
+        FINISHED_REPLAY,
+        ACK,
+        NON_ACK
+    }
+
     @Getter(AccessLevel.PACKAGE)
     static class Replay {
         private final int taskID;
@@ -63,25 +74,12 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         }
     }
 
-    enum ReplayState {
-        START_REPLAY,
-        OLD_REPLAY,
-        FINISHED_REPLAY,
-        ACK,
-        NON_ACK
-    }
-
     private transient BulletMetrics metrics;
     private transient AbsoluteCountMetric batchedQueriesCount;
     private transient MapCountMetric activeReplaysCount;
     private transient MapCountMetric createdReplaysCount;
     private transient OutputCollector collector;
     private transient TupleClassifier classifier;
-
-    private static final String REPLAY_BATCH_SIZE = "bullet.topology.replay.batch.size";
-    private static final String REPLAY_BATCH_COMPRESS_ENABLE = "bullet.topology.replay.batch.compress.enable";
-    private static final long DEFAULT_REPLAY_BATCH_SIZE = 10000;
-    private static final boolean DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE = false;
 
     private transient StorageManager<PubSubMessage> storageManager;
     private transient BatchManager<PubSubMessage> batchManager;
@@ -111,11 +109,11 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         }
 
         // Initialize batch manager
-        Number batchSize = config.getOrDefaultAs(REPLAY_BATCH_SIZE, DEFAULT_REPLAY_BATCH_SIZE, Number.class);
+        int batchSize = config.getOrDefaultAs(REPLAY_BATCH_SIZE, DEFAULT_REPLAY_BATCH_SIZE, Integer.class);
         Number partitionCount = config.getRequiredConfigAs(BulletStormConfig.JOIN_BOLT_PARALLELISM, Number.class);
         boolean batchCompressEnable = config.getOrDefaultAs(REPLAY_BATCH_COMPRESS_ENABLE, DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE, Boolean.class);
 
-        batchManager = new BatchManager<>(batchSize.intValue(), partitionCount.intValue(), batchCompressEnable);
+        batchManager = new BatchManager<>(batchSize, partitionCount.intValue(), batchCompressEnable);
         replays = new HashMap<>();
 
         // Initialize storage manager
@@ -198,12 +196,12 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
             metrics.setCount(batchedQueriesCount, batchManager.size());
             log.info("Received {} signal and killed query: {}", signal, id);
         } else if (isReplaySignal(signal)) {
-            handleForcedReplay();
+            handleReplaySignal();
         }
     }
 
-    private void handleForcedReplay() {
-        log.info("Received forced replay signal.");
+    private void handleReplaySignal() {
+        log.info("Received {} signal.", Metadata.Signal.REPLAY);
         long before = System.currentTimeMillis();
         metrics.clearCount(activeReplaysCount);
         replays.clear();
@@ -236,8 +234,8 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
             case START_REPLAY:
                 startReplay(id, timestamp, tuple);
                 break;
-            case OLD_REPLAY:
-                log.warn("Received replay tuple for an old replay.");
+            case PAST_REPLAY:
+                log.warn("Received replay tuple for past replay.");
                 collector.fail(tuple);
                 break;
             case FINISHED_REPLAY:
@@ -257,7 +255,7 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         if (replay == null || timestamp > replay.timestamp) {
             return ReplayState.START_REPLAY;
         } else if (timestamp < replay.timestamp) {
-            return ReplayState.OLD_REPLAY;
+            return ReplayState.PAST_REPLAY;
         } else if (replay.batches == null) {
             return ReplayState.FINISHED_REPLAY;
         } else if (acked && replay.anchors.contains(tuple.getSourceTask())) {

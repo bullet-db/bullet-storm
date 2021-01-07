@@ -19,7 +19,10 @@ import org.apache.storm.topology.IRichBolt;
 import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_ENABLE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_REQUEST_INTERVAL;
@@ -46,6 +49,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     protected transient long lastReplayRequest;
     protected transient int batchCount;
     protected transient int replayedQueriesCount;
+    protected transient Set<String> removedIds;
 
     /**
      * Creates a QueryBolt with a given {@link BulletStormConfig}.
@@ -66,9 +70,12 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         metrics = new BulletMetrics(config);
         startTimestamp = System.currentTimeMillis();
         replayEnabled = config.getAs(REPLAY_ENABLE, Boolean.class);
-        replayRequestInterval = config.getAs(REPLAY_REQUEST_INTERVAL, Number.class).longValue();
+        replayRequestInterval = config.getAs(REPLAY_REQUEST_INTERVAL, Long.class);
+        removedIds = new HashSet<>();
         if (replayEnabled) {
             emitReplayRequest();
+        } else {
+            replayCompleted = true;
         }
     }
 
@@ -93,17 +100,17 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
             removeQuery(id);
             log.info("Received {} signal and killed query: {}", signal, id);
         } else if (isReplaySignal(signal)) {
-            handleForcedReplay();
+            handleReplaySignal();
         }
         return metadata;
     }
 
-    private void handleForcedReplay() {
+    private void handleReplaySignal() {
         if (!replayEnabled) {
-            log.warn("Received forced replay signal but replay is not enabled");
+            log.warn("Received {} signal but replay is not enabled.", Metadata.Signal.REPLAY);
             return;
         }
-        log.info("Received forced replay signal.");
+        log.info("Received {} signal.", Metadata.Signal.REPLAY);
         startTimestamp = System.currentTimeMillis();
         replayCompleted = false;
         batchCount = 0;
@@ -119,7 +126,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     @SuppressWarnings("unchecked")
     protected void onBatch(Tuple tuple) {
         if (replayCompleted) {
-            log.warn("Batch arrived after replay was completed. Ignoring...");
+            log.warn("Batch arrived while no ongoing replay. Ignoring...");
             return;
         }
         long timestamp = tuple.getLong(REPLAY_TIMESTAMP_POSITION);
@@ -133,22 +140,11 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         if (batch == null) {
             log.info("Total batches: {}. Total queries replayed: {}", batchCount, replayedQueriesCount);
             replayCompleted = true;
-
-            // Process delayed query kills here
-
-
-
-
-
-
+            removedIds.forEach(this::removeQuery);
+            removedIds.clear();
             return;
         }
-        for (Map.Entry<String, PubSubMessage> entry : batch.entrySet()) {
-            PubSubMessage message = entry.getValue();
-            if (message != null) {
-                initializeQuery(message);
-            }
-        }
+        batch.values().stream().filter(Objects::nonNull).forEach(this::initializeQuery);
         batchCount++;
         replayedQueriesCount += batch.size();
         lastReplayRequest = System.currentTimeMillis();
@@ -181,7 +177,11 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
      *
      * @param id The String id of the query.
      */
-    protected abstract void removeQuery(String id);
+    protected void removeQuery(String id) {
+        if (!replayCompleted) {
+            removedIds.add(id);
+        }
+    }
 
     protected void emitReplayRequestIfNecessary() {
         if (replayEnabled && !replayCompleted && System.currentTimeMillis() >= lastReplayRequest + replayRequestInterval) {
@@ -191,7 +191,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
 
     private void emitReplayRequest() {
         log.info("Emitting replay request from {} with start time {}", componentTaskID, startTimestamp);
-        collector.emit(FEEDBACK_STREAM, new Values(componentTaskID, new Metadata(Metadata.Signal.ACKNOWLEDGE, startTimestamp)));
+        collector.emit(FEEDBACK_STREAM, new Values(componentTaskID, new Metadata(Metadata.Signal.REPLAY, startTimestamp)));
         lastReplayRequest = System.currentTimeMillis();
     }
 }
