@@ -136,7 +136,7 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
             if (metadata.hasContent()) {
                 handleReplayRequest(id, (Long) metadata.getContent());
             } else {
-                // Note, this tuple is not anchored since reloading the queries in the replay bolt could cause the tuple to time out.
+                // Note, this tuple is not anchored since reloading queries in the replay bolt is likely to cause the tuple to time out.
                 collector.emit(METADATA_STREAM, new Values(id, metadata));
                 log.info("Received {} signal. Relaying to downstream bolts.", Metadata.Signal.REPLAY);
             }
@@ -187,7 +187,9 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
     2) Request timestamp is outdated - ignore
     3) Request timestamp is the same and replay has not stopped - ignore
     4a) Request timestamp is the same and replay has stopped - replay failed somehow; emit to restart
-    4b) Request timestamp is new - downstream bolt restarted; replace the timestamp and emit to restart only if replay has stopped
+    4b) Request timestamp is new - downstream bolt emitted a new replay request either because the bolt started/restarted or
+                                   there is a forced replay; replace the timestamp and emit to restart only if replay
+                                   has stopped
     */
     private void handleReplayRequest(String id, Long timestamp) {
         log.info("Received replay request with id {}", id);
@@ -203,7 +205,7 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
         } else if (timestamp == replay.timestamp && !replay.stopped) {
             log.info("Ignoring replay request for {} since replay loop is already in progress.", id);
         } else {
-            log.info("Restarting replay loop for {} (bolt restarted: {}, replay stopped: {})", id, timestamp > replay.timestamp, replay.stopped);
+            log.info("Restarting replay loop for {} (new replay request: {}, replay stopped: {})", id, timestamp > replay.timestamp, replay.stopped);
             replay.timestamp = timestamp;
             if (replay.stopped) {
                 replay.stopped = false;
