@@ -1022,12 +1022,13 @@ public class FilterBoltTest {
         when(tuple.getValue(REPLAY_BATCH_POSITION)).thenReturn(batch);
         bolt.onBatch(tuple);
 
-        Assert.assertEquals(bolt.replayedQueriesCount, 2);
-        Assert.assertEquals(bolt.getManager().size(), 2);
+        Assert.assertEquals(bolt.replayedQueriesCount, 1);
+        Assert.assertEquals(bolt.removedIds.size(), 0);
+        Assert.assertEquals(bolt.getManager().size(), 1);
 
         bolt.removeQuery("43");
-        Assert.assertEquals(bolt.removedIds.size(), 2);
-        Assert.assertEquals(bolt.getManager().size(), 1);
+        Assert.assertEquals(bolt.removedIds.size(), 1);
+        Assert.assertEquals(bolt.getManager().size(), 0);
 
         // End replay
         tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");

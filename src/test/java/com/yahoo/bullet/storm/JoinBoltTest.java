@@ -1400,7 +1400,7 @@ public class JoinBoltTest {
     }
 
     @Test
-    public void testBatchInitializeQuery() {
+    public void testBatchInitializeAndRemoveQuery() {
         bolt = ComponentUtils.prepare(new JoinBolt(new BulletStormConfig("src/test/resources/test_config.yaml")), collector);
 
         Assert.assertEquals(bolt.replayedQueriesCount, 0);
@@ -1422,12 +1422,13 @@ public class JoinBoltTest {
         when(tuple.getValue(REPLAY_BATCH_POSITION)).thenReturn(batch);
         bolt.onBatch(tuple);
 
-        Assert.assertEquals(bolt.replayedQueriesCount, 2);
-        Assert.assertEquals(bolt.getQueries().size(), 2);
+        Assert.assertEquals(bolt.replayedQueriesCount, 1);
+        Assert.assertEquals(bolt.removedIds.size(), 0);
+        Assert.assertEquals(bolt.getQueries().size(), 1);
 
         bolt.removeQuery("43");
-        Assert.assertEquals(bolt.removedIds.size(), 2);
-        Assert.assertEquals(bolt.getQueries().size(), 1);
+        Assert.assertEquals(bolt.removedIds.size(), 1);
+        Assert.assertEquals(bolt.getQueries().size(), 0);
 
         // End replay
         tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "JoinBolt-18");

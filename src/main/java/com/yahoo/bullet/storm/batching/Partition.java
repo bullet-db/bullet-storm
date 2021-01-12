@@ -5,7 +5,6 @@
  */
 package com.yahoo.bullet.storm.batching;
 
-import com.yahoo.bullet.storm.StormUtils;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -165,7 +164,7 @@ public class Partition<T> {
         if (batchCompressEnable) {
             log.info("Compressing {} batches after resize", numBatches);
             long timestamp = System.currentTimeMillis();
-            batches.stream().map(StormUtils::compress).forEach(data::add);
+            batches.stream().map(BatchManager::compress).forEach(data::add);
             log.info("Took {} seconds to compress.", (System.currentTimeMillis() - timestamp) / 1000.0);
         } else {
             log.warn("Not compressing batches after resize since compression is not enabled.");
@@ -180,7 +179,7 @@ public class Partition<T> {
         int count = 0;
         for (int i = 0; i < batchCount; i++) {
             if (changed[i]) {
-                data.set(i, StormUtils.compress(batches.get(i)));
+                data.set(i, BatchManager.compress(batches.get(i)));
                 changed[i] = false;
                 count++;
             }

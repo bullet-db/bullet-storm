@@ -33,8 +33,6 @@ import java.util.Set;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_SIZE;
 import static com.yahoo.bullet.storm.StormUtils.HYPHEN;
-import static com.yahoo.bullet.storm.StormUtils.isKillSignal;
-import static com.yahoo.bullet.storm.StormUtils.isReplaySignal;
 import static com.yahoo.bullet.storm.TopologyConstants.CAPTURE_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_POSITION;
@@ -43,6 +41,8 @@ import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_BATCH_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_INDEX_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_TIMESTAMP_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.isKillSignal;
+import static com.yahoo.bullet.storm.TopologyConstants.isReplaySignal;
 
 @Slf4j
 @Getter(AccessLevel.PACKAGE)

@@ -776,25 +776,4 @@ public class StormUtilsTest {
             Assert.assertTrue(0 <= index && index < HASH_COUNT);
         }
     }
-
-    @Test
-    public void testCompressDecompress() {
-        byte[] data = StormUtils.compress("Hello world!");
-        Assert.assertNotNull(data);
-
-        String out = (String) StormUtils.decompress(data);
-        Assert.assertEquals(out, "Hello world!");
-    }
-
-    @Test
-    public void testCompressException() {
-        class Dummy {
-        }
-        Assert.assertNull(StormUtils.compress(new Dummy()));
-    }
-
-    @Test
-    public void testDecompressException() {
-        Assert.assertNull(StormUtils.decompress(new byte[0]));
-    }
 }

@@ -28,13 +28,13 @@ import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_COMPRESS_ENA
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_ENABLE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_REQUEST_INTERVAL;
 import static com.yahoo.bullet.storm.StormUtils.HYPHEN;
-import static com.yahoo.bullet.storm.StormUtils.decompress;
-import static com.yahoo.bullet.storm.StormUtils.isKillSignal;
-import static com.yahoo.bullet.storm.StormUtils.isReplaySignal;
 import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_BATCH_POSITION;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_INDEX_POSITION;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_TIMESTAMP_POSITION;
+import static com.yahoo.bullet.storm.TopologyConstants.isKillSignal;
+import static com.yahoo.bullet.storm.TopologyConstants.isReplaySignal;
+import static com.yahoo.bullet.storm.batching.BatchManager.decompress;
 
 @Slf4j
 public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
@@ -146,10 +146,10 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         if (batch == null) {
             log.info("Total batches: {}. Total queries replayed: {}", batchCount, replayedQueriesCount);
             replayCompleted = true;
-            removedIds.forEach(this::removeQuery);
             removedIds.clear();
             return;
         }
+        removedIds.removeIf(batch.keySet()::remove);
         batch.values().stream().filter(Objects::nonNull).forEach(this::initializeQuery);
         batchCount++;
         replayedQueriesCount += batch.size();

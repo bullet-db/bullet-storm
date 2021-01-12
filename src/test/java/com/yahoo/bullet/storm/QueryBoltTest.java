@@ -12,6 +12,7 @@ import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.query.Window;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.storm.TupleClassifier.Type;
+import com.yahoo.bullet.storm.batching.BatchManager;
 import com.yahoo.bullet.storm.metric.AbsoluteCountMetric;
 import com.yahoo.bullet.storm.testing.ComponentUtils;
 import com.yahoo.bullet.storm.testing.CustomCollector;
@@ -266,7 +267,7 @@ public class QueryBoltTest {
         batch.put("42", new PubSubMessage("42", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
         batch.put("43", new PubSubMessage("43", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
 
-        byte[] batchData = StormUtils.compress(batch);
+        byte[] batchData = BatchManager.compress(batch);
 
         Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
         when(tuple.getLong(REPLAY_TIMESTAMP_POSITION)).thenReturn(bolt.startTimestamp);

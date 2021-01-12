@@ -27,7 +27,6 @@ import org.apache.storm.utils.Utils;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.yahoo.bullet.storm.StormUtils.isReplaySignal;
 import static com.yahoo.bullet.storm.TopologyConstants.ID_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.METADATA_STREAM;
@@ -36,6 +35,7 @@ import static com.yahoo.bullet.storm.TopologyConstants.QUERY_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_ACK_FIELD;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_TIMESTAMP_FIELD;
+import static com.yahoo.bullet.storm.TopologyConstants.isReplaySignal;
 
 @Slf4j
 public class QuerySpout extends ConfigComponent implements IRichSpout {

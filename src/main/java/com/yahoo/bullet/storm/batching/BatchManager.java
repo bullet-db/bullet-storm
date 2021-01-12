@@ -9,12 +9,19 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import static com.yahoo.bullet.storm.StormUtils.getHashIndex;
 
@@ -202,5 +209,41 @@ public class BatchManager<T> {
 
     private Partition<T> partition(String key) {
         return partitions.get(getHashIndex(key, partitionCount));
+    }
+
+    /**
+     * Compresses an object into a byte array.
+     *
+     * @param object The object to be compressed.
+     * @return The resulting byte array from compressing the object.
+     */
+    public static byte[] compress(Object object) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             GZIPOutputStream gzipOut = new GZIPOutputStream(baos);
+             ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut)) {
+            objectOut.writeObject(object);
+            gzipOut.finish();
+            return baos.toByteArray();
+        } catch (IOException e) {
+            log.error("Error compressing object: " +  e);
+            return null;
+        }
+    }
+
+    /**
+     * Decompresses a byte array into an object.
+     *
+     * @param bytes The byte array to be decompressed.
+     * @return The resulting object from decompressing the byte array.
+     */
+    public static Object decompress(byte[] bytes) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+             GZIPInputStream gzipIn = new GZIPInputStream(bais);
+             ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
+            return objectIn.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            log.error("Error decompressing data: " + e);
+            return null;
+        }
     }
 }

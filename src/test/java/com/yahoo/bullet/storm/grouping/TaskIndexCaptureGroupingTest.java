@@ -13,6 +13,8 @@ import java.util.Arrays;
 public class TaskIndexCaptureGroupingTest {
     @Test
     public void testPrepareTaskIndexMap() {
+        TaskIndexCaptureGrouping.TASK_INDEX_MAP.clear();
+
         Assert.assertEquals(TaskIndexCaptureGrouping.TASK_INDEX_MAP.size(), 0);
 
         new TaskIndexCaptureGrouping().prepare(null, null, Arrays.asList(20, 21, 22, 23));

@@ -5,6 +5,7 @@
  */
 package com.yahoo.bullet.storm;
 
+import com.yahoo.bullet.pubsub.Metadata;
 import org.apache.storm.utils.Utils;
 
 import java.util.HashSet;
@@ -79,4 +80,24 @@ public class TopologyConstants {
         new HashSet<>(asList(ACTIVE_QUERIES_METRIC, CREATED_QUERIES_METRIC, IMPROPER_QUERIES_METRIC,
                              RATE_EXCEEDED_QUERIES_METRIC, DUPLICATED_QUERIES_METRIC, LATENCY_METRIC,
                              BATCHED_QUERIES_METRIC, ACTIVE_REPLAYS_METRIC, CREATED_REPLAYS_METRIC, DEFAULT_METRIC));
+
+    /**
+     * Returns whether or not the {@link Metadata.Signal} is a kill signal.
+     *
+     * @param signal The {@link Metadata.Signal} to check.
+     * @return True if the signal is KILL or COMPLETE and false otherwise.
+     */
+    public static boolean isKillSignal(Metadata.Signal signal) {
+        return signal == Metadata.Signal.KILL || signal == Metadata.Signal.COMPLETE;
+    }
+
+    /**
+     * Returns whether or not the {@link Metadata.Signal} is a replay signal.
+     *
+     * @param signal The {@link Metadata.Signal} to check.
+     * @return True if the signal is REPLAY and false otherwise.
+     */
+    public static boolean isReplaySignal(Metadata.Signal signal) {
+        return signal == Metadata.Signal.REPLAY;
+    }
 }

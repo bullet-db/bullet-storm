@@ -5,7 +5,6 @@
  */
 package com.yahoo.bullet.storm.batching;
 
-import com.yahoo.bullet.storm.StormUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -59,7 +58,7 @@ public class BatchManagerTest {
         Assert.assertEquals(batches.size(), compressedBatches.size());
 
         for (int i = 0; i < batches.size(); i++) {
-            Assert.assertEquals(batches.get(i), StormUtils.decompress(compressedBatches.get(i)));
+            Assert.assertEquals(batches.get(i), BatchManager.decompress(compressedBatches.get(i)));
         }
     }
 
@@ -88,7 +87,7 @@ public class BatchManagerTest {
             List<Map<String, String>> batches = partitionedBatches.get(k);
             List<byte[]> compressedBatches = compressedPartitionedBatches.get(k);
             for (int i = 0; i < batches.size(); i++) {
-                Assert.assertEquals(batches.get(i), StormUtils.decompress(compressedBatches.get(i)));
+                Assert.assertEquals(batches.get(i), BatchManager.decompress(compressedBatches.get(i)));
             }
         }
     }
@@ -319,5 +318,26 @@ public class BatchManagerTest {
         Assert.assertEquals(batchManager.getPartitions().get(0).getBatchCount(), 1);
         Assert.assertEquals(batchManager.getPartitions().get(0).getMaxCapacity(), 10000);
         Assert.assertEquals(batchManager.getPartitions().get(0).getMinCapacity(), 0);
+    }
+
+    @Test
+    public void testCompressDecompress() {
+        byte[] data = BatchManager.compress("Hello world!");
+        Assert.assertNotNull(data);
+
+        String out = (String) BatchManager.decompress(data);
+        Assert.assertEquals(out, "Hello world!");
+    }
+
+    @Test
+    public void testCompressException() {
+        class Dummy {
+        }
+        Assert.assertNull(BatchManager.compress(new Dummy()));
+    }
+
+    @Test
+    public void testDecompressException() {
+        Assert.assertNull(BatchManager.decompress(new byte[0]));
     }
 }
