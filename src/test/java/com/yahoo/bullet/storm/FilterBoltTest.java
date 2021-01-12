@@ -1000,10 +1000,16 @@ public class FilterBoltTest {
     }
 
     @Test
-    public void testBatchInitializeQuery() {
+    public void testBatchInitializeAndRemoveQuery() {
         bolt = ComponentUtils.prepare(new FilterBolt(TopologyConstants.RECORD_COMPONENT, new BulletStormConfig("src/test/resources/test_config.yaml")), collector);
 
         Assert.assertEquals(bolt.replayedQueriesCount, 0);
+        Assert.assertEquals(bolt.getManager().size(), 0);
+        Assert.assertEquals(bolt.removedIds.size(), 0);
+
+        // Buffered remove query id
+        bolt.removeQuery("42");
+        Assert.assertEquals(bolt.removedIds.size(), 1);
 
         Map<String, PubSubMessage> batch = new HashMap<>();
 
@@ -1017,5 +1023,20 @@ public class FilterBoltTest {
         bolt.onBatch(tuple);
 
         Assert.assertEquals(bolt.replayedQueriesCount, 2);
+        Assert.assertEquals(bolt.getManager().size(), 2);
+
+        bolt.removeQuery("43");
+        Assert.assertEquals(bolt.removedIds.size(), 2);
+        Assert.assertEquals(bolt.getManager().size(), 1);
+
+        // End replay
+        tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
+        when(tuple.getLong(REPLAY_TIMESTAMP_POSITION)).thenReturn(bolt.startTimestamp);
+        when(tuple.getInteger(REPLAY_INDEX_POSITION)).thenReturn(0);
+        when(tuple.getValue(REPLAY_BATCH_POSITION)).thenReturn(null);
+        bolt.onBatch(tuple);
+
+        Assert.assertEquals(bolt.removedIds.size(), 0);
+        Assert.assertEquals(bolt.getManager().size(), 0);
     }
 }

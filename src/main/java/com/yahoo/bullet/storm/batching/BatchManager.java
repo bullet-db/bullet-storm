@@ -33,7 +33,7 @@ import static com.yahoo.bullet.storm.StormUtils.getHashIndex;
  */
 @Slf4j
 public class BatchManager<T> {
-    /* Exposed for testing only. */
+    // Exposed for testing
     @Getter(AccessLevel.PACKAGE)
     private final List<Partition<T>> partitions;
     private final int partitionCount;

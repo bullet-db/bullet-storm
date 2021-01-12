@@ -16,6 +16,8 @@ import com.yahoo.bullet.querying.RateLimitError;
 import com.yahoo.bullet.result.Clip;
 import com.yahoo.bullet.result.Meta;
 import com.yahoo.bullet.storm.metric.AbsoluteCountMetric;
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.storm.task.OutputCollector;
 import org.apache.storm.task.TopologyContext;
@@ -41,6 +43,8 @@ public class JoinBolt extends QueryBolt {
     private static final long serialVersionUID = 3312434064971532267L;
 
     private transient Map<String, Metadata> bufferedMetadata;
+    // Exposed for testing
+    @Getter(AccessLevel.PACKAGE)
     private transient Map<String, Querier> queries;
     // For buffering queries for their final windows or results, if the query windows are record based or have no windows.
     private transient RotatingMap<String, Querier> postFinishBuffer;
