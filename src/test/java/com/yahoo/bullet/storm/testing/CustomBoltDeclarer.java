@@ -33,8 +33,10 @@ public class CustomBoltDeclarer implements BoltDeclarer {
     private Number parallelism;
 
     private Map<Pair<String, String>, List<Fields>> fieldsGroupings = new HashMap<>();
+    private Map<Pair<String, String>, CustomStreamGrouping> customGroupings = new HashMap<>();
     private List<Pair<String, String>> allGroupings = new ArrayList<>();
     private List<Pair<String, String>> shuffleGroupings = new ArrayList<>();
+    private List<Pair<String, String>> directGroupings = new ArrayList<>();
 
 
     public CustomBoltDeclarer(String id, IRichBolt bolt, Number parallelism) {
@@ -69,6 +71,12 @@ public class CustomBoltDeclarer implements BoltDeclarer {
     }
 
     @Override
+    public BoltDeclarer customGrouping(String componentId, String streamId, CustomStreamGrouping grouping) {
+        customGroupings.put(ImmutablePair.of(componentId, streamId), grouping);
+        return this;
+    }
+
+    @Override
     public BoltDeclarer allGrouping(String componentId, String streamId) {
         allGroupings.add(ImmutablePair.of(componentId, streamId));
         return this;
@@ -83,6 +91,12 @@ public class CustomBoltDeclarer implements BoltDeclarer {
     @Override
     public BoltDeclarer shuffleGrouping(String componentId, String streamId) {
         shuffleGroupings.add(ImmutablePair.of(componentId, streamId));
+        return this;
+    }
+
+    @Override
+    public BoltDeclarer directGrouping(String componentId, String streamId) {
+        directGroupings.add(ImmutablePair.of(componentId, streamId));
         return this;
     }
 
@@ -169,11 +183,6 @@ public class CustomBoltDeclarer implements BoltDeclarer {
     }
 
     @Override
-    public BoltDeclarer directGrouping(String componentId, String streamId) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
     public BoltDeclarer partialKeyGrouping(String componentId, Fields fields) {
         throw new UnsupportedOperationException();
     }
@@ -185,11 +194,6 @@ public class CustomBoltDeclarer implements BoltDeclarer {
 
     @Override
     public BoltDeclarer customGrouping(String componentId, CustomStreamGrouping grouping) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public BoltDeclarer customGrouping(String componentId, String streamId, CustomStreamGrouping grouping) {
         throw new UnsupportedOperationException();
     }
 

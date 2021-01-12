@@ -12,6 +12,7 @@ import com.yahoo.bullet.storm.testing.ComponentUtils;
 import com.yahoo.bullet.storm.testing.CustomEmitter;
 import com.yahoo.bullet.storm.testing.CustomOutputFieldsDeclarer;
 import com.yahoo.bullet.storm.testing.CustomSubscriber;
+import com.yahoo.bullet.storm.testing.CustomTopologyContext;
 import com.yahoo.bullet.storm.testing.TupleUtils;
 import org.apache.storm.tuple.Fields;
 import org.apache.storm.tuple.Tuple;
@@ -19,16 +20,22 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.util.HashMap;
+
 public class QuerySpoutTest {
     private CustomEmitter emitter;
     private QuerySpout spout;
     private CustomSubscriber subscriber;
+    private CustomTopologyContext context;
 
     @BeforeMethod
     public void setup() {
         emitter = new CustomEmitter();
         BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
-        spout = ComponentUtils.open(new QuerySpout(config), emitter);
+        config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
+        config.validate();
+        context = new CustomTopologyContext();
+        spout = ComponentUtils.open(new HashMap<>(), new QuerySpout(config), context, emitter);
         spout.activate();
         subscriber = (CustomSubscriber) spout.getSubscriber();
     }
@@ -116,6 +123,21 @@ public class QuerySpoutTest {
     }
 
     @Test
+    public void testNextTupleCommitsWhenMetadataIsNull() {
+        // Add message with null metadata
+        subscriber.addMessages(new PubSubMessage("", "", null));
+
+        Assert.assertEquals(subscriber.getReceived().size(), 0);
+        Assert.assertEquals(subscriber.getCommitted().size(), 0);
+
+        // subscriber.receive() -> message with null metadata
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 1);
+        Assert.assertEquals(subscriber.getCommitted().size(), 1);
+    }
+
+    @Test
     public void testSignalOnlyMessagesAreSentOnTheMetadataStream() {
         // Add messages to be received from subscriber
         PubSubMessage messageA = new PubSubMessage("42", Metadata.Signal.KILL);
@@ -198,5 +220,173 @@ public class QuerySpoutTest {
         spout.deactivate();
         Assert.assertTrue(subscriber.isClosed());
         Assert.assertTrue(subscriber.isThrown());
+    }
+
+    @Test
+    public void testForcedReplaySignal() {
+        // Send forced replay signal
+        PubSubMessage message = new PubSubMessage("123", (byte[]) null, new Metadata(Metadata.Signal.REPLAY, null));
+        subscriber.addMessages(message);
+
+        spout.nextTuple();
+
+        Assert.assertEquals(emitter.getEmitted().size(), 1);
+        Assert.assertEquals(emitter.getEmitted().get(0).getTuple().get(0), "123");
+        Assert.assertEquals(subscriber.getCommitted().size(), 1);
+        Assert.assertEquals(subscriber.getCommitted().get(0), "123");
+    }
+
+    @Test
+    public void testHandleReplayRequest() {
+        long startTimestamp = System.currentTimeMillis();
+
+        // Replay request
+        PubSubMessage message = new PubSubMessage("FilterBolt-18", (byte[]) null, new Metadata(Metadata.Signal.REPLAY, startTimestamp));
+        subscriber.addMessages(message, message, message);
+
+        Assert.assertEquals(subscriber.getReceived().size(), 0);
+        Assert.assertEquals(subscriber.getCommitted().size(), 0);
+        Assert.assertEquals(emitter.getEmitted().size(), 0);
+        Assert.assertEquals(spout.getReplays().size(), 0);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 0L);
+
+        // Receives messageA. Should handle as a replay request
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 1);
+        Assert.assertEquals(subscriber.getCommitted().size(), 1);
+        Assert.assertEquals(emitter.getEmitted().size(), 1);
+        Assert.assertEquals(spout.getReplays().size(), 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 1L);
+
+        QuerySpout.Replay replay = spout.getReplays().get("FilterBolt-18");
+
+        Assert.assertEquals(replay.getId(), "FilterBolt-18");
+        Assert.assertEquals(replay.getTimestamp(), startTimestamp);
+        Assert.assertFalse(replay.isStopped());
+
+        Assert.assertEquals(emitter.getEmitted().get(0).getMessageId(), "FilterBolt-18");
+        Assert.assertEquals(emitter.getEmitted().get(0).getTuple().size(), 3);
+        Assert.assertEquals(emitter.getEmitted().get(0).getTuple().get(0), "FilterBolt-18");
+        Assert.assertEquals(emitter.getEmitted().get(0).getTuple().get(1), startTimestamp);
+        Assert.assertEquals(emitter.getEmitted().get(0).getTuple().get(2), false);
+
+        // Receives messageB. Should handle as a replay request and ignore
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 2);
+        Assert.assertEquals(subscriber.getCommitted().size(), 2);
+        Assert.assertEquals(emitter.getEmitted().size(), 1);
+        Assert.assertEquals(spout.getReplays().size(), 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 1L);
+
+        // Replay loop continues on ack
+        spout.ack("FilterBolt-18");
+
+        Assert.assertFalse(replay.isStopped());
+        Assert.assertEquals(emitter.getEmitted().size(), 2);
+        Assert.assertEquals(emitter.getEmitted().get(1).getMessageId(), "FilterBolt-18");
+        Assert.assertEquals(emitter.getEmitted().get(1).getTuple().get(2), true);
+        Assert.assertEquals(subscriber.getCommitted().size(), 2);
+
+        // Replay loop stops on fail
+        spout.fail("FilterBolt-18");
+
+        Assert.assertTrue(replay.isStopped());
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 0L);
+
+        // Replay loop continues on periodic replay request
+        spout.nextTuple();
+
+        Assert.assertFalse(replay.isStopped());
+        Assert.assertEquals(emitter.getEmitted().size(), 3);
+        Assert.assertEquals(emitter.getEmitted().get(2).getMessageId(), "FilterBolt-18");
+        Assert.assertEquals(emitter.getEmitted().get(2).getTuple().get(2), false);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 1L);
+    }
+
+    @Test
+    public void testHandleReplayRequestDifferentTimestamp() {
+        long startTimestamp = System.currentTimeMillis();
+
+        // Replay request
+        PubSubMessage messageA = new PubSubMessage("FilterBolt-18", (byte[]) null, new Metadata(Metadata.Signal.REPLAY, startTimestamp));
+        PubSubMessage messageB = new PubSubMessage("FilterBolt-18", (byte[]) null, new Metadata(Metadata.Signal.REPLAY, startTimestamp - 1));
+        PubSubMessage messageC = new PubSubMessage("FilterBolt-18", (byte[]) null, new Metadata(Metadata.Signal.REPLAY, startTimestamp + 1));
+        PubSubMessage messageD = new PubSubMessage("FilterBolt-18", (byte[]) null, new Metadata(Metadata.Signal.REPLAY, startTimestamp + 2));
+        subscriber.addMessages(messageA, messageB, messageC, messageD);
+
+        Assert.assertEquals(emitter.getEmitted().size(), 0);
+        Assert.assertEquals(spout.getReplays().size(), 0);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 0L);
+
+        // Receives messageA. Start a replay request
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 1);
+        Assert.assertEquals(subscriber.getCommitted().size(), 1);
+        Assert.assertEquals(emitter.getEmitted().size(), 1);
+        Assert.assertEquals(spout.getReplays().size(), 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 1L);
+
+        QuerySpout.Replay replay = spout.getReplays().get("FilterBolt-18");
+
+        Assert.assertEquals(replay.getId(), "FilterBolt-18");
+        Assert.assertEquals(replay.getTimestamp(), startTimestamp);
+        Assert.assertFalse(replay.isStopped());
+
+        // Receives messageB. Ignore since old timestamp
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 2);
+        Assert.assertEquals(subscriber.getCommitted().size(), 2);
+        Assert.assertEquals(emitter.getEmitted().size(), 1);
+        Assert.assertEquals(spout.getReplays().size(), 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 1L);
+
+        // Receives messageC. Start new replay request since newer timestamp
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 3);
+        Assert.assertEquals(subscriber.getCommitted().size(), 3);
+        Assert.assertEquals(emitter.getEmitted().size(), 1);
+        Assert.assertEquals(spout.getReplays().size(), 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 1L);
+
+        Assert.assertEquals(replay.getTimestamp(), startTimestamp + 1);
+        Assert.assertFalse(replay.isStopped());
+
+        // Replay loop stops on fail
+        spout.fail("FilterBolt-18");
+
+        Assert.assertTrue(replay.isStopped());
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 0L);
+
+        // Receives messageD. Start new replay request since even newer timestamp
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 4);
+        Assert.assertEquals(subscriber.getCommitted().size(), 4);
+        Assert.assertEquals(emitter.getEmitted().size(), 2);
+        Assert.assertEquals(spout.getReplays().size(), 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 1L);
+
+        Assert.assertEquals(replay.getTimestamp(), startTimestamp + 2);
+        Assert.assertFalse(replay.isStopped());
+    }
+
+    @Test
+    public void testDeactivateClearsReplays() {
+        PubSubMessage message = new PubSubMessage("FilterBolt-18", (byte[]) null, new Metadata(Metadata.Signal.REPLAY, System.currentTimeMillis()));
+        subscriber.addMessages(message);
+        spout.nextTuple();
+
+        Assert.assertEquals(spout.getReplays().size(), 1);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 1L);
+
+        spout.deactivate();
+
+        Assert.assertEquals(spout.getReplays().size(), 0);
+        Assert.assertEquals(context.getLongMetric(TopologyConstants.ACTIVE_REPLAYS_METRIC).longValue(), 0L);
     }
 }

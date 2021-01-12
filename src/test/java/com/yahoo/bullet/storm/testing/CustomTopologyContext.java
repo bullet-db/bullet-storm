@@ -5,6 +5,7 @@
  */
 package com.yahoo.bullet.storm.testing;
 
+import com.yahoo.bullet.storm.metric.MapCountMetric;
 import org.apache.storm.metric.api.IMetric;
 import org.apache.storm.task.TopologyContext;
 
@@ -19,13 +20,19 @@ public class CustomTopologyContext extends TopologyContext {
     private List<Integer> componentTasks;
     private String componentID;
     private int taskIndex;
+    private int taskID;
 
-    public CustomTopologyContext(List<Integer> componentTasks, String componentID, int taskIndex) {
+    public CustomTopologyContext(List<Integer> componentTasks, String componentID, int taskIndex, int taskID) {
         super(null, new HashMap<>(), null, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         registeredMetrics = new HashMap<>();
         this.componentTasks = componentTasks;
         this.componentID = componentID;
         this.taskIndex = taskIndex;
+        this.taskID = taskID;
+    }
+
+    public CustomTopologyContext(List<Integer> componentTasks, String componentID, int taskIndex) {
+        this(componentTasks, componentID, taskIndex, 0);
     }
 
     public CustomTopologyContext() {
@@ -61,6 +68,10 @@ public class CustomTopologyContext extends TopologyContext {
         return metric == null ? null : (Number) metric.getValueAndReset();
     }
 
+    private Long fetchDimensionResult(MapCountMetric metric, String key) {
+        return metric == null ? null : ((Map<String, Long>) metric.getValueAndReset()).get(key);
+    }
+
     public Double getDoubleMetric(String name) {
         return (Double) fetchResult(getRegisteredMetricByName(name));
     }
@@ -77,6 +88,10 @@ public class CustomTopologyContext extends TopologyContext {
         return (Long) fetchResult(getRegisteredMetricInTimeBucket(timeBucket, name));
     }
 
+    public Long getDimensionLongMetric(String name, String key) {
+        return fetchDimensionResult((MapCountMetric) getRegisteredMetricByName(name), key);
+    }
+
     @Override
     public List<Integer> getComponentTasks(String componentID) {
         return componentTasks;
@@ -90,6 +105,11 @@ public class CustomTopologyContext extends TopologyContext {
     @Override
     public int getThisTaskIndex() {
         return taskIndex;
+    }
+
+    @Override
+    public int getThisTaskId() {
+        return taskID;
     }
 }
 

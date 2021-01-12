@@ -32,6 +32,10 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String TOPOLOGY_METRICS_BUILT_IN_ENABLE = "bullet.topology.metrics.built.in.enable";
     public static final String TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING = "bullet.topology.metrics.built.in.emit.interval.mapping";
     public static final String TOPOLOGY_METRICS_CLASSES = "bullet.topology.metrics.classes";
+    public static final String REPLAY_ENABLE = "bullet.topology.replay.enable";
+    public static final String REPLAY_REQUEST_INTERVAL = "bullet.topology.replay.request.interval";
+    public static final String REPLAY_BATCH_SIZE = "bullet.topology.replay.batch.size";
+    public static final String REPLAY_BATCH_COMPRESS_ENABLE = "bullet.topology.replay.batch.compress.enable";
     public static final String DSL_SPOUT_ENABLE = "bullet.topology.dsl.spout.enable";
     public static final String DSL_SPOUT_PARALLELISM = "bullet.topology.dsl.spout.parallelism";
     public static final String DSL_SPOUT_CPU_LOAD = "bullet.topology.dsl.spout.cpu.load";
@@ -72,6 +76,10 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String LOOP_BOLT_CPU_LOAD = "bullet.topology.loop.bolt.cpu.load";
     public static final String LOOP_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.loop.bolt.memory.on.heap.load";
     public static final String LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.loop.bolt.memory.off.heap.load";
+    public static final String REPLAY_BOLT_PARALLELISM = "bullet.topology.replay.bolt.parallelism";
+    public static final String REPLAY_BOLT_CPU_LOAD = "bullet.topology.replay.bolt.cpu.load";
+    public static final String REPLAY_BOLT_MEMORY_ON_HEAP_LOAD = "bullet.topology.replay.bolt.memory.on.heap.load";
+    public static final String REPLAY_BOLT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.replay.bolt.memory.off.heap.load";
     public static final String TICK_SPOUT_INTERVAL = "bullet.topology.tick.spout.interval.ms";
     public static final String FILTER_BOLT_STATS_REPORT_TICKS = "bullet.topology.filter.bolt.stats.report.ticks";
     public static final String JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS = "bullet.topology.join.bolt.query.post.finish.buffer.ticks";
@@ -94,6 +102,10 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
         DEFAULT_TOPOLOGY_METRICS_CLASSES.add(SigarLoggingMetricsConsumer.class.getName());
     }
 
+    public static final boolean DEFAULT_REPLAY_ENABLE = false;
+    public static final long DEFAULT_REPLAY_REQUEST_INTERVAL = 30000L;
+    public static final int DEFAULT_REPLAY_BATCH_SIZE = 10000;
+    public static final boolean DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE = false;
     public static final boolean DEFAULT_DSL_SPOUT_ENABLE = false;
     public static final int DEFAULT_DSL_SPOUT_PARALLELISM = 10;
     public static final double DEFAULT_DSL_SPOUT_CPU_LOAD = 50.0;
@@ -132,6 +144,10 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final double DEFAULT_LOOP_BOLT_CPU_LOAD = 20.0;
     public static final double DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
     public static final double DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
+    public static final int DEFAULT_REPLAY_BOLT_PARALLELISM = 2;
+    public static final double DEFAULT_REPLAY_BOLT_CPU_LOAD = 100.0;
+    public static final double DEFAULT_REPLAY_BOLT_MEMORY_ON_HEAP_LOAD = 256.0;
+    public static final double DEFAULT_REPLAY_BOLT_MEMORY_OFF_HEAP_LOAD = 160.0;
     public static final int DEFAULT_TICK_SPOUT_INTERVAL = 100;
     public static final int DEFAULT_FILTER_BOLT_STATS_REPORT_TICKS = 3000;
     public static final int DEFAULT_JOIN_BOLT_QUERY_POST_FINISH_BUFFER_TICKS = 3;
@@ -181,6 +197,21 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isList)
                  .checkIf(BulletStormConfig::areMetricsConsumerClasses)
                  .defaultTo(DEFAULT_TOPOLOGY_METRICS_CLASSES);
+
+        VALIDATOR.define(REPLAY_ENABLE)
+                 .defaultTo(DEFAULT_REPLAY_ENABLE)
+                 .checkIf(Validator::isBoolean);
+        VALIDATOR.define(REPLAY_REQUEST_INTERVAL)
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_REPLAY_REQUEST_INTERVAL)
+                 .castTo(Validator::asLong);
+        VALIDATOR.define(REPLAY_BATCH_SIZE)
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_REPLAY_BATCH_SIZE)
+                 .castTo(Validator::asInt);
+        VALIDATOR.define(REPLAY_BATCH_COMPRESS_ENABLE)
+                 .defaultTo(DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE)
+                 .checkIf(Validator::isBoolean);
 
         VALIDATOR.define(DSL_SPOUT_ENABLE)
                  .defaultTo(DEFAULT_DSL_SPOUT_ENABLE)
@@ -372,6 +403,26 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isPositive)
                  .checkIf(Validator::isFloat)
                  .defaultTo(DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD)
+                 .castTo(Validator::asDouble);
+
+        VALIDATOR.define(REPLAY_BOLT_PARALLELISM)
+                 .checkIf(Validator::isPositiveInt)
+                 .defaultTo(DEFAULT_REPLAY_BOLT_PARALLELISM)
+                 .castTo(Validator::asInt);
+        VALIDATOR.define(REPLAY_BOLT_CPU_LOAD)
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_REPLAY_BOLT_CPU_LOAD)
+                 .castTo(Validator::asDouble);
+        VALIDATOR.define(REPLAY_BOLT_MEMORY_ON_HEAP_LOAD)
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_REPLAY_BOLT_MEMORY_ON_HEAP_LOAD)
+                 .castTo(Validator::asDouble);
+        VALIDATOR.define(REPLAY_BOLT_MEMORY_OFF_HEAP_LOAD)
+                 .checkIf(Validator::isPositive)
+                 .checkIf(Validator::isFloat)
+                 .defaultTo(DEFAULT_REPLAY_BOLT_MEMORY_OFF_HEAP_LOAD)
                  .castTo(Validator::asDouble);
 
         VALIDATOR.define(TICK_SPOUT_INTERVAL)

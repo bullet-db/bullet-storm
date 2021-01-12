@@ -11,13 +11,22 @@ bullet.topology.metrics.enable: false
 # to the storm built-in metrics. Currently supported are:
 
 # Counting metrics: These behave like org.apache.storm.metric.api.CountMetric but do not reset their value when getValueAndReset()
-# is called. This custom metric is defined in com.yahoo.bullet.storm.AbsoluteCountMetric.
+# is called. This custom metric is defined in com.yahoo.bullet.storm.metric.AbsoluteCountMetric.
 #   1. bullet_active_queries : A metric that counts the number of queries active per JoinBolt. Note that this metric will
 #                              increase and decrease as queries come and go. Make sure to configure the emit period accordingly
 #                              otherwise short running queries may not be even counted.
 #   2. bullet_created_queries : A metric that counts the number of queries created per JoinBolt.
 #   3. bullet_improper_queries : A metric that counts the number of semantically incorrect queries created per JoinBolt.
 #   4. bullet_rate_exceeded_queries : A metric that counts the number of queries that exceeded the configured rate limit.
+#   5. bullet_batched_queries : A metric that counts the number of queries stored in the ReplayBolt(s).
+#   6. bullet_active_replays : A metric that counts the number of active replays processed by the QuerySpout(s).
+
+# Map counting metrics: These behave similar to the above counting metrics but keep a map of keys and their associated counts
+# rather than a single count. This custom metric is defined in com.yahoo.bullet.storm.metric.MapCountMetric.
+#   1. bullet_active_replays : A metric that counts the number of active replays in the ReplayBolt(s) per component being
+#                              replayed to (where the keys are the component task IDs)
+#   2. bullet_created_replays : A metric that counts the number of created replays in the ReplayBolt(s) per component being
+#                               replayed to (where the keys are the component task IDs)
 
 # Averaging metrics: These are org.apache.storm.metric.api.ReducedMetrics
 #   1. bullet_filter_latency: A metric that computes the average latency to filter a single record in the Filter Bolt. The latency is
@@ -46,6 +55,20 @@ bullet.topology.metrics.classes:
   # This uses the LoggingMetricsConsumer and collects a CPU metric using org.apache.storm.metrics.sigar.CPUMetric. It
   # runs with a parallelism of 1. The CPU metric is a worker level metric.
   - "com.yahoo.bullet.storm.SigarLoggingMetricsConsumer"
+
+# Enable query replay for the topology. If query replay is enabled, filter and join bolts will request replay when they
+# start up. Replay bolts will send stored queries in batches to the bolts that need replay.
+bullet.topology.replay.enable: false
+
+# Interval in milliseconds at which bolts send query replay requests. Replay requests are sent repeatedly in the event
+# that the signal is missed or replay fails. These requests are sent until replay is completed.
+bullet.topology.replay.request.interval: 30000
+
+# The max number of queries sent per batch during replay.
+bullet.topology.replay.batch.size: 10000
+
+# Enable compression of query batches.
+bullet.topology.replay.batch.compress.enable: false
 
 # The following CPU loads and memory on and off heap control their respective component's CPU
 # and memory configuration. These settings are only used for the RAS scheduler.
@@ -90,6 +113,10 @@ bullet.topology.loop.bolt.parallelism: 2
 bullet.topology.loop.bolt.cpu.load: 20.0
 bullet.topology.loop.bolt.memory.on.heap.load: 256.0
 bullet.topology.loop.bolt.memory.off.heap.load: 160.0
+bullet.topology.replay.bolt.parallelism: 2
+bullet.topology.replay.bolt.cpu.load: 100.0
+bullet.topology.replay.bolt.memory.on.heap.load: 256.0
+bullet.topology.replay.bolt.memory.off.heap.load: 160.0
 
 # This is the number of ticks after which the partitioning (if you use one - see bullet.query.partitioner.enable and
 # bullet.query.partitioner.class.name) stats will be reported. The defaults values for this and the tick interval (see

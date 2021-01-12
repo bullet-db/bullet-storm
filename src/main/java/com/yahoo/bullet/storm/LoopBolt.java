@@ -38,7 +38,6 @@ public class LoopBolt extends PublisherBolt {
         overrides.forEach(modified::set);
         pubSub.switchContext(PubSub.Context.QUERY_SUBMISSION, modified);
         log.info("Switched the PubSub into query submission mode");
-
         Publisher publisher = pubSub.getPublisher();
         log.info("Setup PubSub: {} with Publisher: {}", pubSub, publisher);
         return publisher;
@@ -48,7 +47,7 @@ public class LoopBolt extends PublisherBolt {
     public void execute(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.METADATA_POSITION);
-        log.info("Looping back metadata with signal {} for {}", metadata.getSignal(), id);
+        log.info("Looping back metadata with id {}, signal {}, and content {}", id, metadata.getSignal(), metadata.getContent());
         publish(new PubSubMessage(id, (byte[]) null, metadata), tuple);
     }
 }
