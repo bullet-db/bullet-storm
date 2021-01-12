@@ -250,6 +250,35 @@ public class QueryBoltTest {
     }
 
     @Test
+    public void testBatchInitializeQueryWithCompression() {
+        CustomCollector collector = new CustomCollector();
+        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE, true);
+        config.validate();
+        TestQueryBolt bolt = new TestQueryBolt(config);
+        ComponentUtils.prepare(bolt, collector);
+
+        Assert.assertEquals(bolt.replayedQueriesCount, 0);
+        Assert.assertEquals(bolt.initializedQueryCount, 0);
+
+        Map<String, PubSubMessage> batch = new HashMap<>();
+
+        batch.put("42", new PubSubMessage("42", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
+        batch.put("43", new PubSubMessage("43", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
+
+        byte[] batchData = StormUtils.compress(batch);
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
+        when(tuple.getLong(REPLAY_TIMESTAMP_POSITION)).thenReturn(bolt.startTimestamp);
+        when(tuple.getInteger(REPLAY_INDEX_POSITION)).thenReturn(0);
+        when(tuple.getValue(REPLAY_BATCH_POSITION)).thenReturn(batchData);
+        bolt.onBatch(tuple);
+
+        Assert.assertEquals(bolt.replayedQueriesCount, 2);
+        Assert.assertEquals(bolt.initializedQueryCount, 2);
+    }
+
+    @Test
     public void testBatchReplayCompleted() {
         CustomTopologyContext context = new CustomTopologyContext();
         CustomCollector collector = new CustomCollector();

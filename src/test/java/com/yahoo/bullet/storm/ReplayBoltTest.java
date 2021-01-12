@@ -72,6 +72,7 @@ public class ReplayBoltTest {
         config.set(BulletConfig.STORAGE_CLASS_NAME, "com.yahoo.bullet.storm.ReplayBoltTest$TestStorageManager");
         config.validate();
         bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), context, collector);
+        Assert.assertFalse(bolt.isReplayBatchCompressEnable());
         storageManager = bolt.getStorageManager();
     }
 
@@ -176,16 +177,15 @@ public class ReplayBoltTest {
 
     @Test
     public void testOnMetaIgnoreTuple() {
-        // coverage
-        // null metadata ignored
+        // coverage - null metadata ignored
         bolt.execute(TupleUtils.makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "", null));
 
-        // non-kill/replay signal ignored
+        // coverage - non-kill/replay signal ignored
         bolt.execute(TupleUtils.makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "", new Metadata(Metadata.Signal.CUSTOM, null)));
     }
 
     @Test
-    public void testHandleForcedReplay() {
+    public void testHandleReplaySignal() {
         bolt.getReplays().put("FilterBolt-18", new ReplayBolt.Replay(18, 0, null));
 
         Assert.assertEquals(bolt.getReplays().size(), 1);
@@ -223,6 +223,7 @@ public class ReplayBoltTest {
         ReplayBolt.Replay replay = bolt.getReplays().get("FilterBolt-18");
 
         Assert.assertEquals(replay.getBatches().size(), NUM_PARTITIONS);
+        Assert.assertTrue(replay.getBatches().get(0) instanceof Map);
         Assert.assertTrue(replay.getAnchors().contains(4));
         Assert.assertEquals(replay.getIndex(), 0);
         Assert.assertEquals(replay.getTaskID(), 18);
@@ -279,6 +280,7 @@ public class ReplayBoltTest {
         ReplayBolt.Replay replay = bolt.getReplays().get("JoinBolt-21");
 
         Assert.assertEquals(replay.getBatches().size(), 1);
+        Assert.assertTrue(replay.getBatches().get(0) instanceof Map);
         Assert.assertTrue(replay.getAnchors().contains(4));
         Assert.assertEquals(replay.getIndex(), 0);
         Assert.assertEquals(replay.getTaskID(), 21);
@@ -324,6 +326,55 @@ public class ReplayBoltTest {
         Assert.assertEquals(collector.getFailedCount(), 3);
 
         TaskIndexCaptureGrouping.TASK_INDEX_MAP.clear();
+    }
+
+    @Test
+    public void testReplayFilterBoltWithCompression() {
+        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE, true);
+        config.validate();
+        bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), context, collector);
+        Assert.assertTrue(bolt.isReplayBatchCompressEnable());
+
+        long timestamp = System.currentTimeMillis();
+
+        Tuple tupleA = TupleUtils.makeIDTuple(TupleClassifier.Type.REPLAY_TUPLE, "FilterBolt-18", timestamp, false);
+        doReturn(4).when(tupleA).getSourceTask();
+        doReturn(timestamp).when(tupleA).getLong(REPLAY_TIMESTAMP_POSITION);
+        doReturn(false).when(tupleA).getBoolean(REPLAY_ACK_POSITION);
+
+        bolt.execute(tupleA);
+
+        ReplayBolt.Replay replay = bolt.getReplays().get("FilterBolt-18");
+
+        Assert.assertEquals(replay.getBatches().size(), NUM_PARTITIONS);
+        Assert.assertTrue(replay.getBatches().get(0) instanceof byte[]);
+    }
+
+    @Test
+    public void testReplayJoinBoltWithCompression() {
+        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE, true);
+        config.validate();
+        bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), context, collector);
+        Assert.assertTrue(bolt.isReplayBatchCompressEnable());
+
+        long timestamp = System.currentTimeMillis();
+
+        Tuple tupleA = TupleUtils.makeIDTuple(TupleClassifier.Type.REPLAY_TUPLE, "JoinBolt-21", timestamp, false);
+        doReturn(4).when(tupleA).getSourceTask();
+        doReturn(timestamp).when(tupleA).getLong(REPLAY_TIMESTAMP_POSITION);
+        doReturn(false).when(tupleA).getBoolean(REPLAY_ACK_POSITION);
+
+        // Set temporarily so ReplayBolt can get the partition index for JoinBolt-21
+        TaskIndexCaptureGrouping.TASK_INDEX_MAP.put(21, 0);
+
+        bolt.execute(tupleA);
+
+        ReplayBolt.Replay replay = bolt.getReplays().get("JoinBolt-21");
+
+        Assert.assertEquals(replay.getBatches().size(), 1);
+        Assert.assertTrue(replay.getBatches().get(0) instanceof byte[]);
     }
 
     @Test

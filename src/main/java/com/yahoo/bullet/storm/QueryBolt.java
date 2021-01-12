@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
+import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_ENABLE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_REQUEST_INTERVAL;
 import static com.yahoo.bullet.storm.StormUtils.HYPHEN;
@@ -46,7 +47,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     protected transient long startTimestamp;
     protected transient boolean replayCompleted;
     protected transient boolean replayEnabled;
-    protected transient boolean batchCompressEnable;
+    protected transient boolean replayBatchCompressEnable;
     protected transient long replayRequestInterval;
     protected transient long lastReplayRequest;
     protected transient int batchCount;
@@ -72,6 +73,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         metrics = new BulletMetrics(config);
         startTimestamp = System.currentTimeMillis();
         replayEnabled = config.getAs(REPLAY_ENABLE, Boolean.class);
+        replayBatchCompressEnable = config.getAs(REPLAY_BATCH_COMPRESS_ENABLE, Boolean.class);
         replayRequestInterval = config.getAs(REPLAY_REQUEST_INTERVAL, Long.class);
         removedIds = new HashSet<>();
         if (replayEnabled) {
@@ -139,8 +141,8 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         }
         log.info("Received batch with index {}", index);
         Map<String, PubSubMessage> batch =
-                batchCompressEnable ? (Map<String, PubSubMessage>) decompress((byte[]) tuple.getValue(REPLAY_BATCH_POSITION)) :
-                                      (Map<String, PubSubMessage>) tuple.getValue(REPLAY_BATCH_POSITION);
+                replayBatchCompressEnable ? (Map<String, PubSubMessage>) decompress((byte[]) tuple.getValue(REPLAY_BATCH_POSITION)) :
+                                            (Map<String, PubSubMessage>) tuple.getValue(REPLAY_BATCH_POSITION);
         if (batch == null) {
             log.info("Total batches: {}. Total queries replayed: {}", batchCount, replayedQueriesCount);
             replayCompleted = true;

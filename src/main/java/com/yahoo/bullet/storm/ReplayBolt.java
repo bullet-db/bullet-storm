@@ -30,8 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static com.yahoo.bullet.storm.BulletStormConfig.DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE;
-import static com.yahoo.bullet.storm.BulletStormConfig.DEFAULT_REPLAY_BATCH_SIZE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_SIZE;
 import static com.yahoo.bullet.storm.StormUtils.HYPHEN;
@@ -84,7 +82,7 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
     private transient StorageManager<PubSubMessage> storageManager;
     private transient BatchManager<PubSubMessage> batchManager;
     private transient Map<String, Replay> replays;
-    private transient boolean batchCompressEnable;
+    private transient boolean replayBatchCompressEnable;
 
     /**
      * Creates a ReplayBolt with a given {@link BulletStormConfig}.
@@ -110,11 +108,11 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         }
 
         // Initialize batch manager
-        int batchSize = config.getOrDefaultAs(REPLAY_BATCH_SIZE, DEFAULT_REPLAY_BATCH_SIZE, Integer.class);
+        int batchSize = config.getAs(REPLAY_BATCH_SIZE, Integer.class);
         Number partitionCount = config.getRequiredConfigAs(BulletStormConfig.JOIN_BOLT_PARALLELISM, Number.class);
-        batchCompressEnable = config.getOrDefaultAs(REPLAY_BATCH_COMPRESS_ENABLE, DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE, Boolean.class);
+        replayBatchCompressEnable = config.getAs(REPLAY_BATCH_COMPRESS_ENABLE, Boolean.class);
 
-        batchManager = new BatchManager<>(batchSize, partitionCount.intValue(), batchCompressEnable);
+        batchManager = new BatchManager<>(batchSize, partitionCount.intValue(), replayBatchCompressEnable);
         replays = new HashMap<>();
 
         // Initialize storage manager
@@ -271,11 +269,11 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         int taskID = Integer.valueOf(id.split(HYPHEN)[1]);
         Integer partitionIndex = TaskIndexCaptureGrouping.TASK_INDEX_MAP.get(taskID);
         if (partitionIndex != null) {
-            replay = new Replay(taskID, timestamp, batchCompressEnable ? batchManager.getCompressedBatchesForPartition(partitionIndex) :
-                                                                         batchManager.getBatchesForPartition(partitionIndex));
+            replay = new Replay(taskID, timestamp, replayBatchCompressEnable ? batchManager.getCompressedBatchesForPartition(partitionIndex) :
+                                                                               batchManager.getBatchesForPartition(partitionIndex));
         } else {
-            replay = new Replay(taskID, timestamp, batchCompressEnable ? batchManager.getCompressedBatches() :
-                                                                         batchManager.getBatches());
+            replay = new Replay(taskID, timestamp, replayBatchCompressEnable ? batchManager.getCompressedBatches() :
+                                                                               batchManager.getBatches());
         }
         replays.put(id, replay);
         metrics.setCount(activeReplaysCount, id, 1L);
