@@ -139,6 +139,7 @@ public class StormUtils {
                    .fieldsGrouping(QUERY_COMPONENT, QUERY_STREAM, new Fields(ID_FIELD))
                    .fieldsGrouping(QUERY_COMPONENT, METADATA_STREAM, new Fields(ID_FIELD))
                    .fieldsGrouping(FILTER_COMPONENT, DATA_STREAM, new Fields(ID_FIELD))
+                   .fieldsGrouping(FILTER_COMPONENT, ERROR_STREAM, new Fields(ID_FIELD))
                    .allGrouping(TICK_COMPONENT, TICK_STREAM)
                    .setCPULoad(joinBoltCPULoad).setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
         }
