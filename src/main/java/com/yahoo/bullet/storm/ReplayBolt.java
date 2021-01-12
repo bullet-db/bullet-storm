@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020, Yahoo Inc.
+ *  Copyright 2021, Yahoo Inc.
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
@@ -63,11 +63,11 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
     static class Replay {
         private final int taskID;
         private final long timestamp;
-        private List<Map<String, PubSubMessage>> batches;
+        private List batches;
         private Set<Integer> anchors = new HashSet<>();
         private int index;
 
-        Replay(int taskID, long timestamp, List<Map<String, PubSubMessage>> batches) {
+        Replay(int taskID, long timestamp, List batches) {
             this.taskID = taskID;
             this.timestamp = timestamp;
             this.batches = batches;
@@ -84,6 +84,7 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
     private transient StorageManager<PubSubMessage> storageManager;
     private transient BatchManager<PubSubMessage> batchManager;
     private transient Map<String, Replay> replays;
+    private transient boolean batchCompressEnable;
 
     /**
      * Creates a ReplayBolt with a given {@link BulletStormConfig}.
@@ -111,7 +112,7 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         // Initialize batch manager
         int batchSize = config.getOrDefaultAs(REPLAY_BATCH_SIZE, DEFAULT_REPLAY_BATCH_SIZE, Integer.class);
         Number partitionCount = config.getRequiredConfigAs(BulletStormConfig.JOIN_BOLT_PARALLELISM, Number.class);
-        boolean batchCompressEnable = config.getOrDefaultAs(REPLAY_BATCH_COMPRESS_ENABLE, DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE, Boolean.class);
+        batchCompressEnable = config.getOrDefaultAs(REPLAY_BATCH_COMPRESS_ENABLE, DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE, Boolean.class);
 
         batchManager = new BatchManager<>(batchSize, partitionCount.intValue(), batchCompressEnable);
         replays = new HashMap<>();
@@ -139,7 +140,6 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         try {
             return storageManager.getAll().get();
         } catch (Exception e) {
-            log.error("Failed to get queries from storage.", e);
             throw new RuntimeException("Failed to get queries from storage.", e);
         }
     }
@@ -178,9 +178,9 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
 
     private void onQuery(Tuple tuple) {
         String id = tuple.getString(ID_POSITION);
-        String query = tuple.getString(QUERY_POSITION);
+        byte[] queryData = (byte[]) tuple.getValue(QUERY_POSITION);
         // Batch manager does not add duplicate keys
-        batchManager.add(id, new PubSubMessage(id, query));
+        batchManager.add(id, new PubSubMessage(id, queryData));
         metrics.setCount(batchedQueriesCount, batchManager.size());
     }
 
@@ -271,9 +271,11 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         int taskID = Integer.valueOf(id.split(HYPHEN)[1]);
         Integer partitionIndex = TaskIndexCaptureGrouping.TASK_INDEX_MAP.get(taskID);
         if (partitionIndex != null) {
-            replay = new Replay(taskID, timestamp, batchManager.getBatchesForPartition(partitionIndex));
+            replay = new Replay(taskID, timestamp, batchCompressEnable ? batchManager.getCompressedBatchesForPartition(partitionIndex) :
+                                                                         batchManager.getBatchesForPartition(partitionIndex));
         } else {
-            replay = new Replay(taskID, timestamp, batchManager.getBatches());
+            replay = new Replay(taskID, timestamp, batchCompressEnable ? batchManager.getCompressedBatches() :
+                                                                         batchManager.getBatches());
         }
         replays.put(id, replay);
         metrics.setCount(activeReplaysCount, id, 1L);

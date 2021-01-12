@@ -214,7 +214,8 @@ public class StormUtilsTest {
         Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
         Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
         List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
-        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        Assert.assertEquals(loopShuffleGroupings.size(), 2);
+        assertContains(loopShuffleGroupings, FILTER_COMPONENT, FEEDBACK_STREAM);
         assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
         Assert.assertTrue(loopBolt.getAllGroupings().isEmpty());
         Assert.assertTrue(loopBolt.getDirectGroupings().isEmpty());
@@ -331,7 +332,8 @@ public class StormUtilsTest {
         Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
         Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
         List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
-        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        Assert.assertEquals(loopShuffleGroupings.size(), 2);
+        assertContains(loopShuffleGroupings, FILTER_COMPONENT, FEEDBACK_STREAM);
         assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
         Assert.assertTrue(loopBolt.getAllGroupings().isEmpty());
         Assert.assertTrue(loopBolt.getDirectGroupings().isEmpty());
@@ -455,7 +457,8 @@ public class StormUtilsTest {
         Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
         Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
         List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
-        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        Assert.assertEquals(loopShuffleGroupings.size(), 2);
+        assertContains(loopShuffleGroupings, FILTER_COMPONENT, FEEDBACK_STREAM);
         assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
         Assert.assertTrue(loopBolt.getAllGroupings().isEmpty());
         Assert.assertTrue(loopBolt.getDirectGroupings().isEmpty());
@@ -580,7 +583,8 @@ public class StormUtilsTest {
         Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
         Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
         List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
-        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        Assert.assertEquals(loopShuffleGroupings.size(), 2);
+        assertContains(loopShuffleGroupings, FILTER_COMPONENT, FEEDBACK_STREAM);
         assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
         Assert.assertTrue(loopBolt.getAllGroupings().isEmpty());
         Assert.assertTrue(loopBolt.getDirectGroupings().isEmpty());
@@ -688,7 +692,8 @@ public class StormUtilsTest {
         Assert.assertEquals(loopBolt.getOnHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_ON_HEAP_LOAD);
         Assert.assertEquals(loopBolt.getOffHeap(), BulletStormConfig.DEFAULT_LOOP_BOLT_MEMORY_OFF_HEAP_LOAD);
         List<Pair<String, String>> loopShuffleGroupings = loopBolt.getShuffleGroupings();
-        Assert.assertEquals(loopShuffleGroupings.size(), 1);
+        Assert.assertEquals(loopShuffleGroupings.size(), 2);
+        assertContains(loopShuffleGroupings, FILTER_COMPONENT, FEEDBACK_STREAM);
         assertContains(loopShuffleGroupings, JOIN_COMPONENT, FEEDBACK_STREAM);
         Assert.assertTrue(loopBolt.getAllGroupings().isEmpty());
         Assert.assertTrue(loopBolt.getDirectGroupings().isEmpty());
@@ -770,5 +775,26 @@ public class StormUtilsTest {
             int index = StormUtils.getHashIndex(random.nextInt(), HASH_COUNT);
             Assert.assertTrue(0 <= index && index < HASH_COUNT);
         }
+    }
+
+    @Test
+    public void testCompressDecompress() {
+        byte[] data = StormUtils.compress("Hello world!");
+        Assert.assertNotNull(data);
+
+        String out = (String) StormUtils.decompress(data);
+        Assert.assertEquals(out, "Hello world!");
+    }
+
+    @Test
+    public void testCompressException() {
+        class Dummy {
+        }
+        Assert.assertNull(StormUtils.compress(new Dummy()));
+    }
+
+    @Test
+    public void testDecompressException() {
+        Assert.assertNull(StormUtils.decompress(new byte[0]));
     }
 }

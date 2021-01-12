@@ -1,5 +1,5 @@
 /*
- *  Copyright 2020, Yahoo Inc.
+ *  Copyright 2021, Yahoo Inc.
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
@@ -25,6 +25,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_ACK_POSITION;
 import static com.yahoo.bullet.storm.TopologyConstants.REPLAY_BATCH_FIELD;
@@ -35,16 +37,22 @@ import static org.mockito.Mockito.doReturn;
 
 public class ReplayBoltTest {
     public static class TestStorageManager extends MemoryStorageManager<PubSubMessage> {
-        /**
-         * Constructor.
-         *
-         * @param config The {@link BulletConfig} to create this manager with.
-         */
         public TestStorageManager(BulletConfig config) {
             super(config);
             put("0", new PubSubMessage("0", SerializerDeserializer.toBytes(QueryUtils.makeRawQuery(1)), new Metadata()));
             put("1", new PubSubMessage("1", SerializerDeserializer.toBytes(QueryUtils.makeRawQuery(1)), new Metadata()));
             put("2", new PubSubMessage("2", SerializerDeserializer.toBytes(QueryUtils.makeRawQuery(1)), new Metadata()));
+        }
+    }
+
+    public static class ThrowingStorageManager extends MemoryStorageManager<PubSubMessage> {
+        public ThrowingStorageManager(BulletConfig config) {
+            super(config);
+        }
+
+        @Override
+        public CompletableFuture<Map<String, PubSubMessage>> getAll() {
+            throw new RuntimeException();
         }
     }
 
@@ -73,14 +81,38 @@ public class ReplayBoltTest {
         bolt.getCollector().ack(null);
         Assert.assertEquals(collector.getAckedCount(), 1);
 
-        Assert.assertNotNull(context.getRegisteredMetricByName(TopologyConstants.BATCHED_QUERIES_METRIC));
-        Assert.assertNotNull(context.getRegisteredMetricByName(TopologyConstants.ACTIVE_REPLAYS_METRIC));
-        Assert.assertNotNull(context.getRegisteredMetricByName(TopologyConstants.CREATED_REPLAYS_METRIC));
+        Assert.assertNotNull(bolt.getClassifier());
+
+        Assert.assertTrue(bolt.getMetrics().isEnabled());
+
+        Assert.assertNotNull(bolt.getBatchedQueriesCount());
+        Assert.assertNotNull(bolt.getActiveReplaysCount());
+        Assert.assertNotNull(bolt.getCreatedReplaysCount());
+        Assert.assertEquals(context.getRegisteredMetricByName(TopologyConstants.BATCHED_QUERIES_METRIC), bolt.getBatchedQueriesCount());
+        Assert.assertEquals(context.getRegisteredMetricByName(TopologyConstants.ACTIVE_REPLAYS_METRIC), bolt.getActiveReplaysCount());
+        Assert.assertEquals(context.getRegisteredMetricByName(TopologyConstants.CREATED_REPLAYS_METRIC), bolt.getCreatedReplaysCount());
 
         Assert.assertEquals(bolt.getBatchManager().size(), 3L);
+        Assert.assertEquals(bolt.getBatchedQueriesCount().getValueAndReset(), 3L);
         Assert.assertEquals(context.getLongMetric(TopologyConstants.BATCHED_QUERIES_METRIC).longValue(), 3L);
 
         Assert.assertTrue(bolt.getReplays().isEmpty());
+    }
+
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Could not create StorageManager\\.")
+    public void testPrepareCouldNotCreateStorageManager() {
+        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletConfig.STORAGE_CLASS_NAME, "");
+        config.validate();
+        bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), new CustomTopologyContext(), new CustomCollector());
+    }
+
+    @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Failed to get queries from storage\\.")
+    public void testPrepareCouldNotGetStoredQueries() {
+        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config.set(BulletConfig.STORAGE_CLASS_NAME, "com.yahoo.bullet.storm.ReplayBoltTest$ThrowingStorageManager");
+        config.validate();
+        bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), new CustomTopologyContext(), new CustomCollector());
     }
 
     @Test
@@ -94,6 +126,13 @@ public class ReplayBoltTest {
     }
 
     @Test
+    public void testUnknownTuple() {
+        Tuple tuple = TupleUtils.makeTuple(TupleClassifier.Type.UNKNOWN_TUPLE, "", "");
+        bolt.execute(tuple);
+        Assert.assertFalse(collector.wasAcked(tuple));
+    }
+
+    @Test
     public void testCleanup() {
         // coverage
         bolt.cleanup();
@@ -101,7 +140,7 @@ public class ReplayBoltTest {
 
     @Test
     public void testOnQuery() {
-        Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "123", "");
+        Tuple tuple = TupleUtils.makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "123", null);
 
         bolt.execute(tuple);
 
@@ -133,6 +172,16 @@ public class ReplayBoltTest {
 
         Assert.assertEquals(bolt.getBatchManager().size(), 0);
         Assert.assertEquals(context.getLongMetric(TopologyConstants.BATCHED_QUERIES_METRIC).longValue(), 0L);
+    }
+
+    @Test
+    public void testOnMetaIgnoreTuple() {
+        // coverage
+        // null metadata ignored
+        bolt.execute(TupleUtils.makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "", null));
+
+        // non-kill/replay signal ignored
+        bolt.execute(TupleUtils.makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "", new Metadata(Metadata.Signal.CUSTOM, null)));
     }
 
     @Test

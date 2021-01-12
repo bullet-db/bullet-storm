@@ -1,10 +1,11 @@
 /*
- *  Copyright 2020, Yahoo Inc.
+ *  Copyright 2021, Yahoo Inc.
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
 package com.yahoo.bullet.storm.batching;
 
+import com.yahoo.bullet.storm.StormUtils;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -23,7 +24,11 @@ public class BatchManagerTest {
 
     @BeforeMethod
     public void setup() {
-        batchManager = new BatchManager<>(BATCH_SIZE, PARTITION_COUNT, false);
+        batchManager = new BatchManager<>(BATCH_SIZE, PARTITION_COUNT, true);
+        // coverage
+        Assert.assertTrue(batchManager.getPartitions().get(0).isBatchCompressEnable());
+        Assert.assertEquals(batchManager.getPartitions().get(0).getBatchSize(), BATCH_SIZE);
+        Assert.assertNotNull(batchManager.getPartitions().get(0).getChanged());
     }
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Partition count must be greater than 0.*")
@@ -38,8 +43,6 @@ public class BatchManagerTest {
 
     @Test
     public void testBatchesAndCompressedBatchesMatch() {
-        batchManager = new BatchManager<>(BATCH_SIZE, PARTITION_COUNT, true);
-
         // Each partition starts with one batch
         Assert.assertEquals(batchManager.getBatches().size(), PARTITION_COUNT);
         Assert.assertEquals(batchManager.getCompressedBatches().size(), PARTITION_COUNT);
@@ -56,14 +59,12 @@ public class BatchManagerTest {
         Assert.assertEquals(batches.size(), compressedBatches.size());
 
         for (int i = 0; i < batches.size(); i++) {
-            Assert.assertEquals(batches.get(i), BatchManager.decompress(compressedBatches.get(i)));
+            Assert.assertEquals(batches.get(i), StormUtils.decompress(compressedBatches.get(i)));
         }
     }
 
     @Test
     public void testPartitionedBatchesAndCompressedPartitionedBatchesMatch() {
-        batchManager = new BatchManager<>(BATCH_SIZE, PARTITION_COUNT, true);
-
         // Each partition starts with one batch
         Map<Integer, List<Map<String, String>>> partitionedBatches = batchManager.getPartitionedBatches();
         Map<Integer, List<byte[]>> compressedPartitionedBatches = batchManager.getPartitionedCompressedBatches();
@@ -87,7 +88,7 @@ public class BatchManagerTest {
             List<Map<String, String>> batches = partitionedBatches.get(k);
             List<byte[]> compressedBatches = compressedPartitionedBatches.get(k);
             for (int i = 0; i < batches.size(); i++) {
-                Assert.assertEquals(batches.get(i), BatchManager.decompress(compressedBatches.get(i)));
+                Assert.assertEquals(batches.get(i), StormUtils.decompress(compressedBatches.get(i)));
             }
         }
     }
@@ -214,30 +215,36 @@ public class BatchManagerTest {
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Throwing runtime exception since batch compression is not enabled\\.")
     public void testGetCompressedBatchesThrowsWhenCompressionIsDisabled() {
-        batchManager.getCompressedBatches();
+        new BatchManager<>(BATCH_SIZE, PARTITION_COUNT, false).getCompressedBatches();
     }
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Throwing runtime exception since batch compression is not enabled\\.")
     public void testGetCompressedBatchesForPartitionThrowsWhenCompressionIsDisabled() {
-        batchManager.getCompressedBatchesForPartition(0);
+        new BatchManager<>(BATCH_SIZE, PARTITION_COUNT, false).getCompressedBatchesForPartition(0);
     }
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Throwing runtime exception since batch compression is not enabled\\.")
     public void testGetCompressedPartitionedBatchesThrowsWhenCompressionIsDisabled() {
-        batchManager.getPartitionedCompressedBatches();
+        new BatchManager<>(BATCH_SIZE, PARTITION_COUNT, false).getPartitionedCompressedBatches();
     }
 
     @Test
-    public void testAddRemoveClear() {
+    public void testAddRemoveContainsClear() {
         Map<String, String> map = IntStream.range(0, BATCH_SIZE).boxed().collect(Collectors.toMap(Object::toString, Object::toString));
 
         batchManager.addAll(map);
         Assert.assertEquals(batchManager.size(), BATCH_SIZE);
 
+        Assert.assertFalse(batchManager.contains("aaa"));
+
         batchManager.add("aaa", "bbb");
+        Assert.assertTrue(batchManager.contains("aaa"));
         Assert.assertEquals(batchManager.size(), BATCH_SIZE + 1);
 
+        Assert.assertTrue(batchManager.contains("1234"));
+
         batchManager.remove("1234");
+        Assert.assertFalse(batchManager.contains("1234"));
         Assert.assertEquals(batchManager.size(), BATCH_SIZE);
 
         batchManager.remove("1234");
@@ -263,17 +270,17 @@ public class BatchManagerTest {
         batchManager.addAll(map);
         Assert.assertEquals(batchManager.size(), PARTITION_COUNT * BATCH_SIZE + 1);
         Assert.assertTrue(batchManager.getPartitions().get(0).getBatchCount() == 2 ||
-                batchManager.getPartitions().get(1).getBatchCount() == 2 ||
-                batchManager.getPartitions().get(2).getBatchCount() == 2 ||
-                batchManager.getPartitions().get(3).getBatchCount() == 2);
+                          batchManager.getPartitions().get(1).getBatchCount() == 2 ||
+                          batchManager.getPartitions().get(2).getBatchCount() == 2 ||
+                          batchManager.getPartitions().get(3).getBatchCount() == 2);
 
         // Clear does not resize
         batchManager.clear();
         Assert.assertEquals(batchManager.size(), 0);
         Assert.assertTrue(batchManager.getPartitions().get(0).getBatchCount() == 2 ||
-                batchManager.getPartitions().get(1).getBatchCount() == 2 ||
-                batchManager.getPartitions().get(2).getBatchCount() == 2 ||
-                batchManager.getPartitions().get(3).getBatchCount() == 2);
+                          batchManager.getPartitions().get(1).getBatchCount() == 2 ||
+                          batchManager.getPartitions().get(2).getBatchCount() == 2 ||
+                          batchManager.getPartitions().get(3).getBatchCount() == 2);
     }
 
     @Test
@@ -312,26 +319,5 @@ public class BatchManagerTest {
         Assert.assertEquals(batchManager.getPartitions().get(0).getBatchCount(), 1);
         Assert.assertEquals(batchManager.getPartitions().get(0).getMaxCapacity(), 10000);
         Assert.assertEquals(batchManager.getPartitions().get(0).getMinCapacity(), 0);
-    }
-
-    @Test
-    public void testCompressDecompress() {
-        byte[] data = BatchManager.compress("Hello world!");
-        Assert.assertNotNull(data);
-
-        String out = (String) BatchManager.decompress(data);
-        Assert.assertEquals(out, "Hello world!");
-    }
-
-    @Test
-    public void testCompressException() {
-        class Dummy {
-        }
-        Assert.assertNull(BatchManager.compress(new Dummy()));
-    }
-
-    @Test
-    public void testDecompressException() {
-        Assert.assertNull(BatchManager.decompress(new byte[0]));
     }
 }

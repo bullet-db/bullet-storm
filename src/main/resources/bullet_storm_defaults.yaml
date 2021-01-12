@@ -11,13 +11,22 @@ bullet.topology.metrics.enable: false
 # to the storm built-in metrics. Currently supported are:
 
 # Counting metrics: These behave like org.apache.storm.metric.api.CountMetric but do not reset their value when getValueAndReset()
-# is called. This custom metric is defined in com.yahoo.bullet.storm.metrics.AbsoluteCountMetric.
+# is called. This custom metric is defined in com.yahoo.bullet.storm.metric.AbsoluteCountMetric.
 #   1. bullet_active_queries : A metric that counts the number of queries active per JoinBolt. Note that this metric will
 #                              increase and decrease as queries come and go. Make sure to configure the emit period accordingly
 #                              otherwise short running queries may not be even counted.
 #   2. bullet_created_queries : A metric that counts the number of queries created per JoinBolt.
 #   3. bullet_improper_queries : A metric that counts the number of semantically incorrect queries created per JoinBolt.
 #   4. bullet_rate_exceeded_queries : A metric that counts the number of queries that exceeded the configured rate limit.
+#   5. bullet_batched_queries : A metric that counts the number of queries stored in the ReplayBolt(s).
+#   6. bullet_active_replays : A metric that counts the number of active replays processed by the QuerySpout(s).
+
+# Map counting metrics: These behave similar to the above counting metrics but keep a map of keys and their associated counts
+# rather than a single count. This custom metric is defined in com.yahoo.bullet.storm.metric.MapCountMetric.
+#   1. bullet_active_replays : A metric that counts the number of active replays in the ReplayBolt(s) per component being
+#                              replayed to (where the keys are the component task IDs)
+#   2. bullet_created_replays : A metric that counts the number of created replays in the ReplayBolt(s) per component being
+#                               replayed to (where the keys are the component task IDs)
 
 # Averaging metrics: These are org.apache.storm.metric.api.ReducedMetrics
 #   1. bullet_filter_latency: A metric that computes the average latency to filter a single record in the Filter Bolt. The latency is

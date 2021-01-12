@@ -361,4 +361,25 @@ public class QueryBoltTest {
         Assert.assertNotEquals(bolt.lastReplayRequest, 0);
         Assert.assertEquals(collector.getEmittedCount(), 1);
     }
+
+    @Test
+    public void testHandleReplaySignalDoesNothingWhenReplayDisabled() {
+        CustomCollector collector = new CustomCollector();
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig());
+        ComponentUtils.prepare(bolt, collector);
+
+        Assert.assertFalse(bolt.replayEnabled);
+        Assert.assertTrue(bolt.replayCompleted);
+        Assert.assertEquals(bolt.lastReplayRequest, 0);
+        Assert.assertEquals(collector.getEmittedCount(), 0);
+
+        Tuple tuple = makeIDTuple(TupleClassifier.Type.METADATA_TUPLE, "123", new Metadata(Signal.REPLAY, null));
+
+        bolt.onMeta(tuple);
+
+        Assert.assertFalse(bolt.replayEnabled);
+        Assert.assertTrue(bolt.replayCompleted);
+        Assert.assertEquals(bolt.lastReplayRequest, 0);
+        Assert.assertEquals(collector.getEmittedCount(), 0);
+    }
 }

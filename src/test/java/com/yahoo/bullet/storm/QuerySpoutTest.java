@@ -123,6 +123,21 @@ public class QuerySpoutTest {
     }
 
     @Test
+    public void testNextTupleCommitsWhenMetadataIsNull() {
+        // Add message with null metadata
+        subscriber.addMessages(new PubSubMessage("", "", null));
+
+        Assert.assertEquals(subscriber.getReceived().size(), 0);
+        Assert.assertEquals(subscriber.getCommitted().size(), 0);
+
+        // subscriber.receive() -> message with null metadata
+        spout.nextTuple();
+
+        Assert.assertEquals(subscriber.getReceived().size(), 1);
+        Assert.assertEquals(subscriber.getCommitted().size(), 1);
+    }
+
+    @Test
     public void testSignalOnlyMessagesAreSentOnTheMetadataStream() {
         // Add messages to be received from subscriber
         PubSubMessage messageA = new PubSubMessage("42", Metadata.Signal.KILL);

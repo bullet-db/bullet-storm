@@ -15,8 +15,15 @@ import org.apache.storm.StormSubmitter;
 import org.apache.storm.topology.TopologyBuilder;
 import org.apache.storm.tuple.Fields;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.util.List;
 import java.util.Objects;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
 
 import static com.yahoo.bullet.storm.TopologyConstants.CAPTURE_STREAM;
 import static com.yahoo.bullet.storm.TopologyConstants.DATA_STREAM;
@@ -153,6 +160,7 @@ public class StormUtils {
             log.info("Windowing and replay are disabled. Skipping hooking in the Loop Bolt...");
         } else {
             builder.setBolt(LOOP_COMPONENT, new LoopBolt(config), loopBoltParallelism)
+                   .shuffleGrouping(FILTER_COMPONENT, FEEDBACK_STREAM)
                    .shuffleGrouping(JOIN_COMPONENT, FEEDBACK_STREAM)
                    .setCPULoad(loopBoltCPULoad).setMemoryLoad(loopBoltMemoryOnHeapLoad, loopBoltMemoryOffHeapLoad);
         }
@@ -248,6 +256,42 @@ public class StormUtils {
      */
     public static int getHashIndex(Object key, int count) {
         return (key.hashCode() & POSITIVE_INT_MASK) % count;
+    }
+
+    /**
+     * Compresses an object into a byte array.
+     *
+     * @param object The object to be compressed.
+     * @return The resulting byte array from compressing the object.
+     */
+    public static byte[] compress(Object object) {
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             GZIPOutputStream gzipOut = new GZIPOutputStream(baos);
+             ObjectOutputStream objectOut = new ObjectOutputStream(gzipOut)) {
+            objectOut.writeObject(object);
+            gzipOut.finish();
+            return baos.toByteArray();
+        } catch (IOException e) {
+            log.error("Error compressing object: " +  e);
+            return null;
+        }
+    }
+
+    /**
+     * Decompresses a byte array into an object.
+     *
+     * @param bytes The byte array to be decompressed.
+     * @return The resulting object from decompressing the byte array.
+     */
+    public static Object decompress(byte[] bytes) {
+        try (ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+             GZIPInputStream gzipIn = new GZIPInputStream(bais);
+             ObjectInputStream objectIn = new ObjectInputStream(gzipIn)) {
+            return objectIn.readObject();
+        } catch (IOException | ClassNotFoundException e) {
+            log.error("Error decompressing data: " + e);
+            return null;
+        }
     }
 
     public static boolean isKillSignal(Metadata.Signal signal) {

@@ -1,10 +1,11 @@
 /*
- *  Copyright 2020, Yahoo Inc.
+ *  Copyright 2021, Yahoo Inc.
  *  Licensed under the terms of the Apache License, Version 2.0.
  *  See the LICENSE file associated with the project for terms.
  */
 package com.yahoo.bullet.storm.batching;
 
+import com.yahoo.bullet.storm.StormUtils;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -24,7 +25,7 @@ import java.util.stream.Stream;
  */
 @Getter(AccessLevel.PACKAGE)
 @Slf4j
-class Partition<T> {
+public class Partition<T> {
     private static final int INITIAL_BATCH_COUNT = 1;
 
     private final Random random = new Random();
@@ -39,9 +40,16 @@ class Partition<T> {
     private List<byte[]> data;
     private boolean[] changed;
 
-    Partition(int id, int batchSize, boolean batchCompressEnable) {
+    /**
+     * Creates a Partition with the given id and batch size.
+     *
+     * @param id The id of the partition.
+     * @param batchSize The approximate maximum number of elements in a batch.
+     * @param batchCompressEnable Whether or not to serialize and compress batches.
+     */
+    public Partition(int id, int batchSize, boolean batchCompressEnable) {
         log.info("Creating partition {} with batch size {}, initial batch count {}, and batch compression enabled {}",
-                id, batchSize, batchCompressEnable);
+                 id, batchSize, batchCompressEnable);
 
         if (batchSize < 1) {
             throw new RuntimeException("Batch size must be greater than 0. The parameter given was " + batchSize);
@@ -57,7 +65,14 @@ class Partition<T> {
         resize(INITIAL_BATCH_COUNT);
     }
 
-    void add(String key, T value) {
+    /**
+     * Adds a key-value pair to a random batch in the partition if the key does not already exist in the partition. If
+     * the key already exists, then nothing happens.
+     *
+     * @param key The key to add.
+     * @param value The value to associate with the key to add.
+     */
+    public void add(String key, T value) {
         if (keyMapping.containsKey(key)) {
             return;
         }
@@ -67,7 +82,12 @@ class Partition<T> {
         changed[index] = true;
     }
 
-    void remove(String key) {
+    /**
+     * Removes a key and its associated value from the partition if the key is present.
+     *
+     * @param key The key to remove.
+     */
+    public void remove(String key) {
         Integer index = keyMapping.remove(key);
         if (index != null) {
             batches.get(index).remove(key);
@@ -75,7 +95,12 @@ class Partition<T> {
         }
     }
 
-    void resize() {
+    /**
+     * Resizes the partition if the total number of keys exceeds the maximum capacity or falls below the minimum capacity.
+     * The maximum capacity is the number of batches times the batch size. The minimum capacity is a quarter of the
+     * maximum capacity.
+     */
+    public void resize() {
         if (keyMapping.size() > maxCapacity) {
             upsize();
         } else if (keyMapping.size() < minCapacity) {
@@ -83,6 +108,9 @@ class Partition<T> {
         }
     }
 
+    /**
+     * Doubles the number of batches in the partition and then resizes the partition based on the new batch count.
+     */
     private void upsize() {
         log.info("Upsizing partition {}", id);
         while (keyMapping.size() > maxCapacity) {
@@ -93,6 +121,9 @@ class Partition<T> {
         resize(batchCount);
     }
 
+    /**
+     * Halves the number of batches in the partition and then resizes the partition based on the new batch count.
+     */
     private void downsize() {
         log.info("Downsizing partition {}", id);
         while (keyMapping.size() < minCapacity) {
@@ -117,8 +148,8 @@ class Partition<T> {
             minCapacity = 0;
         }
 
-        log.info("Resizing partition {} batch size to {} with new max capacity {} and new min capacity {} (the current number of elements is {})",
-                id, numBatches, maxCapacity, minCapacity, keyMapping.size());
+        log.info("Resizing partition {}'s batch size to {} with new max capacity {} and new min capacity {} (the current number of elements is {})",
+                 id, numBatches, maxCapacity, minCapacity, keyMapping.size());
 
         List<Map<String, T>> resized = Stream.generate(HashMap<String, T>::new).limit(batchCount).collect(Collectors.toList());
         for (Map<String, T> batch : batches) {
@@ -134,7 +165,7 @@ class Partition<T> {
         if (batchCompressEnable) {
             log.info("Compressing {} batches after resize", numBatches);
             long timestamp = System.currentTimeMillis();
-            batches.stream().map(BatchManager::compress).forEach(data::add);
+            batches.stream().map(StormUtils::compress).forEach(data::add);
             log.info("Took {} seconds to compress.", (System.currentTimeMillis() - timestamp) / 1000.0);
         } else {
             log.warn("Not compressing batches after resize since compression is not enabled.");
@@ -142,14 +173,14 @@ class Partition<T> {
     }
 
     /**
-     * Only compresses batches that have changed.
+     * Compresses the batches that have changed (had a key added or removed).
      */
-    void compress() {
+    public void compress() {
         long timestamp = System.currentTimeMillis();
         int count = 0;
         for (int i = 0; i < batchCount; i++) {
             if (changed[i]) {
-                data.set(i, BatchManager.compress(batches.get(i)));
+                data.set(i, StormUtils.compress(batches.get(i)));
                 changed[i] = false;
                 count++;
             }
@@ -157,19 +188,28 @@ class Partition<T> {
         log.info("{} out of {} batches needed compressing. Took {} seconds to compress.", count, batchCount, (System.currentTimeMillis() - timestamp) / 1000.0);
     }
 
-    List<Map<String, T>> getImmutableBatches() {
+    /**
+     * Get the {@link List} of batches.
+     *
+     * @return The {@link List} of batches in this partition.
+     */
+    public List<Map<String, T>> getImmutableBatches() {
         return batches.stream().map(HashMap::new).collect(Collectors.toList());
     }
 
-    List<byte[]> getImmutableData() {
+    /**
+     * Get the batches compressed as a {@link List} of byte data.
+     *
+     * @return The {@link List} of byte data that represents the compressed batches in this partition.
+     */
+    public List<byte[]> getImmutableData() {
         return new ArrayList<>(data);
     }
 
     /**
-     * We clear out the maps and keep the partition size the same because this is meant to be used for activate/deactivate in ReplayableQuerySpout.
-     * When repopulating queries, we mostly likely won't have to resize.
+     * Clears the partition of all keys without resizing.
      */
-    void clear() {
+    public void clear() {
         batches.forEach(Map::clear);
         keyMapping.clear();
         if (batchCompressEnable) {

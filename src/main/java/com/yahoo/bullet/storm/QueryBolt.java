@@ -27,6 +27,7 @@ import java.util.Set;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_ENABLE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_REQUEST_INTERVAL;
 import static com.yahoo.bullet.storm.StormUtils.HYPHEN;
+import static com.yahoo.bullet.storm.StormUtils.decompress;
 import static com.yahoo.bullet.storm.StormUtils.isKillSignal;
 import static com.yahoo.bullet.storm.StormUtils.isReplaySignal;
 import static com.yahoo.bullet.storm.TopologyConstants.FEEDBACK_STREAM;
@@ -45,6 +46,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     protected transient long startTimestamp;
     protected transient boolean replayCompleted;
     protected transient boolean replayEnabled;
+    protected transient boolean batchCompressEnable;
     protected transient long replayRequestInterval;
     protected transient long lastReplayRequest;
     protected transient int batchCount;
@@ -131,12 +133,14 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         }
         long timestamp = tuple.getLong(REPLAY_TIMESTAMP_POSITION);
         int index = tuple.getInteger(REPLAY_INDEX_POSITION);
-        Map<String, PubSubMessage> batch = (Map<String, PubSubMessage>) tuple.getValue(REPLAY_BATCH_POSITION);
         if (timestamp != startTimestamp) {
             log.warn("Batch timestamp {} does not match bolt start timestamp {}. Ignoring...", timestamp, startTimestamp);
             return;
         }
         log.info("Received batch with index {}", index);
+        Map<String, PubSubMessage> batch =
+                batchCompressEnable ? (Map<String, PubSubMessage>) decompress((byte[]) tuple.getValue(REPLAY_BATCH_POSITION)) :
+                                      (Map<String, PubSubMessage>) tuple.getValue(REPLAY_BATCH_POSITION);
         if (batch == null) {
             log.info("Total batches: {}. Total queries replayed: {}", batchCount, replayedQueriesCount);
             replayCompleted = true;
