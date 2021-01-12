@@ -220,8 +220,11 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
      * A replay state for some downstream bolt tracks the batches to send using an index. When an ack is received, the
      * index is incremented and then the next batch is sent. When a non-ack is received, the current batch is (re-)sent.
      *
-     * Note, the replay state also keeps separate indices for each spout that may be trying to replay to the downstream
-     * bolt. This way, the acks and indices will not be mixed up.
+     * Note, if a replay request is received by more than one query spout, it is possible for multiple spouts to try to
+     * replay to the same downstream bolt concurrently. To address this scenario, the replay state keeps track of which
+     * spouts (or anchors) have "emitted" the current batch. This way, when an ack is received from a spout, we can check
+     * if the ack is meant for the current batch (i.e. the ack came from an anchor for the current batch). When a valid ack
+     * is received, we clear the previous anchors and move onto the next batch.
      */
     private void onReplay(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
