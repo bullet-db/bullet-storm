@@ -224,26 +224,26 @@ public class ReplayBoltTest {
 
         Assert.assertEquals(replay.getBatches().size(), NUM_PARTITIONS);
         Assert.assertTrue(replay.getBatches().get(0) instanceof Map);
-        Assert.assertTrue(replay.getAnchors().contains(4));
+        Assert.assertEquals(replay.getAnchor(), 4);
         Assert.assertEquals(replay.getIndex(), 0);
         Assert.assertEquals(replay.getTaskID(), 18);
         Assert.assertEquals(replay.getTimestamp(), timestamp);
 
         for (int i = 1; i <= NUM_PARTITIONS; i++) {
             bolt.execute(tupleB);
-            Assert.assertTrue(replay.getAnchors().contains(4));
+            Assert.assertEquals(replay.getAnchor(), 4);
             Assert.assertEquals(replay.getIndex(), i);
         }
 
         bolt.execute(tupleA);
 
-        Assert.assertTrue(replay.getAnchors().contains(4));
+        Assert.assertEquals(replay.getAnchor(), 4);
         Assert.assertEquals(replay.getIndex(), NUM_PARTITIONS);
 
         bolt.execute(tupleB);
 
         Assert.assertNull(replay.getBatches());
-        Assert.assertNull(replay.getAnchors());
+        Assert.assertEquals(replay.getAnchor(), -1);
         Assert.assertEquals(collector.getEmittedCount(), NUM_PARTITIONS + 2);
         Assert.assertEquals(collector.getAckedCount(), NUM_PARTITIONS + 2);
         Assert.assertEquals(collector.getFailedCount(), 1);
@@ -281,7 +281,7 @@ public class ReplayBoltTest {
 
         Assert.assertEquals(replay.getBatches().size(), 1);
         Assert.assertTrue(replay.getBatches().get(0) instanceof Map);
-        Assert.assertTrue(replay.getAnchors().contains(4));
+        Assert.assertEquals(replay.getAnchor(), 4);
         Assert.assertEquals(replay.getIndex(), 0);
         Assert.assertEquals(replay.getTaskID(), 21);
         Assert.assertEquals(replay.getTimestamp(), timestamp);
@@ -298,22 +298,20 @@ public class ReplayBoltTest {
         replay = bolt.getReplays().get("JoinBolt-21");
 
         Assert.assertEquals(replay.getBatches().size(), 1);
-        Assert.assertTrue(replay.getAnchors().contains(5));
-        Assert.assertEquals(replay.getAnchors().size(), 1);
+        Assert.assertEquals(replay.getAnchor(), 5);
         Assert.assertEquals(replay.getIndex(), 0);
         Assert.assertEquals(replay.getTaskID(), 21);
         Assert.assertEquals(replay.getTimestamp(), timestamp + 1);
 
         bolt.execute(tupleB);
 
-        Assert.assertTrue(replay.getAnchors().contains(5));
-        Assert.assertEquals(replay.getAnchors().size(), 1);
+        Assert.assertEquals(replay.getAnchor(), 5);
         Assert.assertEquals(replay.getIndex(), 1);
 
         bolt.execute(tupleB);
 
         Assert.assertNull(replay.getBatches());
-        Assert.assertNull(replay.getAnchors());
+        Assert.assertEquals(replay.getAnchor(), -1);
         Assert.assertEquals(collector.getEmittedCount(), 3);
         Assert.assertEquals(collector.getAckedCount(), 3);
         Assert.assertEquals(collector.getFailedCount(), 1);
@@ -391,14 +389,28 @@ public class ReplayBoltTest {
         doReturn(true).when(tupleB).getBoolean(REPLAY_ACK_POSITION);
 
         bolt.execute(tupleA);
-        bolt.execute(tupleB);
 
         Assert.assertEquals(bolt.getReplays().size(), 1);
 
         ReplayBolt.Replay replay = bolt.getReplays().get("FilterBolt-18");
 
-        Assert.assertTrue(replay.getAnchors().contains(4));
-        Assert.assertTrue(replay.getAnchors().contains(5));
+        Assert.assertEquals(replay.getAnchor(), 4);
+        Assert.assertEquals(replay.getIndex(), 0);
+
+        // treated as old replay
+        bolt.execute(tupleB);
+
+        Assert.assertEquals(bolt.getReplays().size(), 1);
+        Assert.assertEquals(replay.getAnchor(), 4);
+        Assert.assertEquals(replay.getIndex(), 0);
+
+        doReturn(false).when(tupleB).getBoolean(REPLAY_ACK_POSITION);
+
+        // treated as new replay
+        bolt.execute(tupleB);
+
+        Assert.assertEquals(bolt.getReplays().size(), 1);
+        Assert.assertEquals(replay.getAnchor(), 5);
         Assert.assertEquals(replay.getIndex(), 0);
     }
 }
