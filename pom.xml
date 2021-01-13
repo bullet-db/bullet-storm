@@ -4,13 +4,13 @@
 
     <groupId>com.yahoo.bullet</groupId>
     <artifactId>bullet-storm</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <packaging>jar</packaging>
     <name>bullet-storm</name>
 
     <scm>
         <developerConnection>scm:git:ssh://git@github.com/bullet-db/bullet-storm.git</developerConnection>
-        <tag>HEAD</tag>
+        <tag>bullet-storm-1.0.0</tag>
     </scm>
 
     <distributionManagement>
