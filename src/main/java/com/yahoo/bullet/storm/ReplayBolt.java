@@ -25,10 +25,8 @@ import org.apache.storm.tuple.Tuple;
 import org.apache.storm.tuple.Values;
 
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE;
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_SIZE;
@@ -53,8 +51,9 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         START_REPLAY,
         PAST_REPLAY,
         FINISHED_REPLAY,
-        ACK,
-        NON_ACK
+        NEW_REPLAY,
+        OLD_REPLAY,
+        ACK
     }
 
     @Getter(AccessLevel.PACKAGE)
@@ -62,13 +61,14 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         private final int taskID;
         private final long timestamp;
         private List batches;
-        private Set<Integer> anchors = new HashSet<>();
+        private int anchor;
         private int index;
 
         Replay(int taskID, long timestamp, List batches) {
             this.taskID = taskID;
             this.timestamp = timestamp;
             this.batches = batches;
+            this.anchor = -1;
         }
     }
 
@@ -216,15 +216,17 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
      * 3) Timestamp is old - ignore
      * 4) Timestamp matches but replay is done - ignore
      * 5) Timestamp matches and replay is in progress - proceed with replay
+     *    a) If acked field is true and spout id matches anchor, send next batch
+     *    b) If acked field is true and spout id does not match anchor, ignore
+     *    c) If acked field is false, set new anchor and re-send current batch
      *
      * A replay state for some downstream bolt tracks the batches to send using an index. When an ack is received, the
      * index is incremented and then the next batch is sent. When a non-ack is received, the current batch is (re-)sent.
      *
      * Note, if a replay request is received by more than one query spout, it is possible for multiple spouts to try to
-     * replay to the same downstream bolt concurrently. To address this scenario, the replay state keeps track of which
-     * spouts (or anchors) have "emitted" the current batch. This way, when an ack is received from a spout, we can check
-     * if the ack is meant for the current batch (i.e. the ack came from an anchor for the current batch). When a valid ack
-     * is received, we clear the previous anchors and move onto the next batch.
+     * replay to the same downstream bolt. To address this scenario, the replay state keeps track of one spout to run
+     * the replay loop with. This spout is the anchor and only acks from the anchor are honored. When a new spout attempts
+     * to start a replay loop, the new spout becomes the new anchor, and tuples from the previous anchor are ignored.
      */
     private void onReplay(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
@@ -243,10 +245,14 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
                 log.warn("Received replay tuple for finished replay.");
                 collector.fail(tuple);
                 break;
+            case OLD_REPLAY:
+                log.warn("Received replay tuple for old replay.");
+                collector.fail(tuple);
+                break;
             case ACK:
                 handleAck(id, tuple, replay);
                 break;
-            case NON_ACK:
+            case NEW_REPLAY:
                 emitBatch(id, tuple, replay);
                 break;
         }
@@ -259,10 +265,12 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
             return ReplayState.PAST_REPLAY;
         } else if (replay.batches == null) {
             return ReplayState.FINISHED_REPLAY;
-        } else if (acked && replay.anchors.contains(tuple.getSourceTask())) {
+        } else if (acked && replay.anchor == tuple.getSourceTask()) {
             return ReplayState.ACK;
+        } else if (!acked) {
+            return ReplayState.NEW_REPLAY;
         } else {
-            return ReplayState.NON_ACK;
+            return ReplayState.OLD_REPLAY;
         }
     }
 
@@ -289,12 +297,11 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
         if (replay.index >= replay.batches.size()) {
             log.info("Ending replay to {}", id);
             replay.batches = null;
-            replay.anchors = null;
+            replay.anchor = -1;
             metrics.setCount(activeReplaysCount, id, 0L);
             collector.fail(tuple);
             return;
         }
-        replay.anchors.clear();
         replay.index++;
         emitBatch(id, tuple, replay);
     }
@@ -309,7 +316,7 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
             log.info("Emitting replay batch NULL (index {}) to {}", index, id);
             collector.emitDirect(replay.taskID, REPLAY_STREAM, anchor, new Values(id, replay.timestamp, index, null));
         }
-        replay.anchors.add(anchor.getSourceTask());
+        replay.anchor = anchor.getSourceTask();
         collector.ack(anchor);
     }
 }
