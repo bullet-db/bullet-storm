@@ -48,9 +48,10 @@ public class StormUtils {
      * @param config The non-null, validated {@link BulletStormConfig} that contains the necessary configuration.
      * @param recordComponent The non-null name of the component used in your topology that is the source of records for Bullet.
      * @param builder The non-null {@link TopologyBuilder} that was used to create your topology.
+     * @param stormConfig The non-null Storm {@link Config} to use to submit the topology with.
      * @throws Exception if there were issues creating the topology.
      */
-    public static void submit(BulletStormConfig config, String recordComponent, TopologyBuilder builder) throws Exception {
+    public static void submit(BulletStormConfig config, String recordComponent, TopologyBuilder builder, Config stormConfig) throws Exception {
         Objects.requireNonNull(config);
         Objects.requireNonNull(recordComponent);
         Objects.requireNonNull(builder);
@@ -158,8 +159,6 @@ public class StormUtils {
                    .setCPULoad(loopBoltCPULoad).setMemoryLoad(loopBoltMemoryOnHeapLoad, loopBoltMemoryOffHeapLoad);
         }
 
-        Config stormConfig = new Config();
-
         // Metrics
         Boolean enableMetrics = (Boolean) config.get(BulletStormConfig.TOPOLOGY_METRICS_ENABLE);
         if (enableMetrics) {
@@ -172,6 +171,20 @@ public class StormUtils {
         stormConfig.putAll(config.getCustomStormSettings());
 
         StormSubmitter.submitTopology(name, stormConfig, builder.createTopology());
+    }
+    
+    /**
+     * This function can be used to wire up the source of the records to Bullet. The name of the last component in your
+     * topology and the {@link TopologyBuilder} used to create your topology should be provided. That topology
+     * will be wired up with Bullet reading from your component that produces the {@link com.yahoo.bullet.record.BulletRecord}.
+     *
+     * @param config The non-null, validated {@link BulletStormConfig} that contains the necessary configuration.
+     * @param recordComponent The non-null name of the component used in your topology that is the source of records for Bullet.
+     * @param builder The non-null {@link TopologyBuilder} that was used to create your topology.
+     * @throws Exception if there were issues creating the topology.
+     */
+    public static void submit(BulletStormConfig config, String recordComponent, TopologyBuilder builder) throws Exception {
+        submit(config, recordComponent, builder, new Config());
     }
 
     private static void addDSLSpout(BulletStormConfig config, TopologyBuilder builder) {
