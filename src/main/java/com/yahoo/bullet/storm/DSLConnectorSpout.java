@@ -16,7 +16,8 @@ import java.util.Map;
  * this if they wish to use an existing spout to read their data but still use other DSL components like a deserializer
  * or a converter. This class will proxy all calls for the spout interface including credentials (optionally) to the
  * {@link SpoutConnector} instance. It will not call the {@link SpoutConnector#initialize()} or
- * {@link SpoutConnector#read()} methods. It will rely solely on the spout interfaces.
+ * {@link SpoutConnector#close()} methods. It will use the spout interfaces except for {@code nextTuple()} and the
+ * {@link SpoutConnector#read()}.
  */
 public class DSLConnectorSpout extends DSLSpout<SpoutConnector> implements ICredentialsListener {
     private static final long serialVersionUID = -6238096209128244464L;
