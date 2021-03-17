@@ -72,7 +72,7 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
     }
 
     @Override
-    public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+    public void open(Map<String, Object> conf, TopologyContext context, SpoutOutputCollector collector) {
         // Add the Storm Config and the context as is, in case any PubSubs need it.
         config.set(BulletStormConfig.STORM_CONFIG, conf);
         config.set(BulletStormConfig.STORM_CONTEXT, context);

@@ -27,12 +27,12 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 @Slf4j
-public class DSLSpout extends ConfigComponent implements IRichSpout {
+public class DSLSpout<T extends BulletConnector> extends ConfigComponent implements IRichSpout {
     private static final long serialVersionUID = 9218045272408135524L;
     private static final Long DUMMY_ID = 42L;
 
-    private SpoutOutputCollector collector;
-    private BulletConnector connector;
+    protected transient SpoutOutputCollector collector;
+    protected T connector;
     private BulletRecordConverter converter;
     private BulletDeserializer deserializer;
     private boolean dslBoltEnable;
@@ -45,7 +45,7 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     public DSLSpout(BulletStormConfig bulletStormConfig) {
         super(bulletStormConfig);
         BulletDSLConfig config = new BulletDSLConfig(bulletStormConfig);
-        connector = BulletConnector.from(config);
+        connector = getConnector(config);
         dslBoltEnable = config.getAs(BulletStormConfig.DSL_BOLT_ENABLE, Boolean.class);
         if (!dslBoltEnable) {
             boolean dslDeserializerEnable = config.getAs(BulletStormConfig.DSL_DESERIALIZER_ENABLE, Boolean.class);
@@ -55,7 +55,7 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
     }
 
     @Override
-    public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+    public void open(Map<String, Object> conf, TopologyContext context, SpoutOutputCollector collector) {
         this.collector = collector;
         try {
             connector.initialize();
@@ -128,5 +128,16 @@ public class DSLSpout extends ConfigComponent implements IRichSpout {
             log.error("Could not close BulletConnector.", e);
         }
         log.info("DSLSpout closed");
+    }
+
+    /**
+     * Creates the {@link BulletConnector} of the given type from the config.
+     *
+     * @param config The {@link BulletDSLConfig} with the relevant settings.
+     * @return An instance of the relevant {@link BulletConnector}.
+     */
+    @SuppressWarnings("unchecked")
+    protected T getConnector(BulletDSLConfig config) {
+        return (T) BulletConnector.from(config);
     }
 }

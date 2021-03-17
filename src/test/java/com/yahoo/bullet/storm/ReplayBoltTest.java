@@ -67,7 +67,7 @@ public class ReplayBoltTest {
     public void setup() {
         collector = new CustomCollector();
         context = new CustomTopologyContext();
-        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config = new BulletStormConfig("test_config.yaml");
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         config.set(BulletConfig.STORAGE_CLASS_NAME, "com.yahoo.bullet.storm.ReplayBoltTest$TestStorageManager");
         config.validate();
@@ -102,7 +102,7 @@ public class ReplayBoltTest {
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Could not create StorageManager\\.")
     public void testPrepareCouldNotCreateStorageManager() {
-        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config = new BulletStormConfig("test_config.yaml");
         config.set(BulletConfig.STORAGE_CLASS_NAME, "");
         config.validate();
         bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), new CustomTopologyContext(), new CustomCollector());
@@ -110,7 +110,7 @@ public class ReplayBoltTest {
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = "Failed to get queries from storage\\.")
     public void testPrepareCouldNotGetStoredQueries() {
-        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config = new BulletStormConfig("test_config.yaml");
         config.set(BulletConfig.STORAGE_CLASS_NAME, "com.yahoo.bullet.storm.ReplayBoltTest$ThrowingStorageManager");
         config.validate();
         bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), new CustomTopologyContext(), new CustomCollector());
@@ -328,7 +328,7 @@ public class ReplayBoltTest {
 
     @Test
     public void testReplayFilterBoltWithCompression() {
-        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config = new BulletStormConfig("test_config.yaml");
         config.set(BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE, true);
         config.validate();
         bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), context, collector);
@@ -351,7 +351,7 @@ public class ReplayBoltTest {
 
     @Test
     public void testReplayJoinBoltWithCompression() {
-        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config = new BulletStormConfig("test_config.yaml");
         config.set(BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE, true);
         config.validate();
         bolt = ComponentUtils.prepare(new HashMap<>(), new ReplayBolt(config), context, collector);

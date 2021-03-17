@@ -31,7 +31,7 @@ public class QuerySpoutTest {
     @BeforeMethod
     public void setup() {
         emitter = new CustomEmitter();
-        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("test_config.yaml");
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         config.validate();
         context = new CustomTopologyContext();
@@ -42,7 +42,7 @@ public class QuerySpoutTest {
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Cannot create PubSub.*")
     public void testFailingToCreatePubSub() {
-        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("test_config.yaml");
         config.set(BulletConfig.PUBSUB_CLASS_NAME, "fake.class");
         QuerySpout spout = new QuerySpout(config);
         ComponentUtils.open(spout, emitter);

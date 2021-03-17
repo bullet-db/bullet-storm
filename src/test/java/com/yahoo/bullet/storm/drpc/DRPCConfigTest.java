@@ -34,7 +34,7 @@ public class DRPCConfigTest {
 
     @Test
     public void testCustomConfig() {
-        DRPCConfig config = new DRPCConfig("src/test/resources/test_drpc_config.yaml");
+        DRPCConfig config = new DRPCConfig("test_drpc_config.yaml");
         Assert.assertEquals(config.get("fake.setting"), "foo");
         Assert.assertEquals(config.get(DRPCConfig.DRPC_HTTP_CONNECT_RETRY_LIMIT), 1);
 

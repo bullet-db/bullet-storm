@@ -229,7 +229,7 @@ public class QueryBoltTest {
     @Test
     public void testBatchInitializeQuery() {
         CustomCollector collector = new CustomCollector();
-        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("src/test/resources/test_config.yaml"));
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("test_config.yaml"));
         ComponentUtils.prepare(bolt, collector);
 
         Assert.assertEquals(bolt.replayedQueriesCount, 0);
@@ -253,7 +253,7 @@ public class QueryBoltTest {
     @Test
     public void testBatchInitializeQueryWithCompression() {
         CustomCollector collector = new CustomCollector();
-        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("test_config.yaml");
         config.set(BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE, true);
         config.validate();
         TestQueryBolt bolt = new TestQueryBolt(config);
@@ -283,7 +283,7 @@ public class QueryBoltTest {
     public void testBatchReplayCompleted() {
         CustomTopologyContext context = new CustomTopologyContext();
         CustomCollector collector = new CustomCollector();
-        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("test_config.yaml");
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         config.validate();
         TestQueryBolt bolt = new TestQueryBolt(config);
@@ -302,7 +302,7 @@ public class QueryBoltTest {
     public void testBatchNonMatchingTimestamp() {
         CustomTopologyContext context = new CustomTopologyContext();
         CustomCollector collector = new CustomCollector();
-        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("test_config.yaml");
         config.set(BulletStormConfig.TOPOLOGY_METRICS_BUILT_IN_ENABLE, true);
         config.validate();
         TestQueryBolt bolt = new TestQueryBolt(config);
@@ -321,7 +321,7 @@ public class QueryBoltTest {
     @Test
     public void testBatchNullEndsReplay() {
         CustomCollector collector = new CustomCollector();
-        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("src/test/resources/test_config.yaml"));
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("test_config.yaml"));
         ComponentUtils.prepare(bolt, collector);
 
         Assert.assertFalse(bolt.replayCompleted);
@@ -338,7 +338,7 @@ public class QueryBoltTest {
     @Test
     public void testEmitReplayRequest() {
         CustomCollector collector = new CustomCollector();
-        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("src/test/resources/test_config.yaml"));
+        TestQueryBolt bolt = new TestQueryBolt(new BulletStormConfig("test_config.yaml"));
 
         Assert.assertEquals(collector.getEmittedCount(), 0);
 

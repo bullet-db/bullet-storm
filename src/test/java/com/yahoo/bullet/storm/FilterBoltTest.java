@@ -990,7 +990,7 @@ public class FilterBoltTest {
 
     @Test
     public void testBatchTuple() {
-        bolt = ComponentUtils.prepare(new FilterBolt(TopologyConstants.RECORD_COMPONENT, new BulletStormConfig("src/test/resources/test_config.yaml")), collector);
+        bolt = ComponentUtils.prepare(new FilterBolt(TopologyConstants.RECORD_COMPONENT, new BulletStormConfig("test_config.yaml")), collector);
         bolt.replayCompleted = true;
 
         Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
@@ -1001,7 +1001,7 @@ public class FilterBoltTest {
 
     @Test
     public void testBatchInitializeAndRemoveQuery() {
-        bolt = ComponentUtils.prepare(new FilterBolt(TopologyConstants.RECORD_COMPONENT, new BulletStormConfig("src/test/resources/test_config.yaml")), collector);
+        bolt = ComponentUtils.prepare(new FilterBolt(TopologyConstants.RECORD_COMPONENT, new BulletStormConfig("test_config.yaml")), collector);
 
         Assert.assertEquals(bolt.replayedQueriesCount, 0);
         Assert.assertEquals(bolt.getManager().size(), 0);

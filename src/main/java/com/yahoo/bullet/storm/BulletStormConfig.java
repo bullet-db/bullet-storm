@@ -41,6 +41,8 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final String DSL_SPOUT_CPU_LOAD = "bullet.topology.dsl.spout.cpu.load";
     public static final String DSL_SPOUT_MEMORY_ON_HEAP_LOAD = "bullet.topology.dsl.spout.memory.on.heap.load";
     public static final String DSL_SPOUT_MEMORY_OFF_HEAP_LOAD = "bullet.topology.dsl.spout.memory.off.heap.load";
+    public static final String DSL_SPOUT_CONNECTOR_CLASS_NAME = "bullet.topology.dsl.spout.connector.class.name";
+    public static final String DSL_SPOUT_CONNECTOR_SPOUT_ENABLE = "bullet.topology.dsl.spout.connector.as.spout.enable";
     public static final String DSL_BOLT_ENABLE = "bullet.topology.dsl.bolt.enable";
     public static final String DSL_BOLT_PARALLELISM = "bullet.topology.dsl.bolt.parallelism";
     public static final String DSL_BOLT_CPU_LOAD = "bullet.topology.dsl.bolt.cpu.load";
@@ -107,6 +109,7 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final int DEFAULT_REPLAY_BATCH_SIZE = 10000;
     public static final boolean DEFAULT_REPLAY_BATCH_COMPRESS_ENABLE = false;
     public static final boolean DEFAULT_DSL_SPOUT_ENABLE = false;
+    public static final boolean DEFAULT_DSL_SPOUT_CONNECTOR_SPOUT_ENABLE = false;
     public static final int DEFAULT_DSL_SPOUT_PARALLELISM = 10;
     public static final double DEFAULT_DSL_SPOUT_CPU_LOAD = 50.0;
     public static final double DEFAULT_DSL_SPOUT_MEMORY_ON_HEAP_LOAD = 256.0;
@@ -235,6 +238,13 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
                  .checkIf(Validator::isFloat)
                  .defaultTo(DEFAULT_DSL_SPOUT_MEMORY_OFF_HEAP_LOAD)
                  .castTo(Validator::asDouble);
+        VALIDATOR.define(DSL_SPOUT_CONNECTOR_CLASS_NAME)
+                 .checkIf(Validator::isClassName)
+                 .orFail()
+                 .unless(Validator::isNull);
+        VALIDATOR.define(DSL_SPOUT_CONNECTOR_SPOUT_ENABLE)
+                 .defaultTo(DEFAULT_DSL_SPOUT_CONNECTOR_SPOUT_ENABLE)
+                 .checkIf(Validator::isBoolean);
 
         VALIDATOR.define(DSL_BOLT_ENABLE)
                  .defaultTo(DEFAULT_DSL_BOLT_ENABLE)

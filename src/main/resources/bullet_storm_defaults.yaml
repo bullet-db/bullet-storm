@@ -161,6 +161,9 @@ bullet.topology.tick.spout.interval.ms: 100
 #     bar: baz
 bullet.topology.loop.bolt.pubsub.overrides: {}
 
+
+bullet.topology.dsl.spout.connector.class.name: null
+bullet.topology.dsl.spout.connector.as.spout.enable: false
 ########################################################################################################################
 ################################################# Custom Storm Settings ################################################
 ########################################################################################################################

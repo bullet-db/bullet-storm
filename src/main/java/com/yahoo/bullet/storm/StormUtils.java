@@ -45,67 +45,68 @@ public class StormUtils {
      * topology and the {@link TopologyBuilder} used to create your topology should be provided. That topology
      * will be wired up with Bullet reading from your component that produces the {@link com.yahoo.bullet.record.BulletRecord}.
      *
-     * @param config The non-null, validated {@link BulletStormConfig} that contains the necessary configuration.
+     * @param bulletConfig The non-null, validated {@link BulletStormConfig} that contains the necessary configuration.
      * @param recordComponent The non-null name of the component used in your topology that is the source of records for Bullet.
      * @param builder The non-null {@link TopologyBuilder} that was used to create your topology.
      * @param stormConfig The non-null Storm {@link Config} to use to submit the topology with.
      * @throws Exception if there were issues creating the topology.
      */
-    public static void submit(BulletStormConfig config, String recordComponent, TopologyBuilder builder, Config stormConfig) throws Exception {
-        Objects.requireNonNull(config);
+    public static void submit(BulletStormConfig bulletConfig, String recordComponent, TopologyBuilder builder, Config stormConfig) throws Exception {
+        Objects.requireNonNull(bulletConfig);
         Objects.requireNonNull(recordComponent);
         Objects.requireNonNull(builder);
+        Objects.requireNonNull(stormConfig);
 
-        String name = config.getAs(BulletStormConfig.TOPOLOGY_NAME, String.class);
+        String name = bulletConfig.getAs(BulletStormConfig.TOPOLOGY_NAME, String.class);
 
-        Number querySpoutParallelism = config.getAs(BulletStormConfig.QUERY_SPOUT_PARALLELISM, Number.class);
-        Number querySpoutCPULoad = config.getAs(BulletStormConfig.QUERY_SPOUT_CPU_LOAD, Number.class);
-        Number querySpoutMemoryOnHeapLoad = config.getAs(BulletStormConfig.QUERY_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
-        Number querySpoutMemoryOffHeapLoad = config.getAs(BulletStormConfig.QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD, Number.class);
+        Number querySpoutParallelism = bulletConfig.getAs(BulletStormConfig.QUERY_SPOUT_PARALLELISM, Number.class);
+        Number querySpoutCPULoad = bulletConfig.getAs(BulletStormConfig.QUERY_SPOUT_CPU_LOAD, Number.class);
+        Number querySpoutMemoryOnHeapLoad = bulletConfig.getAs(BulletStormConfig.QUERY_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number querySpoutMemoryOffHeapLoad = bulletConfig.getAs(BulletStormConfig.QUERY_SPOUT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
         // Tick parallelism must be 1 otherwise multiple ticks will get delivered to a component
         Number tickSpoutParallelism = BulletStormConfig.TICK_SPOUT_PARALLELISM;
-        Number tickSpoutCPULoad = config.getAs(BulletStormConfig.TICK_SPOUT_CPU_LOAD, Number.class);
-        Number tickSpoutMemoryOnheapLoad = config.getAs(BulletStormConfig.TICK_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
-        Number tickSpoutMemoryOffHeapLoad = config.getAs(BulletStormConfig.TICK_SPOUT_MEMORY_OFF_HEAP_LOAD, Number.class);
+        Number tickSpoutCPULoad = bulletConfig.getAs(BulletStormConfig.TICK_SPOUT_CPU_LOAD, Number.class);
+        Number tickSpoutMemoryOnheapLoad = bulletConfig.getAs(BulletStormConfig.TICK_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number tickSpoutMemoryOffHeapLoad = bulletConfig.getAs(BulletStormConfig.TICK_SPOUT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
-        Number filterBoltParallelism = config.getAs(BulletStormConfig.FILTER_BOLT_PARALLELISM, Number.class);
-        Number filterBoltCPULoad = config.getAs(BulletStormConfig.FILTER_BOLT_CPU_LOAD, Number.class);
-        Number filterBoltMemoryOnheapLoad = config.getAs(BulletStormConfig.FILTER_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
-        Number filterBoltMemoryOffHeapLoad = config.getAs(BulletStormConfig.FILTER_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
+        Number filterBoltParallelism = bulletConfig.getAs(BulletStormConfig.FILTER_BOLT_PARALLELISM, Number.class);
+        Number filterBoltCPULoad = bulletConfig.getAs(BulletStormConfig.FILTER_BOLT_CPU_LOAD, Number.class);
+        Number filterBoltMemoryOnheapLoad = bulletConfig.getAs(BulletStormConfig.FILTER_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number filterBoltMemoryOffHeapLoad = bulletConfig.getAs(BulletStormConfig.FILTER_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
-        Number joinBoltParallelism = config.getAs(BulletStormConfig.JOIN_BOLT_PARALLELISM, Number.class);
-        Number joinBoltCPULoad = config.getAs(BulletStormConfig.JOIN_BOLT_CPU_LOAD, Number.class);
-        Number joinBoltMemoryOnHeapLoad = config.getAs(BulletStormConfig.JOIN_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
-        Number joinBoltMemoryOffHeapLoad = config.getAs(BulletStormConfig.JOIN_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
+        Number joinBoltParallelism = bulletConfig.getAs(BulletStormConfig.JOIN_BOLT_PARALLELISM, Number.class);
+        Number joinBoltCPULoad = bulletConfig.getAs(BulletStormConfig.JOIN_BOLT_CPU_LOAD, Number.class);
+        Number joinBoltMemoryOnHeapLoad = bulletConfig.getAs(BulletStormConfig.JOIN_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number joinBoltMemoryOffHeapLoad = bulletConfig.getAs(BulletStormConfig.JOIN_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
-        Number resultBoltParallelism = config.getAs(BulletStormConfig.RESULT_BOLT_PARALLELISM, Number.class);
-        Number resultBoltCPULoad = config.getAs(BulletStormConfig.RESULT_BOLT_CPU_LOAD, Number.class);
-        Number resultBoltMemoryOnHeapLoad = config.getAs(BulletStormConfig.RESULT_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
-        Number resultBoltMemoryOffHeapLoad = config.getAs(BulletStormConfig.RESULT_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
+        Number resultBoltParallelism = bulletConfig.getAs(BulletStormConfig.RESULT_BOLT_PARALLELISM, Number.class);
+        Number resultBoltCPULoad = bulletConfig.getAs(BulletStormConfig.RESULT_BOLT_CPU_LOAD, Number.class);
+        Number resultBoltMemoryOnHeapLoad = bulletConfig.getAs(BulletStormConfig.RESULT_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number resultBoltMemoryOffHeapLoad = bulletConfig.getAs(BulletStormConfig.RESULT_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
-        Number loopBoltParallelism = config.getAs(BulletStormConfig.LOOP_BOLT_PARALLELISM, Number.class);
-        Number loopBoltCPULoad = config.getAs(BulletStormConfig.LOOP_BOLT_CPU_LOAD, Number.class);
-        Number loopBoltMemoryOnHeapLoad = config.getAs(BulletStormConfig.LOOP_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
-        Number loopBoltMemoryOffHeapLoad = config.getAs(BulletStormConfig.LOOP_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
+        Number loopBoltParallelism = bulletConfig.getAs(BulletStormConfig.LOOP_BOLT_PARALLELISM, Number.class);
+        Number loopBoltCPULoad = bulletConfig.getAs(BulletStormConfig.LOOP_BOLT_CPU_LOAD, Number.class);
+        Number loopBoltMemoryOnHeapLoad = bulletConfig.getAs(BulletStormConfig.LOOP_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number loopBoltMemoryOffHeapLoad = bulletConfig.getAs(BulletStormConfig.LOOP_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
-        Number replayBoltParallelism = config.getAs(BulletStormConfig.REPLAY_BOLT_PARALLELISM, Number.class);
-        Number replayBoltCPULoad = config.getAs(BulletStormConfig.REPLAY_BOLT_CPU_LOAD, Number.class);
-        Number replayBoltMemoryOnHeapLoad = config.getAs(BulletStormConfig.REPLAY_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
-        Number replayBoltMemoryOffHeapLoad = config.getAs(BulletStormConfig.REPLAY_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
+        Number replayBoltParallelism = bulletConfig.getAs(BulletStormConfig.REPLAY_BOLT_PARALLELISM, Number.class);
+        Number replayBoltCPULoad = bulletConfig.getAs(BulletStormConfig.REPLAY_BOLT_CPU_LOAD, Number.class);
+        Number replayBoltMemoryOnHeapLoad = bulletConfig.getAs(BulletStormConfig.REPLAY_BOLT_MEMORY_ON_HEAP_LOAD, Number.class);
+        Number replayBoltMemoryOffHeapLoad = bulletConfig.getAs(BulletStormConfig.REPLAY_BOLT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
-        boolean isWindowingDisabled = config.getAs(BulletConfig.WINDOW_DISABLE, Boolean.class);
-        boolean isReplayEnabled = config.getAs(BulletStormConfig.REPLAY_ENABLE, Boolean.class);
+        boolean isWindowingDisabled = bulletConfig.getAs(BulletConfig.WINDOW_DISABLE, Boolean.class);
+        boolean isReplayEnabled = bulletConfig.getAs(BulletStormConfig.REPLAY_ENABLE, Boolean.class);
 
-        builder.setSpout(QUERY_COMPONENT, new QuerySpout(config), querySpoutParallelism)
+        builder.setSpout(QUERY_COMPONENT, new QuerySpout(bulletConfig), querySpoutParallelism)
                .setCPULoad(querySpoutCPULoad).setMemoryLoad(querySpoutMemoryOnHeapLoad, querySpoutMemoryOffHeapLoad);
 
-        builder.setSpout(TICK_COMPONENT, new TickSpout(config), tickSpoutParallelism)
+        builder.setSpout(TICK_COMPONENT, new TickSpout(bulletConfig), tickSpoutParallelism)
                .setCPULoad(tickSpoutCPULoad).setMemoryLoad(tickSpoutMemoryOnheapLoad, tickSpoutMemoryOffHeapLoad);
 
         // Hook in the source of the BulletRecords
         if (isReplayEnabled) {
-            builder.setBolt(FILTER_COMPONENT, new FilterBolt(recordComponent, config), filterBoltParallelism)
+            builder.setBolt(FILTER_COMPONENT, new FilterBolt(recordComponent, bulletConfig), filterBoltParallelism)
                    .shuffleGrouping(recordComponent)
                    .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
                    .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
@@ -113,7 +114,7 @@ public class StormUtils {
                    .allGrouping(TICK_COMPONENT, TICK_STREAM)
                    .setCPULoad(filterBoltCPULoad).setMemoryLoad(filterBoltMemoryOnheapLoad, filterBoltMemoryOffHeapLoad);
 
-            builder.setBolt(JOIN_COMPONENT, new JoinBolt(config), joinBoltParallelism)
+            builder.setBolt(JOIN_COMPONENT, new JoinBolt(bulletConfig), joinBoltParallelism)
                    .customGrouping(QUERY_COMPONENT, QUERY_STREAM, new IDGrouping())
                    .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
                    .customGrouping(FILTER_COMPONENT, DATA_STREAM, new IDGrouping())
@@ -123,20 +124,20 @@ public class StormUtils {
                    .allGrouping(TICK_COMPONENT, TICK_STREAM)
                    .setCPULoad(joinBoltCPULoad).setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
 
-            builder.setBolt(REPLAY_COMPONENT, new ReplayBolt(config), replayBoltParallelism)
+            builder.setBolt(REPLAY_COMPONENT, new ReplayBolt(bulletConfig), replayBoltParallelism)
                    .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
                    .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
                    .fieldsGrouping(QUERY_COMPONENT, REPLAY_STREAM, new Fields(ID_FIELD))
                    .setCPULoad(replayBoltCPULoad).setMemoryLoad(replayBoltMemoryOnHeapLoad, replayBoltMemoryOffHeapLoad);
         } else {
-            builder.setBolt(FILTER_COMPONENT, new FilterBolt(recordComponent, config), filterBoltParallelism)
+            builder.setBolt(FILTER_COMPONENT, new FilterBolt(recordComponent, bulletConfig), filterBoltParallelism)
                    .shuffleGrouping(recordComponent)
                    .allGrouping(QUERY_COMPONENT, QUERY_STREAM)
                    .allGrouping(QUERY_COMPONENT, METADATA_STREAM)
                    .allGrouping(TICK_COMPONENT, TICK_STREAM)
                    .setCPULoad(filterBoltCPULoad).setMemoryLoad(filterBoltMemoryOnheapLoad, filterBoltMemoryOffHeapLoad);
 
-            builder.setBolt(JOIN_COMPONENT, new JoinBolt(config), joinBoltParallelism)
+            builder.setBolt(JOIN_COMPONENT, new JoinBolt(bulletConfig), joinBoltParallelism)
                    .fieldsGrouping(QUERY_COMPONENT, QUERY_STREAM, new Fields(ID_FIELD))
                    .fieldsGrouping(QUERY_COMPONENT, METADATA_STREAM, new Fields(ID_FIELD))
                    .fieldsGrouping(FILTER_COMPONENT, DATA_STREAM, new Fields(ID_FIELD))
@@ -145,7 +146,7 @@ public class StormUtils {
                    .setCPULoad(joinBoltCPULoad).setMemoryLoad(joinBoltMemoryOnHeapLoad, joinBoltMemoryOffHeapLoad);
         }
 
-        builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(config), resultBoltParallelism)
+        builder.setBolt(TopologyConstants.RESULT_COMPONENT, new ResultBolt(bulletConfig), resultBoltParallelism)
                .shuffleGrouping(JOIN_COMPONENT, RESULT_STREAM)
                .setCPULoad(resultBoltCPULoad).setMemoryLoad(resultBoltMemoryOnHeapLoad, resultBoltMemoryOffHeapLoad);
 
@@ -153,22 +154,22 @@ public class StormUtils {
         if (isWindowingDisabled && !isReplayEnabled) {
             log.info("Windowing and replay are disabled. Skipping hooking in the Loop Bolt...");
         } else {
-            builder.setBolt(LOOP_COMPONENT, new LoopBolt(config), loopBoltParallelism)
+            builder.setBolt(LOOP_COMPONENT, new LoopBolt(bulletConfig), loopBoltParallelism)
                    .shuffleGrouping(FILTER_COMPONENT, FEEDBACK_STREAM)
                    .shuffleGrouping(JOIN_COMPONENT, FEEDBACK_STREAM)
                    .setCPULoad(loopBoltCPULoad).setMemoryLoad(loopBoltMemoryOnHeapLoad, loopBoltMemoryOffHeapLoad);
         }
 
         // Metrics
-        Boolean enableMetrics = (Boolean) config.get(BulletStormConfig.TOPOLOGY_METRICS_ENABLE);
+        Boolean enableMetrics = (Boolean) bulletConfig.get(BulletStormConfig.TOPOLOGY_METRICS_ENABLE);
         if (enableMetrics) {
             stormConfig.put(Config.TOPOLOGY_ENABLE_V2_METRICS_TICK, true);
-            List<String> classNames = config.getAs(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, List.class);
-            classNames.forEach(className -> ReflectionUtils.registerMetricsConsumer(className, stormConfig, config));
+            List<String> classNames = bulletConfig.getAs(BulletStormConfig.TOPOLOGY_METRICS_CLASSES, List.class);
+            classNames.forEach(className -> ReflectionUtils.registerMetricsConsumer(className, stormConfig, bulletConfig));
         }
 
         // Put the rest of the other possible custom Storm settings without checking their types
-        stormConfig.putAll(config.getCustomStormSettings());
+        stormConfig.putAll(bulletConfig.getCustomStormSettings());
 
         StormSubmitter.submitTopology(name, stormConfig, builder.createTopology());
     }
@@ -193,9 +194,19 @@ public class StormUtils {
         Number dslSpoutMemoryOnHeapLoad = config.getAs(BulletStormConfig.DSL_SPOUT_MEMORY_ON_HEAP_LOAD, Number.class);
         Number dslSpoutMemoryOffHeapLoad = config.getAs(BulletStormConfig.DSL_SPOUT_MEMORY_OFF_HEAP_LOAD, Number.class);
 
+        Boolean dslConnectorAsSpout = config.getAs(BulletStormConfig.DSL_SPOUT_CONNECTOR_SPOUT_ENABLE, Boolean.class);
         Boolean dslBoltEnable = config.getAs(BulletStormConfig.DSL_BOLT_ENABLE, Boolean.class);
 
-        builder.setSpout(dslBoltEnable ? TopologyConstants.DATA_COMPONENT : TopologyConstants.RECORD_COMPONENT, new DSLSpout(config), dslSpoutParallelism)
+        DSLSpout spout;
+        if (dslConnectorAsSpout) {
+            String dslConnectorSpoutClass = config.getAs(BulletStormConfig.DSL_SPOUT_CONNECTOR_CLASS_NAME, String.class);
+            log.info("Using the SpoutConnector with the spout {} as the DSLSpout", dslConnectorSpoutClass);
+            spout = new DSLConnectorSpout(config);
+        } else {
+            spout = new DSLSpout(config);
+        }
+
+        builder.setSpout(dslBoltEnable ? TopologyConstants.DATA_COMPONENT : TopologyConstants.RECORD_COMPONENT, spout, dslSpoutParallelism)
                .setCPULoad(dslSpoutCPULoad)
                .setMemoryLoad(dslSpoutMemoryOnHeapLoad, dslSpoutMemoryOffHeapLoad);
 
@@ -237,20 +248,35 @@ public class StormUtils {
     /**
      * This submits a topology after loading the configured Spout (and optionally, Bolt), which is either the {@link DSLSpout}
      * and {@link DSLBolt} or a custom Spout and Bolt. The topology is submitted with the given configuration as the source
+     * of {@link com.yahoo.bullet.record.BulletRecord} using the given {@link TopologyBuilder}. Takes a {@link Config}
+     * if any custom settings were added.
+     *
+     * @param bulletConfig The Bullet settings for this Bullet topology.
+     * @param builder The {@link TopologyBuilder} to use to add the topology to.
+     * @param stormConfig The Storm {@link Config} to use for this topology.
+     * @throws Exception if there were any issues submitting the topology.
+     */
+    public static void submit(BulletStormConfig bulletConfig, TopologyBuilder builder, Config stormConfig) throws Exception {
+        Boolean dslSpoutEnable = bulletConfig.getAs(BulletStormConfig.DSL_SPOUT_ENABLE, Boolean.class);
+        if (dslSpoutEnable) {
+            addDSLSpout(bulletConfig, builder);
+        } else {
+            addBulletSpout(bulletConfig, builder);
+        }
+        submit(bulletConfig, TopologyConstants.RECORD_COMPONENT, builder, stormConfig);
+    }
+
+    /**
+     * This submits a topology after loading the configured Spout (and optionally, Bolt), which is either the {@link DSLSpout}
+     * and {@link DSLBolt} or a custom Spout and Bolt. The topology is submitted with the given configuration as the source
      * of {@link com.yahoo.bullet.record.BulletRecord} using the given {@link TopologyBuilder}
      *
-     * @param config The Storm settings for this Bullet topology.
+     * @param config The Bullet settings for this topology.
      * @param builder The {@link TopologyBuilder} to use to add the topology to.
      * @throws Exception if there were any issues submitting the topology.
      */
     public static void submit(BulletStormConfig config, TopologyBuilder builder) throws Exception {
-        Boolean dslSpoutEnable = config.getAs(BulletStormConfig.DSL_SPOUT_ENABLE, Boolean.class);
-        if (dslSpoutEnable) {
-            addDSLSpout(config, builder);
-        } else {
-            addBulletSpout(config, builder);
-        }
-        submit(config, TopologyConstants.RECORD_COMPONENT, builder);
+        submit(config, builder, new Config());
     }
 
     /**
