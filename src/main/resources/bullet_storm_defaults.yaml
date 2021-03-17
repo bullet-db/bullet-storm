@@ -161,9 +161,16 @@ bullet.topology.tick.spout.interval.ms: 100
 #     bar: baz
 bullet.topology.loop.bolt.pubsub.overrides: {}
 
-
-bullet.topology.dsl.spout.connector.class.name: null
+# Treats the Bullet connector provided to the DSL Spout (using bullet.dsl.connector.class.name) as a SpoutConnector
+# and uses the provided class (provided using bullet.topology.dsl.spout.connector.class.name)  as the spout to load for
+# the SpoutConnector. This exists so that you can use the DSL Spout with an existing spout that you do not wish to
+# modify AND still hook in DSL components like a BulletRecordConverter or a BulletDeserializer (with or without a
+# DSLBolt) . However, the SpoutConnector you pass with (bullet.dsl.connector.class.name) must implement the read
+# interface to read data from your spout.
 bullet.topology.dsl.spout.connector.as.spout.enable: false
+# The name of the Spout to load if you are using a SpoutConnector as a Spout in your DSL Spout.
+bullet.topology.dsl.spout.connector.class.name: null
+
 ########################################################################################################################
 ################################################# Custom Storm Settings ################################################
 ########################################################################################################################
