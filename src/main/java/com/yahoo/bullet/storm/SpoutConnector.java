@@ -17,25 +17,29 @@ import org.apache.storm.topology.OutputFieldsDeclarer;
 import java.util.Map;
 
 /**
- * This is a {@link BulletConnector} meant to compose an instance of a {@link IRichSpout} that can also optionally
- * implement the {@link ICredentialsListener} interface. The spout being composed must have a constructor that accepts a
- * {@link BulletConfig}. There are multiple ways to use this class but not all methods can be used in the same situation.
- * 1. This connector can be used in the DSL infrastructure if you wish to plug in an existing spout implementation that
- *    you already have but also wish to use a DSL converter (in a separate bolt or in the spout) and/or a DSL
- *    deserializer. In this case, you must implement the {@link #read()} method. The DSL spout will not invoke
- *    {@link #nextTuple()} and rely on the {@link #read()} to read and pass the read objects to the rest of the DSL
- *    infrastructure. It will not invoke the {@link #initialize()} method and instead call the {@link #activate()} and
- *    the {@link #open(Map, TopologyContext, SpoutOutputCollector)} in the appropriate methods in the spout.
- * 2. It can also be used as a {@link BulletConnector}. In this case, the {@link #initialize()} method will call
+ * This is a {@link BulletConnector} that can also work as a {@link IRichSpout} that can also optionally implement the
+ * {@link ICredentialsListener} interface. It wraps a spout and proxies the various calls to it. The spout being
+ * composed must have a constructor that accepts a {@link BulletConfig}. There are multiple ways to use this class
+ * but not all methods can be used in the same situation:
+ *
+ * 1. BulletConnector in the DSLSpout - This is if you have a {@link IRichSpout} that can be wrapped into
+ *    {@link SpoutConnector} but you also need to plug in more DSL components like an existing BulletRecordConverter or
+ *    a BulletDeserializer (in a separate bolt or not). In this case, you must implement the {@link #read()} method to
+ *    transfer data from your spout. The DSL spout will not invoke the {@link #nextTuple()} method and rely on
+ *    {@link #read()} to read and pass the read objects to the rest of the DSL infrastructure. It will not invoke the
+ *    {@link #initialize()} method and instead call the {@link #activate()} and the
+ *    {@link #open(Map, TopologyContext, SpoutOutputCollector)} in the appropriate methods in the spout. The DSLSpout
+ *    will also invoke the {@link ICredentialsListener} interface if necessary.
+ * 2. BulletConnector elsewhere - This is if you want to use the {@link SpoutConnector} in any other
+ *    context. In this case, the {@link #initialize()} method will call
  *    {@link IRichSpout#open(Map, TopologyContext, SpoutOutputCollector)} and {@link IRichSpout#activate()} on the
  *    spout. You can use the {@code #setContext(TopologyContext)}, {@code #setOutputCollector(SpoutOutputCollector)} and
- *    {@code #setStormConfiguration(Map)} to pass in the arguments to the open. The {@link #close()} will invoke the
- *    {@link IRichSpout#deactivate()} method on the call. In this case, you must extend this class and override the
- *    {@link #read()} method to actually do the transfer of the data from the spout.
- * 3. This connector is itself a {@link IRichSpout} and can be used as one if needed. It would just behave as a proxy to
- *    the underlying spout in that case. The {@link ICredentialsListener} interface is also implemented if necessary.
- *    This usage is not really useful as you could have used the spout directly but it may be helpful to have a wrapper
- *    for your spout that works with the {@link BulletConfig}.
+ *    {@code #setStormConfiguration(Map)} to pass in those arguments to the open. The {@link #close()} will invoke the
+ *    {@link IRichSpout#deactivate()} method on the call. You should override the {@link #read()} method to actually do
+ *    the transfer of the data from the spout as above.
+ * 3. IRichSpout - This is largely for testing or if you just want to use the connector as a {@link IRichSpout}. It
+ *    would just behave as a proxy to the underlying spout in that case. The {@link ICredentialsListener} interface is
+ *    also implemented if necessary.
  *
  * The {@link #getSpout()} method is called on construction to create the composed spout. By default, it uses the
  * {@link BulletStormConfig#DSL_SPOUT_CONNECTOR_CLASS_NAME} from the {@link BulletConfig} and reflection to load the
