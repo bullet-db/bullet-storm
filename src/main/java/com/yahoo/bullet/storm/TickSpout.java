@@ -49,7 +49,7 @@ public class TickSpout extends ConfigComponent implements IRichSpout {
     }
 
     @Override
-    public void open(Map conf, TopologyContext context, SpoutOutputCollector collector) {
+    public void open(Map<String, Object> conf, TopologyContext context, SpoutOutputCollector collector) {
         this.collector = collector;
         tick = 0;
         lastTickTime = System.currentTimeMillis();

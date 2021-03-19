@@ -28,7 +28,7 @@ public class DSLBoltTest {
     @BeforeMethod
     public void setup() {
         collector = new CustomCollector();
-        config = new BulletStormConfig("src/test/resources/test_dsl_config.yaml");
+        config = new BulletStormConfig("test_dsl_config.yaml");
         dslBolt = ComponentUtils.prepare(new DSLBolt(config), collector);
     }
 

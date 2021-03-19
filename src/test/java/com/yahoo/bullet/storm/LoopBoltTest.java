@@ -32,7 +32,7 @@ public class LoopBoltTest {
 
     @BeforeMethod
     public void setup() {
-        config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        config = new BulletStormConfig("test_config.yaml");
         bolt = new LoopBolt(config);
         collector = new CustomCollector();
         ComponentUtils.prepare(bolt, collector);

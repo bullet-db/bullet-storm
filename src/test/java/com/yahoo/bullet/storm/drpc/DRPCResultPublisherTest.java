@@ -26,9 +26,9 @@ public class DRPCResultPublisherTest {
 
     @BeforeMethod
     public void setup() {
-        DRPCConfig config = new DRPCConfig("src/test/resources/test_drpc_config.yaml");
+        DRPCConfig config = new DRPCConfig("test_drpc_config.yaml");
 
-        Map stormConfig = new Config("src/test/resources/test_storm_config.yaml").getAll(Optional.empty());
+        Map stormConfig = new Config("test_storm_config.yaml").getAll(Optional.empty());
         config.set(DRPCConfig.STORM_CONFIG, stormConfig);
 
         publisher = new DRPCResultPublisher(config);

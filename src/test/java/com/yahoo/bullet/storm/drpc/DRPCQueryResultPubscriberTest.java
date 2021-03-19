@@ -93,7 +93,7 @@ public class DRPCQueryResultPubscriberTest {
 
     @BeforeMethod
     public void setup() {
-        BulletConfig config = new DRPCConfig("src/test/resources/test_drpc_config.yaml");
+        BulletConfig config = new DRPCConfig("test_drpc_config.yaml");
         config.set(DRPCConfig.DRPC_SERVERS, Collections.singletonList("foo.bar.bullet.drpc.com"));
 
         pubscriber = new DRPCQueryResultPubscriber(config);

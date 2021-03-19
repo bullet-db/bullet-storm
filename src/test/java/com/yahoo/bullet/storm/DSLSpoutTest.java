@@ -24,7 +24,7 @@ public class DSLSpoutTest {
     @BeforeMethod
     public void setup() {
         emitter = new CustomEmitter();
-        config = new BulletStormConfig("src/test/resources/test_dsl_config.yaml");
+        config = new BulletStormConfig("test_dsl_config.yaml");
         dslSpout = ComponentUtils.open(new DSLSpout(config), emitter);
         dslSpout.activate();
     }

@@ -40,7 +40,7 @@ public class BulletStormConfigTest {
 
     @Test
     public void testCustomConfig() {
-        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("test_config.yaml");
         Assert.assertEquals(config.get(BulletStormConfig.TOPOLOGY_NAME), "test");
         Assert.assertEquals(config.get(BulletStormConfig.QUERY_DEFAULT_DURATION), 1000L);
         Assert.assertEquals(config.get(BulletStormConfig.QUERY_MAX_DURATION), 10000L);

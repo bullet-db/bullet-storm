@@ -30,7 +30,7 @@ public class ResultBoltTest {
 
     @BeforeMethod
     public void setup() {
-        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("test_config.yaml");
         bolt = new ResultBolt(config);
         collector = new CustomCollector();
         ComponentUtils.prepare(bolt, collector);
@@ -39,7 +39,7 @@ public class ResultBoltTest {
 
     @Test(expectedExceptions = RuntimeException.class, expectedExceptionsMessageRegExp = ".*Cannot create PubSub.*")
     public void testFailingToCreatePubSub() {
-        BulletStormConfig config = new BulletStormConfig("src/test/resources/test_config.yaml");
+        BulletStormConfig config = new BulletStormConfig("test_config.yaml");
         config.set(BulletConfig.PUBSUB_CLASS_NAME, "fake.class");
         ComponentUtils.prepare(new ResultBolt(config), collector);
     }
