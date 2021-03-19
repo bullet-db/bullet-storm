@@ -19,8 +19,8 @@ import java.util.Map;
 /**
  * This is a {@link BulletConnector} that can also work as a {@link IRichSpout} that can also optionally implement the
  * {@link ICredentialsListener} interface. It wraps a spout and proxies the various calls to it. The spout being
- * composed must have a constructor that accepts a {@link BulletConfig}. There are multiple ways to use this class
- * but not all methods can be used in the same situation:
+ * composed must have a constructor that accepts a {@link BulletConfig} unless you override the {@link #getSpout()}
+ * method. There are multiple ways to use this class but not all methods can be used in the same situation:
  *
  * 1. BulletConnector in the DSLSpout - This is if you have a {@link IRichSpout} that can be wrapped into
  *    {@link SpoutConnector} but you also need to plug in more DSL components like an existing BulletRecordConverter or
