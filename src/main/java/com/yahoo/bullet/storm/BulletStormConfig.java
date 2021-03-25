@@ -96,8 +96,8 @@ public class BulletStormConfig extends BulletConfig implements Serializable {
     public static final Map<String, Number> DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING = new HashMap<>();
     public static final String DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY = "default";
     static {
-        DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING.put("bullet_active_queries", 10L);
-        DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING.put(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, 10L);
+        DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING.put("bullet_active_queries", 10);
+        DEFAULT_TOPOLOGY_METRICS_BUILT_IN_EMIT_INTERVAL_MAPPING.put(DEFAULT_BUILT_IN_METRICS_INTERVAL_KEY, 10);
     }
     public static final List<String> DEFAULT_TOPOLOGY_METRICS_CLASSES = new ArrayList<>();
     static {
