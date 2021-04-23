@@ -1,6 +1,6 @@
 # Bullet Storm
 
-[![Build Status](https://travis-ci.com/bullet-db/bullet-storm.svg?branch=master)](https://travis-ci.com/bullet-db/bullet-storm) [![Coverage Status](https://coveralls.io/repos/github/bullet-db/bullet-storm/badge.svg?branch=master)](https://coveralls.io/github/bullet-db/bullet-storm?branch=master) [![Download](https://api.bintray.com/packages/yahoo/maven/bullet-storm/images/download.svg) ](https://bintray.com/yahoo/maven/bullet-storm/_latestVersion)
+[![Build Status](https://travis-ci.com/bullet-db/bullet-storm.svg?branch=master)](https://travis-ci.com/bullet-db/bullet-storm) [![Coverage Status](https://coveralls.io/repos/github/bullet-db/bullet-storm/badge.svg?branch=master)](https://coveralls.io/github/bullet-db/bullet-storm?branch=master) [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.yahoo.bullet/bullet-storm/badge.svg)](https://maven-badges.herokuapp.com/maven-central/com.yahoo.bullet/bullet-storm/)
 
 ## Introduction
 
