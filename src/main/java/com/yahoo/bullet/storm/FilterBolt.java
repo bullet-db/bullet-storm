@@ -8,6 +8,7 @@ package com.yahoo.bullet.storm;
 import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
+import com.yahoo.bullet.pubsub.PubSubMessageSerDe;
 import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
@@ -44,6 +45,7 @@ public class FilterBolt extends QueryBolt {
     // Exposed for testing
     @Getter(AccessLevel.PACKAGE)
     private transient QueryManager manager;
+    private transient PubSubMessageSerDe querySerDe;
     private transient ReducedMetric averageLatency;
     private transient int statsTickInterval;
     // Exposed for testing
@@ -75,6 +77,7 @@ public class FilterBolt extends QueryBolt {
         if (metrics.isEnabled()) {
             averageLatency = metrics.registerAveragingMetric(LATENCY_METRIC, context);
         }
+        querySerDe = PubSubMessageSerDe.from(config);
     }
 
     @Override
@@ -118,7 +121,24 @@ public class FilterBolt extends QueryBolt {
 
     @Override
     protected void initializeQuery(PubSubMessage message) {
-        initializeQuery(message.getId(), message.getContent(), message.getMetadata());
+        //initializeQuery(message.getId(), message.getContent(), message.getMetadata());
+        String id = message.getId();
+        if (manager.hasQuery(id)) {
+            log.debug("Duplicate for request {}", id);
+            duplicatedCount++;
+            return;
+        }
+        try {
+            message = querySerDe.fromMessage(message);
+            Querier querier = createQuerier(Querier.Mode.PARTITION, id, message.getContentAsQuery(), message.getMetadata(), config);
+            manager.addQuery(id, querier);
+            log.info("Initialized query {} : {}", querier.getRunningQuery().getId(), querier.getRunningQuery().getQueryString());
+            log.debug("Initialized query {}", querier);
+            return;
+        } catch (RuntimeException ignored) {
+        }
+        // No need to handle any errors in the Filter Bolt.
+        log.error("Failed to initialize query for request {}", id);
     }
 
     @Override
@@ -128,10 +148,15 @@ public class FilterBolt extends QueryBolt {
     }
 
     private void onQuery(Tuple tuple) {
+        /*
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         byte[] queryData = (byte[]) tuple.getValue(TopologyConstants.QUERY_POSITION);
         Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
         initializeQuery(id, queryData, metadata);
+        */
+        //String id = tuple.getString(TopologyConstants.ID_POSITION);
+        PubSubMessage message = (PubSubMessage) tuple.getValue(TopologyConstants.QUERY_POSITION);
+        initializeQuery(message);
     }
 
     private void initializeQuery(String id, byte[] queryData, Metadata metadata) {
