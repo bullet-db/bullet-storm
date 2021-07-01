@@ -6,11 +6,9 @@
 package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.BulletError;
-import com.yahoo.bullet.common.SerializerDeserializer;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.PubSubMessageSerDe;
-import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
 import com.yahoo.bullet.querying.RateLimitError;
@@ -152,32 +150,8 @@ public class JoinBolt extends QueryBolt {
     }
 
     private void onQuery(Tuple tuple) {
-        //String id = tuple.getString(TopologyConstants.ID_POSITION);
-        //byte[] queryData = (byte[]) tuple.getValue(TopologyConstants.QUERY_POSITION);
-        //Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
-        //initializeQuery(id, queryData, metadata);
         PubSubMessage message = (PubSubMessage) tuple.getValue(TopologyConstants.QUERY_POSITION);
         initializeQuery(message);
-    }
-
-    private void initializeQuery(String id, byte[] queryData, Metadata metadata) {
-        // bufferedMetadata has an entry for each query that exists in the JoinBolt; therefore, we check bufferedMetadata
-        // for existing queries (as opposed to individually checking the queries, preStartBuffer, and postFinishBuffer maps)
-        if (bufferedMetadata.containsKey(id)) {
-            log.debug("Duplicate for request {}", id);
-            metrics.updateCount(duplicatedQueriesCount, 1L);
-            return;
-        }
-        try {
-            Query query = SerializerDeserializer.fromBytes(queryData);
-            Querier querier = createQuerier(Querier.Mode.ALL, id, query, metadata, config);
-            setupQuery(id, metadata, querier);
-            return;
-        } catch (RuntimeException re) {
-            // Includes JSONParseException
-            emitErrorsAsResult(id, metadata, BulletError.makeError(re.toString(), "Error initializing query"));
-        }
-        log.error("Failed to initialize query for request {}", id);
     }
 
     private void onData(Tuple tuple) {
@@ -319,10 +293,9 @@ public class JoinBolt extends QueryBolt {
 
     @Override
     protected void initializeQuery(PubSubMessage message) {
-        //initializeQuery(message.getId(), message.getContent(), message.getMetadata());
-        String id = message.getId();
         // bufferedMetadata has an entry for each query that exists in the JoinBolt; therefore, we check bufferedMetadata
         // for existing queries (as opposed to individually checking the queries, preStartBuffer, and postFinishBuffer maps)
+        String id = message.getId();
         if (bufferedMetadata.containsKey(id)) {
             log.debug("Duplicate for request {}", id);
             metrics.updateCount(duplicatedQueriesCount, 1L);

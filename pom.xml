@@ -54,8 +54,8 @@
         <storm.version>2.2.0</storm.version>
         <storm.metrics.version>2.2.0</storm.metrics.version>
         <jackson.core.version>2.10.2</jackson.core.version>
-        <bullet.core.version>1.4.1</bullet.core.version>
-        <bullet.dsl.version>1.1.6</bullet.dsl.version>
+        <bullet.core.version>1.4.2</bullet.core.version>
+        <bullet.dsl.version>1.1.7</bullet.dsl.version>
     </properties>
 
     <dependencies>

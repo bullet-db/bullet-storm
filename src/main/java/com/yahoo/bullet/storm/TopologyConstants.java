@@ -30,7 +30,6 @@ public class TopologyConstants {
 
     public static final int ID_POSITION = 0;
     public static final int QUERY_POSITION = 1;
-    public static final int QUERY_METADATA_POSITION = 2;
     public static final int METADATA_POSITION = 1;
     public static final int ERROR_POSITION = 1;
     public static final int RECORD_POSITION = 0;
