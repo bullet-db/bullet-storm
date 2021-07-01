@@ -8,7 +8,6 @@ package com.yahoo.bullet.storm;
 import com.yahoo.bullet.common.BulletError;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
-import com.yahoo.bullet.pubsub.PubSubMessageSerDe;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
 import com.yahoo.bullet.querying.RateLimitError;
@@ -58,8 +57,6 @@ public class JoinBolt extends QueryBolt {
     private transient AbsoluteCountMetric rateExceededQueries;
     private transient AbsoluteCountMetric duplicatedQueriesCount;
 
-    private transient PubSubMessageSerDe querySerDe;
-
     /**
      * Constructor that creates an instance of this JoinBolt using the given config.
      *
@@ -90,8 +87,6 @@ public class JoinBolt extends QueryBolt {
             rateExceededQueries = metrics.registerAbsoluteCountMetric(TopologyConstants.RATE_EXCEEDED_QUERIES_METRIC, context);
             duplicatedQueriesCount = metrics.registerAbsoluteCountMetric(TopologyConstants.DUPLICATED_QUERIES_METRIC, context);
         }
-
-        querySerDe = PubSubMessageSerDe.from(config);
     }
 
     @Override

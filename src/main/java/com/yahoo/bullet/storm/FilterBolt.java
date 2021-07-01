@@ -6,7 +6,6 @@
 package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.pubsub.PubSubMessage;
-import com.yahoo.bullet.pubsub.PubSubMessageSerDe;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
 import com.yahoo.bullet.querying.QueryManager;
@@ -42,7 +41,6 @@ public class FilterBolt extends QueryBolt {
     // Exposed for testing
     @Getter(AccessLevel.PACKAGE)
     private transient QueryManager manager;
-    private transient PubSubMessageSerDe querySerDe;
     private transient ReducedMetric averageLatency;
     private transient int statsTickInterval;
     // Exposed for testing
@@ -74,7 +72,6 @@ public class FilterBolt extends QueryBolt {
         if (metrics.isEnabled()) {
             averageLatency = metrics.registerAveragingMetric(LATENCY_METRIC, context);
         }
-        querySerDe = PubSubMessageSerDe.from(config);
     }
 
     @Override

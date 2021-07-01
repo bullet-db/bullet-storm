@@ -8,6 +8,7 @@ package com.yahoo.bullet.storm;
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
+import com.yahoo.bullet.pubsub.PubSubMessageSerDe;
 import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.RunningQuery;
@@ -41,6 +42,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     private static final long serialVersionUID = 4567140628827887965L;
 
     protected transient BulletMetrics metrics;
+    protected transient PubSubMessageSerDe querySerDe;
     protected transient OutputCollector collector;
     protected transient TupleClassifier classifier;
     protected transient String componentTaskID;
@@ -71,6 +73,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         componentTaskID = context.getThisComponentId() + HYPHEN + context.getThisTaskId();
         // Enable built-in metrics
         metrics = new BulletMetrics(config);
+        querySerDe = PubSubMessageSerDe.from(config);
         startTimestamp = System.currentTimeMillis();
         replayEnabled = config.getAs(REPLAY_ENABLE, Boolean.class);
         replayBatchCompressEnable = config.getAs(REPLAY_BATCH_COMPRESS_ENABLE, Boolean.class);
