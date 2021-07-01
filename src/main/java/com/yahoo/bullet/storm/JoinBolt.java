@@ -144,11 +144,6 @@ public class JoinBolt extends QueryBolt {
         emitReplayRequestIfNecessary();
     }
 
-    private void onQuery(Tuple tuple) {
-        PubSubMessage message = (PubSubMessage) tuple.getValue(TopologyConstants.QUERY_POSITION);
-        initializeQuery(message);
-    }
-
     private void onData(Tuple tuple) {
         String id = tuple.getString(TopologyConstants.ID_POSITION);
         Querier querier = getQuery(id);
@@ -287,15 +282,20 @@ public class JoinBolt extends QueryBolt {
     // Override hooks
 
     @Override
-    protected void initializeQuery(PubSubMessage message) {
+    protected boolean hasQuery(String id) {
         // bufferedMetadata has an entry for each query that exists in the JoinBolt; therefore, we check bufferedMetadata
         // for existing queries (as opposed to individually checking the queries, preStartBuffer, and postFinishBuffer maps)
-        String id = message.getId();
         if (bufferedMetadata.containsKey(id)) {
             log.debug("Duplicate for request {}", id);
             metrics.updateCount(duplicatedQueriesCount, 1L);
-            return;
+            return true;
         }
+        return false;
+    }
+
+    @Override
+    protected void initializeQuery(PubSubMessage message) {
+        String id = message.getId();
         try {
             message = querySerDe.fromMessage(message);
             Querier querier = createQuerier(Querier.Mode.ALL, id, message.getContentAsQuery(), message.getMetadata(), config);

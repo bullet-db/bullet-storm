@@ -114,13 +114,18 @@ public class FilterBolt extends QueryBolt {
     }
 
     @Override
-    protected void initializeQuery(PubSubMessage message) {
-        String id = message.getId();
+    protected boolean hasQuery(String id) {
         if (manager.hasQuery(id)) {
             log.debug("Duplicate for request {}", id);
             duplicatedCount++;
-            return;
+            return true;
         }
+        return false;
+    }
+
+    @Override
+    protected void initializeQuery(PubSubMessage message) {
+        String id = message.getId();
         try {
             message = querySerDe.fromMessage(message);
             Querier querier = createQuerier(Querier.Mode.PARTITION, id, message.getContentAsQuery(), message.getMetadata(), config);
@@ -138,11 +143,6 @@ public class FilterBolt extends QueryBolt {
     protected void removeQuery(String id) {
         super.removeQuery(id);
         manager.removeAndGetQuery(id);
-    }
-
-    private void onQuery(Tuple tuple) {
-        PubSubMessage message = (PubSubMessage) tuple.getValue(TopologyConstants.QUERY_POSITION);
-        initializeQuery(message);
     }
 
     private void onRecord(Tuple tuple) {

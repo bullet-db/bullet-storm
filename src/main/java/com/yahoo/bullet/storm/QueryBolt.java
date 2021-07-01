@@ -22,7 +22,6 @@ import org.apache.storm.tuple.Values;
 
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE;
@@ -126,6 +125,19 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     }
 
     /**
+     * Handles a query message.
+     *
+     * @param tuple The query tuple.
+     */
+    protected void onQuery(Tuple tuple) {
+        PubSubMessage message = (PubSubMessage) tuple.getValue(TopologyConstants.QUERY_POSITION);
+        if (hasQuery(message.getId())) {
+            return;
+        }
+        initializeQuery(querySerDe.toMessage(message));
+    }
+
+    /**
      * Handles a batch message for query replay.
      *
      * @param tuple The batch tuple.
@@ -153,12 +165,20 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
             return;
         }
         removedIds.removeIf(batch.keySet()::remove);
-        batch.values().stream().filter(Objects::nonNull).forEach(this::initializeQuery);
+        batch.values().stream().filter(message -> message != null && !hasQuery(message.getId())).forEach(this::initializeQuery);
         batchCount++;
         replayedQueriesCount += batch.size();
         lastReplayRequest = System.currentTimeMillis();
         log.info("Initialized {} queries.", batch.size());
     }
+
+    /**
+     * Whether or not the bolt has the given query id.
+     *
+     * @param id The query id.
+     * @return True if the bolt has the query and false otherwise.
+     */
+    protected abstract boolean hasQuery(String id);
 
     /**
      * Initialize the query contained in the given {@link PubSubMessage}.
