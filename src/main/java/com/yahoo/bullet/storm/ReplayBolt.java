@@ -176,9 +176,9 @@ public class ReplayBolt extends ConfigComponent implements IRichBolt {
 
     private void onQuery(Tuple tuple) {
         String id = tuple.getString(ID_POSITION);
-        byte[] queryData = (byte[]) tuple.getValue(QUERY_POSITION);
+        PubSubMessage message = (PubSubMessage) tuple.getValue(QUERY_POSITION);
         // Batch manager does not add duplicate keys
-        batchManager.add(id, new PubSubMessage(id, queryData));
+        batchManager.add(id, message);
         metrics.setCount(batchedQueriesCount, batchManager.size());
     }
 

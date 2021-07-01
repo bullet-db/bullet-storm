@@ -87,6 +87,11 @@ public class QueryBoltTest {
         }
 
         @Override
+        protected boolean hasQuery(String id) {
+            return false;
+        }
+
+        @Override
         protected void initializeQuery(PubSubMessage message) {
             initializedQueryCount++;
         }

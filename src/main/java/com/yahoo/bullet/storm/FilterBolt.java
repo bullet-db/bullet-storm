@@ -5,10 +5,7 @@
  */
 package com.yahoo.bullet.storm;
 
-import com.yahoo.bullet.common.SerializerDeserializer;
-import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
-import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.QueryCategorizer;
 import com.yahoo.bullet.querying.QueryManager;
@@ -117,32 +114,21 @@ public class FilterBolt extends QueryBolt {
     }
 
     @Override
-    protected void initializeQuery(PubSubMessage message) {
-        initializeQuery(message.getId(), message.getContent(), message.getMetadata());
-    }
-
-    @Override
-    protected void removeQuery(String id) {
-        super.removeQuery(id);
-        manager.removeAndGetQuery(id);
-    }
-
-    private void onQuery(Tuple tuple) {
-        String id = tuple.getString(TopologyConstants.ID_POSITION);
-        byte[] queryData = (byte[]) tuple.getValue(TopologyConstants.QUERY_POSITION);
-        Metadata metadata = (Metadata) tuple.getValue(TopologyConstants.QUERY_METADATA_POSITION);
-        initializeQuery(id, queryData, metadata);
-    }
-
-    private void initializeQuery(String id, byte[] queryData, Metadata metadata) {
+    protected boolean hasQuery(String id) {
         if (manager.hasQuery(id)) {
             log.debug("Duplicate for request {}", id);
             duplicatedCount++;
-            return;
+            return true;
         }
+        return false;
+    }
+
+    @Override
+    protected void initializeQuery(PubSubMessage message) {
+        String id = message.getId();
         try {
-            Query query = SerializerDeserializer.fromBytes(queryData);
-            Querier querier = createQuerier(Querier.Mode.PARTITION, id, query, metadata, config);
+            message = querySerDe.fromMessage(message);
+            Querier querier = createQuerier(Querier.Mode.PARTITION, id, message.getContentAsQuery(), message.getMetadata(), config);
             manager.addQuery(id, querier);
             log.info("Initialized query {} : {}", querier.getRunningQuery().getId(), querier.getRunningQuery().getQueryString());
             log.debug("Initialized query {}", querier);
@@ -151,6 +137,12 @@ public class FilterBolt extends QueryBolt {
         }
         // No need to handle any errors in the Filter Bolt.
         log.error("Failed to initialize query for request {}", id);
+    }
+
+    @Override
+    protected void removeQuery(String id) {
+        super.removeQuery(id);
+        manager.removeAndGetQuery(id);
     }
 
     private void onRecord(Tuple tuple) {

@@ -141,7 +141,7 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
                 log.info("Received {} signal. Relaying to downstream bolts.", Metadata.Signal.REPLAY);
             }
         } else if (message.hasContent()) {
-            collector.emit(QUERY_STREAM, new Values(id, message.getContent(), metadata), id);
+            collector.emit(QUERY_STREAM, new Values(id, message), id);
         } else {
             collector.emit(METADATA_STREAM, new Values(id, metadata), id);
         }
@@ -149,7 +149,7 @@ public class QuerySpout extends ConfigComponent implements IRichSpout {
 
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
-        declarer.declareStream(QUERY_STREAM, new Fields(ID_FIELD, QUERY_FIELD, METADATA_FIELD));
+        declarer.declareStream(QUERY_STREAM, new Fields(ID_FIELD, QUERY_FIELD));
         declarer.declareStream(METADATA_STREAM, new Fields(ID_FIELD, METADATA_FIELD));
         declarer.declareStream(REPLAY_STREAM, new Fields(ID_FIELD, REPLAY_TIMESTAMP_FIELD, REPLAY_ACK_FIELD));
     }

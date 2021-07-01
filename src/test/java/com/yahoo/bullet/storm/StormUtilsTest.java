@@ -121,6 +121,12 @@ public class StormUtilsTest {
     }
 
     @Test
+    public void testConstructor() {
+        // coverage only
+        new StormUtils();
+    }
+
+    @Test
     public void testHookingIntoExistingRecordSource() {
         builder.setSpout("source", new CustomIRichSpout(), 10);
 

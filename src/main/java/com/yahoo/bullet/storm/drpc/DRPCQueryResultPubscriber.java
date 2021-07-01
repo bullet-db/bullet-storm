@@ -7,6 +7,7 @@ package com.yahoo.bullet.storm.drpc;
 
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.common.RandomPool;
+import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
 import com.yahoo.bullet.pubsub.Publisher;
 import com.yahoo.bullet.pubsub.Subscriber;
@@ -128,7 +129,7 @@ public class DRPCQueryResultPubscriber implements Publisher, Subscriber {
     private void handleResponse(String id, Response response) {
         if (response == null || response.getStatusCode() != OK_200) {
             log.error("Handling error for id {} with response {}", id, response);
-            responses.offer(new PubSubMessage(id, DRPCError.CANNOT_REACH_DRPC.asJSONClip(), null));
+            responses.offer(new PubSubMessage(id, DRPCError.CANNOT_REACH_DRPC.asJSONClip(), (Metadata) null));
             return;
         }
         log.info("Received for id {}: {} {}", response.getStatusCode(), id, response.getStatusText());

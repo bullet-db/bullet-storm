@@ -8,6 +8,7 @@ package com.yahoo.bullet.storm;
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
+import com.yahoo.bullet.pubsub.PubSubMessageSerDe;
 import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.querying.Querier;
 import com.yahoo.bullet.querying.RunningQuery;
@@ -21,7 +22,6 @@ import org.apache.storm.tuple.Values;
 
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import static com.yahoo.bullet.storm.BulletStormConfig.REPLAY_BATCH_COMPRESS_ENABLE;
@@ -41,6 +41,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     private static final long serialVersionUID = 4567140628827887965L;
 
     protected transient BulletMetrics metrics;
+    protected transient PubSubMessageSerDe querySerDe;
     protected transient OutputCollector collector;
     protected transient TupleClassifier classifier;
     protected transient String componentTaskID;
@@ -71,6 +72,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         componentTaskID = context.getThisComponentId() + HYPHEN + context.getThisTaskId();
         // Enable built-in metrics
         metrics = new BulletMetrics(config);
+        querySerDe = PubSubMessageSerDe.from(config);
         startTimestamp = System.currentTimeMillis();
         replayEnabled = config.getAs(REPLAY_ENABLE, Boolean.class);
         replayBatchCompressEnable = config.getAs(REPLAY_BATCH_COMPRESS_ENABLE, Boolean.class);
@@ -123,6 +125,19 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
     }
 
     /**
+     * Handles a query message.
+     *
+     * @param tuple The query tuple.
+     */
+    protected void onQuery(Tuple tuple) {
+        PubSubMessage message = (PubSubMessage) tuple.getValue(TopologyConstants.QUERY_POSITION);
+        if (hasQuery(message.getId())) {
+            return;
+        }
+        initializeQuery(querySerDe.toMessage(message));
+    }
+
+    /**
      * Handles a batch message for query replay.
      *
      * @param tuple The batch tuple.
@@ -150,12 +165,20 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
             return;
         }
         removedIds.removeIf(batch.keySet()::remove);
-        batch.values().stream().filter(Objects::nonNull).forEach(this::initializeQuery);
+        batch.values().stream().filter(message -> message != null && !hasQuery(message.getId())).forEach(this::initializeQuery);
         batchCount++;
         replayedQueriesCount += batch.size();
         lastReplayRequest = System.currentTimeMillis();
         log.info("Initialized {} queries.", batch.size());
     }
+
+    /**
+     * Whether or not the bolt has the given query id.
+     *
+     * @param id The query id.
+     * @return True if the bolt has the query and false otherwise.
+     */
+    protected abstract boolean hasQuery(String id);
 
     /**
      * Initialize the query contained in the given {@link PubSubMessage}.

@@ -7,8 +7,10 @@ package com.yahoo.bullet.storm;
 
 import com.yahoo.bullet.common.BulletConfig;
 import com.yahoo.bullet.common.SerializerDeserializer;
+import com.yahoo.bullet.pubsub.ByteArrayPubSubMessageSerDe;
 import com.yahoo.bullet.pubsub.Metadata;
 import com.yahoo.bullet.pubsub.PubSubMessage;
+import com.yahoo.bullet.pubsub.PubSubMessageSerDe;
 import com.yahoo.bullet.query.Field;
 import com.yahoo.bullet.query.Query;
 import com.yahoo.bullet.query.Window;
@@ -100,8 +102,8 @@ public class FilterBoltTest {
     private CustomCollector collector;
     private FilterBolt bolt;
     private BulletStormConfig config;
-    private static final Metadata METADATA = new Metadata();
     private static BulletRecordProvider provider = new BulletStormConfig().getBulletRecordProvider();
+    private static PubSubMessageSerDe querySerDe = new ByteArrayPubSubMessageSerDe(new BulletConfig());
 
     private static class NoQueryFilterBolt extends FilterBolt {
         NoQueryFilterBolt() {
@@ -195,7 +197,7 @@ public class FilterBoltTest {
         result &= actual.get(0).equals(expected.get(0));
         return result;
     }
-    
+
     private boolean tupleEquals(List<Object> actual, Tuple expectedTuple) {
         List<Object> expected = expectedTuple.getValues();
         boolean result = isSameTuple(actual, expected);
@@ -204,7 +206,7 @@ public class FilterBoltTest {
         byte[] expectedRecordList = (byte[]) expected.get(1);
         return result && Arrays.equals(actualRecordList, expectedRecordList);
     }
-    
+
     private boolean wasRawRecordEmittedTo(String stream, int times, Tuple expectedTuple) {
         return collector.getTuplesEmittedTo(stream).filter(t -> tupleEquals(t, expectedTuple)).count() == times;
     }
@@ -236,6 +238,10 @@ public class FilterBoltTest {
         return config;
     }
 
+    private static PubSubMessage makeQueryPubSubMessage(String id, Query query) {
+        return querySerDe.toMessage(id, query, null);
+    }
+
     @BeforeMethod
     public void setup() {
         collector = new CustomCollector();
@@ -263,8 +269,7 @@ public class FilterBoltTest {
         Query queryObject = makeProjectionQuery(Arrays.asList(new Field("id", new FieldExpression("field")),
                                                               new Field("mid", new FieldExpression("map_field", "id"))));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -281,7 +286,10 @@ public class FilterBoltTest {
 
     @Test
     public void testBadBytes() {
-        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", new byte[0], METADATA);
+        PubSubMessage message = makeQueryPubSubMessage("42", null);
+        message.setContent(new byte[0]);
+
+        Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42", message);
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -297,8 +305,7 @@ public class FilterBoltTest {
     @Test
     public void testFiltering() {
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -324,8 +331,7 @@ public class FilterBoltTest {
                                                       Arrays.asList(new Field("id", new FieldExpression("field")),
                                                                     new Field("mid", new FieldExpression("map_field", "id"))));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -348,8 +354,7 @@ public class FilterBoltTest {
                                                       Arrays.asList(new Field("id", new FieldExpression("field")),
                                                                     new Field("mid", new FieldExpression("map_field", "id"))));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -372,8 +377,7 @@ public class FilterBoltTest {
                                                       Arrays.asList(new Field("id", new FieldExpression("field")),
                                                                     new Field("mid", new FieldExpression("map_field", "id"))));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").add("timestamp", 92L)
@@ -392,8 +396,7 @@ public class FilterBoltTest {
     public void testFilteringSlidingWindow() {
         Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
         Tuple matching = makeRecordTuple(record);
@@ -410,11 +413,9 @@ public class FilterBoltTest {
     @Test
     public void testDifferentQueryMatchingSameTuple() {
         Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                   SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                   METADATA);
+                                   makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
-                                   SerializerDeserializer.toBytes(makeFilterQuery("timestamp", asList(1L, 2L, 3L, 45L), EQUALS_ANY)),
-                                   METADATA);
+                                   makeQueryPubSubMessage("43", makeFilterQuery("timestamp", asList(1L, 2L, 3L, 45L), EQUALS_ANY)));
         bolt.execute(queryA);
         bolt.execute(queryB);
 
@@ -433,11 +434,9 @@ public class FilterBoltTest {
     @Test
     public void testDifferentQueryMatchingDifferentTuple() {
         Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                   SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                   METADATA);
+                                   makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
-                                   SerializerDeserializer.toBytes(makeFilterQuery("timestamp", asList(1L, 2L, 3L, 45L), NOT_EQUALS_ALL)),
-                                   METADATA);
+                                   makeQueryPubSubMessage("43", makeFilterQuery("timestamp", asList(1L, 2L, 3L, 45L), NOT_EQUALS_ALL)));
         bolt.execute(queryA);
         bolt.execute(queryB);
 
@@ -461,11 +460,9 @@ public class FilterBoltTest {
     @Test
     public void testDuplicateQueryIds() {
         Tuple queryA = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                   SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                   METADATA);
+                                   makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         Tuple queryB = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "43",
-                                   SerializerDeserializer.toBytes(makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS)),
-                                   METADATA);
+                                   makeQueryPubSubMessage("43", makeFilterQuery("timestamp", asList("1", "2", "3", "45"), NOT_EQUALS)));
 
         Assert.assertEquals(bolt.getManager().size(), 0);
 
@@ -485,8 +482,7 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new NoQueryFilterBolt(), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -502,8 +498,7 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -523,8 +518,7 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         bolt.execute(query);
 
         BulletRecord nonMatching = RecordBox.get().add("field", "foo").getRecord();
@@ -548,8 +542,7 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new DonableFilterBolt(), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -593,8 +586,7 @@ public class FilterBoltTest {
                                                  OR);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeFilterQuery(filter)),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeFilterQuery(filter)));
         bolt.execute(query);
 
         // first clause is true : field == "abc", experience == "app" or "tv", mid > 10
@@ -629,8 +621,7 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new FilterBolt("CustomSource", oneRecordConfig()), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("b235gf23b")),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeFieldFilterQuery("b235gf23b")));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -660,8 +651,7 @@ public class FilterBoltTest {
         Query queryObject = makeGroupAllFieldFilterQuery("timestamp", asList("1", "2"), EQUALS_ANY,
                                                          singletonList(new GroupOperation(COUNT, null, "cnt")));
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("timestamp", "1").getRecord();
@@ -693,8 +683,7 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new DonableFilterBolt(256, config), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeCountDistinctQuery(singletonList("field"), "count")),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeCountDistinctQuery(singletonList("field"), "count")));
         bolt.execute(query);
 
         IntStream.range(0, 256).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
@@ -724,8 +713,7 @@ public class FilterBoltTest {
     public void testNoConsumptionAfterDone() {
         Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -756,8 +744,7 @@ public class FilterBoltTest {
         bolt = ComponentUtils.prepare(new DonableFilterBolt(101, config), collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeDistributionQuery(10, DistributionType.PMF, "field", 3)),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeDistributionQuery(10, DistributionType.PMF, "field", 3)));
         bolt.execute(query);
 
         IntStream.range(0, 101).mapToObj(i -> RecordBox.get().add("field", i).getRecord())
@@ -809,8 +796,7 @@ public class FilterBoltTest {
         fields.put("B", "foo");
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeTopKQuery(5, null, "cnt", fields)),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeTopKQuery(5, null, "cnt", fields)));
         bolt.execute(query);
 
         IntStream.range(0, 8).mapToObj(i -> RecordBox.get().add("A", i).getRecord())
@@ -856,8 +842,7 @@ public class FilterBoltTest {
         ComponentUtils.prepare(new HashMap<>(), bolt, context, collector);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(makeFieldFilterQuery("bar")),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", makeFieldFilterQuery("bar")));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "foo").getRecord();
@@ -879,8 +864,7 @@ public class FilterBoltTest {
         Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 100, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -904,8 +888,7 @@ public class FilterBoltTest {
 
         Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 100, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -925,8 +908,7 @@ public class FilterBoltTest {
     public void testKillSignal() {
         Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -952,8 +934,7 @@ public class FilterBoltTest {
         Query queryObject = makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1);
 
         Tuple query = makeIDTuple(TupleClassifier.Type.QUERY_TUPLE, "42",
-                                  SerializerDeserializer.toBytes(queryObject),
-                                  METADATA);
+                                  makeQueryPubSubMessage("42", queryObject));
         bolt.execute(query);
 
         BulletRecord record = RecordBox.get().add("field", "b235gf23b").getRecord();
@@ -1013,8 +994,8 @@ public class FilterBoltTest {
 
         Map<String, PubSubMessage> batch = new HashMap<>();
 
-        batch.put("42", new PubSubMessage("42", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
-        batch.put("43", new PubSubMessage("43", SerializerDeserializer.toBytes(makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)), new Metadata()));
+        batch.put("42", makeQueryPubSubMessage("42", makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)));
+        batch.put("43", makeQueryPubSubMessage("43", makeSimpleAggregationFieldFilterQuery("b235gf23b", 5, Window.Unit.RECORD, 1, Window.Unit.RECORD, 1)));
 
         Tuple tuple = makeIDTuple(TupleClassifier.Type.BATCH_TUPLE, "FilterBolt-18");
         when(tuple.getLong(REPLAY_TIMESTAMP_POSITION)).thenReturn(bolt.startTimestamp);

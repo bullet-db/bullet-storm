@@ -65,7 +65,7 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getReceived().size(), 1);
         Assert.assertEquals(subscriber.getReceived().get(0), messageA);
 
-        Tuple emittedFirst = TupleUtils.makeTuple(TupleClassifier.Type.QUERY_TUPLE, messageA.getId(), messageA.getContent(), messageA.getMetadata());
+        Tuple emittedFirst = TupleUtils.makeTuple(TupleClassifier.Type.QUERY_TUPLE, messageA.getId(), messageA);
         Assert.assertEquals(emitter.getEmitted().size(), 1);
         Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
 
@@ -76,7 +76,7 @@ public class QuerySpoutTest {
         Assert.assertEquals(subscriber.getReceived().get(0), messageA);
         Assert.assertEquals(subscriber.getReceived().get(1), messageB);
 
-        Tuple emittedSecond = TupleUtils.makeTuple(TupleClassifier.Type.QUERY_TUPLE, messageB.getId(), messageB.getContent(), messageB.getMetadata());
+        Tuple emittedSecond = TupleUtils.makeTuple(TupleClassifier.Type.QUERY_TUPLE, messageB.getId(), messageB);
         Assert.assertEquals(emitter.getEmitted().size(), 2);
         Assert.assertTrue(emitter.wasNthEmitted(emittedFirst, 1));
         Assert.assertTrue(emitter.wasNthEmitted(emittedSecond, 2));
@@ -125,7 +125,7 @@ public class QuerySpoutTest {
     @Test
     public void testNextTupleCommitsWhenMetadataIsNull() {
         // Add message with null metadata
-        subscriber.addMessages(new PubSubMessage("", "", null));
+        subscriber.addMessages(new PubSubMessage("", "", (Metadata) null));
 
         Assert.assertEquals(subscriber.getReceived().size(), 0);
         Assert.assertEquals(subscriber.getCommitted().size(), 0);
@@ -175,7 +175,7 @@ public class QuerySpoutTest {
     public void testDeclaredOutputFields() {
         CustomOutputFieldsDeclarer declarer = new CustomOutputFieldsDeclarer();
         spout.declareOutputFields(declarer);
-        Fields expectedQueryFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.QUERY_FIELD, TopologyConstants.METADATA_FIELD);
+        Fields expectedQueryFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.QUERY_FIELD);
         Fields expectedMetadataFields = new Fields(TopologyConstants.ID_FIELD, TopologyConstants.METADATA_FIELD);
         Assert.assertTrue(declarer.areFieldsPresent(TopologyConstants.QUERY_STREAM, false, expectedQueryFields));
         Assert.assertTrue(declarer.areFieldsPresent(TopologyConstants.METADATA_STREAM, false, expectedMetadataFields));
