@@ -134,7 +134,7 @@ public abstract class QueryBolt extends ConfigComponent implements IRichBolt {
         if (hasQuery(message.getId())) {
             return;
         }
-        initializeQuery(querySerDe.toMessage(message));
+        initializeQuery(message);
     }
 
     /**
