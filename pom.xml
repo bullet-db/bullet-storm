@@ -93,17 +93,6 @@
             <version>1.16.4</version>
             <scope>provided</scope>
         </dependency>
-        <dependency>
-            <groupId>org.apache.storm</groupId>
-            <artifactId>storm-metrics</artifactId>
-            <version>${storm.metrics.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.storm</groupId>
-            <artifactId>storm-core</artifactId>
-            <version>${storm.version}</version>
-            <scope>provided</scope>
-        </dependency>
         <!--  Technically the log4j binding brings this in but adding it explicitly to control versions and state the obvious -->
         <dependency>
             <groupId>org.slf4j</groupId>
@@ -145,6 +134,18 @@
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.7</version>
+        </dependency>
+        <!-- Put storm last so that its transitives like log4j don't override ours -->
+        <dependency>
+            <groupId>org.apache.storm</groupId>
+            <artifactId>storm-metrics</artifactId>
+            <version>${storm.metrics.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.storm</groupId>
+            <artifactId>storm-core</artifactId>
+            <version>${storm.version}</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 
